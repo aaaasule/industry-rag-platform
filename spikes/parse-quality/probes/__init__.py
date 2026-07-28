@@ -5,6 +5,7 @@
 
 from probes.base import DocSnapshot, Finding, Level, PageSnapshot, Probe, Span, worst
 from probes.bbox import BBoxProbe
+from probes.encoding import EncodingProbe
 from probes.header_footer import HeaderFooterProbe
 from probes.heading import HeadingProbe
 from probes.table import TableProbe
@@ -14,6 +15,7 @@ from probes.text_layer import TextLayerProbe
 def default_probes(with_tables: bool = True) -> list[Probe]:
     probes: list[Probe] = [
         TextLayerProbe(),
+        EncodingProbe(),
         BBoxProbe(),
         HeadingProbe(),
         HeaderFooterProbe(),
@@ -26,6 +28,7 @@ def default_probes(with_tables: bool = True) -> list[Probe]:
 __all__ = [
     "BBoxProbe",
     "DocSnapshot",
+    "EncodingProbe",
     "Finding",
     "HeaderFooterProbe",
     "HeadingProbe",
