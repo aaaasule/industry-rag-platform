@@ -1,2 +1,31 @@
 # industry-rag-platform
-industry-rag-platform
+
+面向多行业的工业知识库平台。把企业内部散落的设备手册、工艺规程、维修工单、安全规范变成可用自然语言检索、且每句回答都能追溯到原文页面与位置的知识资产。
+
+## 核心特性
+
+- **多租户 + 行业可配置**：解析规则、分块策略、提示词、元数据 schema 全部由行业 profile 驱动，新增行业不改代码
+- **引用溯源到坐标**：回答中的每个 `[n]` 都可点击跳转到原文页面并高亮对应区域
+- **混合检索**：向量检索处理语义化提问，全文检索精确命中型号、标准号、错误码，RRF 融合
+- **敢拒答**：无有效证据时明确拒答并引导补充资料，而不是编造
+
+## 技术栈
+
+后端 Python 3.11 + FastAPI + SQLAlchemy 2.0 + Celery，存储 PostgreSQL 16 + pgvector + S3 兼容对象存储，前端 React 18 + TypeScript + Vite + TanStack Query + Tailwind。
+
+## 项目状态
+
+设计阶段。代码尚未开始，完整设计文档见 [`docs/`](./docs/README.md)。
+
+| 文档 | 内容 |
+| --- | --- |
+| [01 架构设计](./docs/01-architecture.md) | 目标与范围、总体架构、模块划分、技术选型、ADR |
+| [02 数据模型](./docs/02-data-model.md) | ER 模型、DDL、多租户隔离、索引策略 |
+| [03 API 设计](./docs/03-api.md) | 接口约定、端点清单、SSE 事件流、前端映射 |
+| [04 RAG 流水线](./docs/04-rag-pipeline.md) | 解析、分块、检索、生成、评测、排查手册 |
+| [05 部署与运维](./docs/05-deployment.md) | 仓库结构、编排、可观测性、容量与成本 |
+| [06 路线图](./docs/06-roadmap.md) | 里程碑拆解、验收标准、风险登记表 |
+
+## License
+
+见 [LICENSE](./LICENSE)。
