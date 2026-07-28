@@ -16,12 +16,16 @@ LEVEL_ORDER: dict[Level, int] = {"skip": 0, "ok": 1, "warn": 2, "fail": 3}
 
 @dataclass(frozen=True)
 class Span:
-    """一段样式连续的文本，是版面分析的最小单位。"""
+    """一段样式连续的文本，是版面分析的最小单位。
+
+    confidence 仅 OCR 来源的 span 有值。文本层提取是确定性的，没有置信度可言。
+    """
 
     text: str
     bbox: tuple[float, float, float, float]
     size: float
     bold: bool
+    confidence: float | None = None
 
 
 @dataclass(frozen=True)
@@ -32,6 +36,8 @@ class PageSnapshot:
     char_count: int
     image_area_ratio: float
     spans: list[Span]
+    source: Literal["text", "ocr"] = "text"
+    ocr_ms: int = 0
 
     @property
     def plain_text(self) -> str:

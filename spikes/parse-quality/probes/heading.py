@@ -12,7 +12,10 @@ from collections import Counter
 
 from probes.base import DocSnapshot, Finding, PageSnapshot, Span
 
-NUMBERING = re.compile(r"^\d+(\.\d+)*[\s、.．]")
+# 编号后允许直接跟中文：国标文档普遍写成「1范围」「4.1企业应制定…」而非「1 范围」。
+# 原规则要求编号后必须有分隔符，在真实 AQ 标准上一条都匹配不到。
+NUMBERING = re.compile(r"^\d+(\.\d+)*(?:[\s、.．]|(?=[\u4e00-\u9fff])|$)")
+CLAUSE_INLINE = re.compile(r"^\d+(\.\d+)+(?=[\u4e00-\u9fff])")
 SCORE_THRESHOLD = 3
 MAX_HEADING_CHARS = 40
 
@@ -51,6 +54,26 @@ class HeadingProbe:
                 impact="识别为 0 时结构感知分块退化为长度切分，需回改 04 文档 3.1",
             ),
         ]
+
+        clauses = [
+            span
+            for page in doc.pages
+            for span in page.spans
+            if CLAUSE_INLINE.match(span.text.strip())
+        ]
+        if clauses:
+            findings.append(
+                Finding(
+                    metric="条款式内联编号",
+                    value=f"{len(clauses)} 行",
+                    level="warn",
+                    note=f"样例：{clauses[0].text.strip()[:38]}…",
+                    impact=(
+                        "标准类文档的结构单位是行首条款号而非独立标题行，"
+                        "分块需按条款边界切分，仅靠标题层级会把整章并成一块"
+                    ),
+                )
+            )
 
         numbered = sum(1 for _, span in headings if NUMBERING.match(span.text.strip()))
         if headings:

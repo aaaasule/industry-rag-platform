@@ -2,3 +2,7 @@
 PyMuPDF==1.24.14      # 主解析器：文本、字符级 bbox、图片信息、页面渲染
 pdfplumber==0.11.4    # 仅用于表格结构检测，见 04 文档 2.1 的混用说明
 rich==13.9.4          # 控制台报告；缺失时脚本自动降级为纯文本输出
+
+# OCR 分支（--ocr）才需要，约 100 MB。与设计文档写的 PaddleOCR 是同一套 PP-OCRv4
+# 模型，但走 ONNX Runtime，不必安装 paddlepaddle，macOS ARM 上开箱即用。
+rapidocr-onnxruntime==1.4.4

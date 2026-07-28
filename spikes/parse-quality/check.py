@@ -4,8 +4,9 @@
 在写任何摄取代码之前，用真实文档验证 docs/04-rag-pipeline.md 里的解析假设
 是否成立。退出码：0 全部通过，1 存在需关注项，2 存在不通过项。
 
-    python check.py ~/samples                    # 体检整个目录
-    python check.py a.pdf b.pdf --render 1,2,5   # 顺带导出坐标可视化
+    python check.py ~/samples                     # 体检整个目录
+    python check.py a.pdf b.pdf --render 1,2,5    # 顺带导出坐标可视化
+    python check.py ~/samples --ocr --ocr-pages 3 # 对扫描页跑 OCR 并一并体检
 """
 
 from __future__ import annotations
@@ -32,10 +33,13 @@ def main(argv: list[str] | None = None) -> int:
 
     probes = default_probes(with_tables=not args.no_tables)
     render_pages = _parse_pages(args.render)
+    ocr_engine = _build_ocr_engine(args)
+    if ocr_engine is None and args.ocr:
+        return EXIT_FAIL
 
     results = []
     for path in pdfs:
-        result = _check_one(path, probes, args, render_pages)
+        result = _check_one(path, probes, args, render_pages, ocr_engine)
         if result is not None:
             print_document(result)
             results.append(result)
@@ -49,17 +53,45 @@ def main(argv: list[str] | None = None) -> int:
     return {"ok": EXIT_OK, "skip": EXIT_OK, "warn": EXIT_WARN, "fail": EXIT_FAIL}[overall]
 
 
-def _check_one(path: pathlib.Path, probes, args, render_pages: list[int]) -> DocResult | None:
+def _build_ocr_engine(args):
+    if not args.ocr:
+        return None
     try:
-        doc = extract.load(path, max_pages=args.max_pages)
+        import ocr
+
+        return ocr.OcrEngine(dpi=args.ocr_dpi)
+    except ImportError:
+        print(
+            "未安装 OCR 依赖，请执行：pip install rapidocr-onnxruntime",
+            file=sys.stderr,
+        )
+        return None
+
+
+def _check_one(
+    path: pathlib.Path, probes, args, render_pages: list[int], ocr_engine
+) -> DocResult | None:
+    try:
+        doc = extract.load(
+            path,
+            max_pages=args.max_pages,
+            ocr_engine=ocr_engine,
+            ocr_page_limit=args.ocr_pages,
+        )
     except Exception:  # 解析直接崩溃本身就是重要结论，不能让它中断整批体检
         print(f"[!] {path.name} 解析失败：", file=sys.stderr)
         traceback.print_exc()
         return None
 
-    findings = {probe.name: probe.run(doc) for probe in probes}
+    # 探针返回空列表表示"本文档不适用"（如无 OCR 页时的 OCR 探针），不占报告篇幅
+    findings = {}
+    for probe in probes:
+        result = probe.run(doc)
+        if result:
+            findings[probe.name] = result
+
     rendered = (
-        render.render_overlay(path, args.out.parent / "overlay", render_pages)
+        render.render_overlay(doc, args.out.parent / "overlay", render_pages)
         if render_pages
         else []
     )
@@ -102,6 +134,14 @@ def _parse_args(argv: list[str] | None) -> argparse.Namespace:
         "--render", type=str, default=None, help="导出坐标可视化的页码，逗号分隔，如 1,2,5"
     )
     parser.add_argument("--no-tables", action="store_true", help="跳过表格检测（pdfplumber 较慢）")
+    parser.add_argument("--ocr", action="store_true", help="对判定为扫描页的页面执行 OCR")
+    parser.add_argument(
+        "--ocr-pages",
+        type=int,
+        default=None,
+        help="每份文档最多 OCR 多少页（OCR 很慢，抽样验证时务必设置）",
+    )
+    parser.add_argument("--ocr-dpi", type=int, default=200, help="OCR 渲染 DPI，默认 200")
     return parser.parse_args(argv)
 
 

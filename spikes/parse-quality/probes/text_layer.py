@@ -14,6 +14,13 @@ IMAGE_RATIO_THRESHOLD = 0.5
 
 
 def needs_ocr(page: PageSnapshot) -> bool:
+    """判定一页是否需要 OCR。
+
+    已经被 OCR 处理过的页面直接算作"需要"——否则开启 --ocr 后本项指标会因为
+    页面已有文本而归零，正好把它要度量的成本给隐藏掉。
+    """
+    if page.source == "ocr":
+        return True
     return page.char_count < CHAR_THRESHOLD and page.image_area_ratio > IMAGE_RATIO_THRESHOLD
 
 

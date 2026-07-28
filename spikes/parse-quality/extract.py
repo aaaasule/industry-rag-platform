@@ -15,16 +15,26 @@ except ImportError:  # PyMuPDF < 1.24 只暴露 fitz 这个模块名
     import fitz  # type: ignore[no-redef]
 
 from probes.base import DocSnapshot, PageSnapshot, Span
+from probes.text_layer import needs_ocr
 
 _BOLD_FLAG = 1 << 4
 _TEXT_BLOCK = 0
 
 
-def load(path: pathlib.Path, max_pages: int | None = None) -> DocSnapshot:
+def load(
+    path: pathlib.Path,
+    max_pages: int | None = None,
+    ocr_engine=None,
+    ocr_page_limit: int | None = None,
+) -> DocSnapshot:
+    """读取文档；传入 ocr_engine 时，对判定为扫描页的页面回退到 OCR。
+
+    回退产出的 PageSnapshot 与文本层结构完全一致，因此下游探针无需区分来源。
+    """
     doc = fitz.open(path)
     try:
         limit = doc.page_count if max_pages is None else min(max_pages, doc.page_count)
-        pages = [_snapshot_page(doc[i]) for i in range(limit)]
+        pages = _snapshot_pages(doc, limit, ocr_engine, ocr_page_limit)
         return DocSnapshot(
             path=str(path),
             file_size=path.stat().st_size,
@@ -35,6 +45,19 @@ def load(path: pathlib.Path, max_pages: int | None = None) -> DocSnapshot:
         )
     finally:
         doc.close()
+
+
+def _snapshot_pages(doc, limit: int, ocr_engine, ocr_page_limit: int | None) -> list[PageSnapshot]:
+    pages: list[PageSnapshot] = []
+    ocr_done = 0
+    for i in range(limit):
+        snapshot = _snapshot_page(doc[i])
+        if ocr_engine and needs_ocr(snapshot):
+            if ocr_page_limit is None or ocr_done < ocr_page_limit:
+                snapshot = ocr_engine.run_page(doc[i])
+                ocr_done += 1
+        pages.append(snapshot)
+    return pages
 
 
 def _snapshot_page(page) -> PageSnapshot:

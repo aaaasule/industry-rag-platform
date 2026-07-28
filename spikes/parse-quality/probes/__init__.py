@@ -8,6 +8,7 @@ from probes.bbox import BBoxProbe
 from probes.encoding import EncodingProbe
 from probes.header_footer import HeaderFooterProbe
 from probes.heading import HeadingProbe
+from probes.ocr_quality import OcrQualityProbe
 from probes.table import TableProbe
 from probes.text_layer import TextLayerProbe
 
@@ -15,6 +16,7 @@ from probes.text_layer import TextLayerProbe
 def default_probes(with_tables: bool = True) -> list[Probe]:
     probes: list[Probe] = [
         TextLayerProbe(),
+        OcrQualityProbe(),
         EncodingProbe(),
         BBoxProbe(),
         HeadingProbe(),
@@ -33,6 +35,7 @@ __all__ = [
     "HeaderFooterProbe",
     "HeadingProbe",
     "Level",
+    "OcrQualityProbe",
     "PageSnapshot",
     "Probe",
     "Span",
