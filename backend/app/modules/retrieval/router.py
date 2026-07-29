@@ -42,6 +42,8 @@ async def search(
     )
     result = await service.search(
         tenant_id=claims.tenant_id,
+        user_id=claims.user_id,
+        role=claims.role,
         query=payload.query,
         kb_ids=payload.kb_ids,
         top_k=payload.top_k,

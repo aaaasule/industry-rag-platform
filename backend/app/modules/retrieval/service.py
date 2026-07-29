@@ -7,6 +7,7 @@ import uuid
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.modules.identity.permissions import PERM_READ, visible_kb_ids
 from app.modules.ingestion.chunkers.tsv import build_tsv
 from app.modules.ingestion.parsers.normalize import normalize
 from app.modules.retrieval.base import SearchHit, SearchOptions, SearchResult
@@ -35,6 +36,8 @@ class RetrievalService:
         self,
         *,
         tenant_id: uuid.UUID,
+        user_id: uuid.UUID,
+        role: str,
         query: str,
         kb_ids: list[uuid.UUID] | None,
         top_k: int = 8,
@@ -43,7 +46,13 @@ class RetrievalService:
         opts = options or SearchOptions()
         t0 = time.perf_counter()
 
-        visible = await self._repo.list_visible_kb_ids(tenant_id)
+        visible = await visible_kb_ids(
+            self._session,
+            tenant_id=tenant_id,
+            user_id=user_id,
+            role=role,
+            permission=PERM_READ,
+        )
         visible_set = set(visible)
         if kb_ids is None or len(kb_ids) == 0:
             resolved = visible

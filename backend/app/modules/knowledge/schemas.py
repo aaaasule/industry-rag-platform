@@ -109,3 +109,17 @@ class ChunkOut(BaseModel):
     page_end: int
     bboxes: list[dict[str, Any]]
     chunk_type: str
+
+
+class GrantUpsert(BaseModel):
+    permission: str = Field(pattern="^(read|write|manage)$")
+
+
+class GrantOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    kb_id: uuid.UUID
+    user_id: uuid.UUID
+    permission: str
+    created_at: datetime
