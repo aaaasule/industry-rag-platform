@@ -20,6 +20,8 @@ dependencies = [
     "python-multipart>=0.0.17",
     "httpx>=0.28",
     "boto3>=1.35",
+    "pymupdf>=1.24",
+    "jieba>=0.42",
 ]
 
 [project.optional-dependencies]
@@ -30,6 +32,9 @@ dev = [
     "ruff>=0.8",
     "mypy>=1.13",
     "types-boto3>=1.35",
+]
+ocr = [
+    "rapidocr-onnxruntime>=1.3",
 ]
 
 [build-system]
@@ -69,6 +74,10 @@ disallow_untyped_defs = false
 # Celery 至今不提供 py.typed
 [[tool.mypy.overrides]]
 module = ["celery.*"]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = ["jieba.*", "pymupdf.*", "fitz.*", "rapidocr_onnxruntime.*"]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]

@@ -19,19 +19,18 @@ export function OverviewPage() {
       </div>
 
       <section className="rounded-xl border border-slate-200 bg-white p-5">
-        <h2 className="text-sm font-medium text-slate-900">M0 工程骨架已就绪</h2>
+        <h2 className="text-sm font-medium text-slate-900">M1 摄取链路开发中</h2>
         <ul className="mt-3 space-y-1.5 text-sm text-slate-600">
-          <li>· 认证、租户切换、RLS 隔离已打通</li>
-          <li>· Provider 抽象层就位，当前使用 Fake 实现</li>
-          <li>· 下一步 M1：文档上传、解析、分块与向量化</li>
+          <li>· 知识库 CRUD、文档上传与摄取进度轮询已就绪</li>
+          <li>· 解析 / 分块 / 嵌入由 Celery 双队列异步执行</li>
+          <li>· 下一步 M2：混合检索与流式问答</li>
         </ul>
       </section>
     </div>
   );
 }
 
-export const KnowledgePlaceholder = () => <Placeholder title="知识库" milestone="M1" />;
-export const ChatPlaceholder = () => <Placeholder title="问答" milestone="M3" />;
+export const ChatPlaceholder = () => <Placeholder title="问答" milestone="M2" />;
 export const ModelOpsPlaceholder = () => <Placeholder title="模型接入管理" milestone="M4" />;
 
 function Placeholder({ title, milestone }: { title: string; milestone: string }) {

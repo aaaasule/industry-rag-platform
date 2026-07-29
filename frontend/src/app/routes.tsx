@@ -1,10 +1,12 @@
 import { createBrowserRouter } from 'react-router-dom';
 
 import { LoginPage } from '@/features/auth/LoginPage';
+import { KbDetailPage } from '@/features/knowledge/KbDetailPage';
+import { KnowledgePage } from '@/features/knowledge/KnowledgePage';
 import { AppLayout } from './AppLayout';
 import { RequireAuth } from './RequireAuth';
 import { OverviewPage } from './placeholders';
-import { ChatPlaceholder, KnowledgePlaceholder, ModelOpsPlaceholder } from './placeholders';
+import { ChatPlaceholder, ModelOpsPlaceholder } from './placeholders';
 
 export const router = createBrowserRouter([
   { path: '/login', element: <LoginPage /> },
@@ -17,8 +19,8 @@ export const router = createBrowserRouter([
     ),
     children: [
       { index: true, element: <OverviewPage /> },
-      // 各业务页在 M1-M4 逐个替换，路由结构此时已定型
-      { path: 'knowledge', element: <KnowledgePlaceholder /> },
+      { path: 'knowledge', element: <KnowledgePage /> },
+      { path: 'knowledge/:kbId', element: <KbDetailPage /> },
       { path: 'chat', element: <ChatPlaceholder /> },
       { path: 'modelops', element: <ModelOpsPlaceholder /> },
     ],
