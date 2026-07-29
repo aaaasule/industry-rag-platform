@@ -14,13 +14,19 @@ from app.modules.retrieval.schemas import (
     SearchStats,
 )
 from app.modules.retrieval.service import RetrievalService
-from app.platform.deps import ClaimsDep, EmbeddingDep, RerankDep, SettingsDep, TenantSessionDep
+from app.platform.deps import (
+    ClaimsDep,
+    ResolvedEmbeddingDep,
+    ResolvedRerankDep,
+    SettingsDep,
+    TenantSessionDep,
+)
 
 router = APIRouter(tags=["retrieval"])
 
 
 def _service(
-    session: TenantSessionDep, embedding: EmbeddingDep, rerank: RerankDep
+    session: TenantSessionDep, embedding: ResolvedEmbeddingDep, rerank: ResolvedRerankDep
 ) -> RetrievalService:
     return RetrievalService(session, embedding, repo=RetrievalRepository(session), rerank=rerank)
 

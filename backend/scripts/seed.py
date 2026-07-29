@@ -109,12 +109,100 @@ async def seed() -> None:
         sys.exit(1)
 
     await _seed_builtin_profiles()
+    await _seed_platform_model_connections()
     tenant_ids, user_ids = await _seed_principals()
     for slug, tenant_id in tenant_ids.items():
         rows = [(email, role) for s, email, role in MEMBERSHIPS if s == slug]
         await _seed_memberships(slug, tenant_id, user_ids, rows)
 
     logger.info("seed_completed", password=SEED_PASSWORD)
+
+
+async def _seed_platform_model_connections() -> None:
+    """从 IRP_* 环境变量幂等写入平台级接入点（迁移角色绕过 RLS）。"""
+    from app.modules.modelops.credentials import credential_hint, encrypt_credential
+    from app.modules.modelops.models import (
+        PURPOSE_CHAT,
+        PURPOSE_EMBEDDING,
+        PURPOSE_RERANK,
+        ModelConnection,
+    )
+
+    settings = get_settings()
+    url = settings.database_migration_url or settings.database_url
+    engine = create_async_engine(url, pool_pre_ping=True)
+    maker = async_sessionmaker(engine, expire_on_commit=False, autoflush=False)
+
+    specs = [
+        (
+            "platform-chat",
+            settings.llm_provider,
+            settings.llm_base_url,
+            settings.llm_api_key.get_secret_value(),
+            settings.llm_model,
+            [PURPOSE_CHAT, "title"],
+            100,
+        ),
+        (
+            "platform-embedding",
+            settings.embedding_provider,
+            settings.resolved_embedding_base_url,
+            settings.resolved_embedding_api_key,
+            settings.embedding_model,
+            [PURPOSE_EMBEDDING],
+            100,
+        ),
+        (
+            "platform-rerank",
+            settings.resolved_rerank_provider,
+            settings.resolved_rerank_base_url,
+            settings.resolved_rerank_api_key,
+            settings.rerank_model,
+            [PURPOSE_RERANK],
+            100,
+        ),
+    ]
+
+    try:
+        async with maker() as session:
+            for name, provider_type, base_url, api_key, model, purposes, priority in specs:
+                exists = (
+                    await session.execute(
+                        select(ModelConnection.id).where(
+                            ModelConnection.tenant_id.is_(None),
+                            ModelConnection.name == name,
+                        )
+                    )
+                ).scalar_one_or_none()
+                if exists is not None:
+                    continue
+                extra: dict[str, Any] = {}
+                if PURPOSE_EMBEDDING in purposes:
+                    extra["embedding_dim"] = settings.embedding_dim
+                    extra["batch_size"] = settings.embedding_batch_size
+                if PURPOSE_RERANK in purposes:
+                    extra["rerank_path"] = settings.rerank_path
+                session.add(
+                    ModelConnection(
+                        id=uuid7(),
+                        tenant_id=None,
+                        name=name,
+                        provider_type=provider_type,
+                        base_url=base_url or "http://localhost",
+                        credential_cipher=encrypt_credential(api_key or "", settings),
+                        credential_hint=credential_hint(api_key or ""),
+                        model=model,
+                        purposes=purposes,
+                        priority=priority,
+                        enabled=True,
+                        extra=extra,
+                        version=1,
+                    )
+                )
+                logger.info("platform_connection_created", name=name, purposes=purposes)
+            await session.commit()
+    finally:
+        await engine.dispose()
 
 
 async def _seed_builtin_profiles() -> None:

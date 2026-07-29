@@ -106,6 +106,28 @@ def rerank_provider(request: Request) -> RerankProvider:
     return request.app.state.rerank
 
 
+async def resolved_llm(claims: ClaimsDep, session: TenantSessionDep) -> LLMProvider:
+    from app.modules.modelops.provider_factory import ProviderFactory
+
+    return await ProviderFactory(session).get_llm(claims.tenant_id)
+
+
+async def resolved_embedding(claims: ClaimsDep, session: TenantSessionDep) -> EmbeddingProvider:
+    from app.modules.modelops.provider_factory import ProviderFactory
+
+    return await ProviderFactory(session).get_embedding(claims.tenant_id)
+
+
+async def resolved_rerank(claims: ClaimsDep, session: TenantSessionDep) -> RerankProvider:
+    from app.modules.modelops.provider_factory import ProviderFactory
+
+    return await ProviderFactory(session).get_rerank(claims.tenant_id)
+
+
 LLMDep = Annotated[LLMProvider, Depends(llm_provider)]
 EmbeddingDep = Annotated[EmbeddingProvider, Depends(embedding_provider)]
 RerankDep = Annotated[RerankProvider, Depends(rerank_provider)]
+
+ResolvedLLMDep = Annotated[LLMProvider, Depends(resolved_llm)]
+ResolvedEmbeddingDep = Annotated[EmbeddingProvider, Depends(resolved_embedding)]
+ResolvedRerankDep = Annotated[RerankProvider, Depends(resolved_rerank)]

@@ -1,11 +1,14 @@
-"""Provider 装配。
-
-M0 阶段从全局配置构造；M4 引入 modelops 后，改为按 ModelConnection 构造，
-业务侧的调用点不需要变——这正是抽象层存在的意义。
-"""
+"""从 ModelConnection 或 Settings 构造 Provider。"""
 
 from __future__ import annotations
 
+from typing import Any
+
+from app.modules.modelops.credentials import decrypt_credential
+from app.modules.modelops.models import (
+    PROVIDER_FAKE,
+    ModelConnection,
+)
 from app.platform.config import Settings, get_settings
 from app.platform.llm.base import EmbeddingProvider, LLMProvider, RerankProvider
 from app.platform.llm.fake import FakeEmbeddingProvider, FakeLLMProvider, FakeRerankProvider
@@ -77,8 +80,75 @@ def build_rerank_provider(settings: Settings | None = None) -> RerankProvider:
     )
 
 
+def _timeout(conn: ModelConnection, settings: Settings) -> int:
+    extra: dict[str, Any] = conn.extra or {}
+    raw = extra.get("timeout_seconds")
+    if isinstance(raw, int) and raw > 0:
+        return raw
+    return settings.llm_timeout_seconds
+
+
+def build_llm_from_connection(
+    conn: ModelConnection, *, settings: Settings | None = None
+) -> LLMProvider:
+    settings = settings or get_settings()
+    if conn.provider_type == PROVIDER_FAKE:
+        return FakeLLMProvider(model=conn.model)
+    api_key = decrypt_credential(conn.credential_cipher, settings)
+    return OpenAICompatibleLLM(
+        _shared_client(
+            base_url=conn.base_url,
+            api_key=api_key,
+            timeout_seconds=_timeout(conn, settings),
+        ),
+        conn.model,
+    )
+
+
+def build_embedding_from_connection(
+    conn: ModelConnection, *, settings: Settings | None = None
+) -> EmbeddingProvider:
+    settings = settings or get_settings()
+    if conn.provider_type == PROVIDER_FAKE:
+        return FakeEmbeddingProvider(dimension=settings.embedding_dim)
+    api_key = decrypt_credential(conn.credential_cipher, settings)
+    extra = conn.extra or {}
+    dim = int(extra.get("embedding_dim") or settings.embedding_dim)
+    batch = int(extra.get("batch_size") or settings.embedding_batch_size)
+    return OpenAICompatibleEmbedding(
+        _shared_client(
+            base_url=conn.base_url,
+            api_key=api_key,
+            timeout_seconds=_timeout(conn, settings),
+        ),
+        conn.model,
+        dim,
+        batch_size=batch,
+    )
+
+
+def build_rerank_from_connection(
+    conn: ModelConnection, *, settings: Settings | None = None
+) -> RerankProvider:
+    settings = settings or get_settings()
+    if conn.provider_type == PROVIDER_FAKE:
+        return FakeRerankProvider()
+    api_key = decrypt_credential(conn.credential_cipher, settings)
+    extra = conn.extra or {}
+    path = str(extra.get("rerank_path") or settings.rerank_path)
+    return OpenAICompatibleRerank(
+        _shared_client(
+            base_url=conn.base_url,
+            api_key=api_key,
+            timeout_seconds=_timeout(conn, settings),
+        ),
+        conn.model,
+        path=path,
+    )
+
+
 async def close_providers(settings: Settings | None = None) -> None:
-    del settings  # 关闭进程内全部共享 client
+    del settings  # 保留签名兼容
     for client in list(_clients.values()):
         await client.aclose()
     _clients.clear()
