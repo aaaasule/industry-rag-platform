@@ -6,10 +6,40 @@
 
 | 项 | 值 |
 | --- | --- |
-| 阶段 | **M1 摄取链路已收尾**（分支 `feat/m1-ingestion`） |
-| 下一里程碑 | M2 检索与问答（混合检索 + 流式对话） |
-| 代码量 | 知识库/文档 API、Celery parse/embed、PDF+OCR、分块嵌入、前端上传 |
-| 阻塞项 | 无；进 M2 前建议先 merge `feat/m1-ingestion` |
+| 阶段 | **M2 检索与问答已落地**（分支 `feat/m2-retrieval`） |
+| 下一里程碑 | M3 引用高亮 / 反馈（或合并 M2 后换真实模型联调） |
+| 代码量 | 混合检索 RRF、`POST /search`、SSE 问答、会话/引用落库、前端问答页 |
+| 阻塞项 | 无 |
+
+---
+
+## 2026-07-29（M2 检索与问答）
+
+### 完成内容
+
+| # | 任务 | 状态 |
+| --- | --- | --- |
+| M2-1 | 迁移 `0003`：conversations / messages / citations + RLS + ORM | ✓ |
+| M2-2 | `rrf_fuse` + `validate_citations` 纯函数与单测 | ✓ |
+| M2-3 | RetrievalService：normalize + 向量/全文 + RRF + expand；`POST /search` | ✓ |
+| M2-4 | Chat SSE：`message_created`→`retrieval`→`citations`/`delta`/`done` 或 `no_answer`；会话 API | ✓ |
+| M2-5 | 前端 `/chat`：多 KB 选择、流式渲染、证据面板 | ✓ |
+| M2-验收·检索 | AQ4102 KB：`/search` 命中 5 条，含 `scores.rrf` / `vector` / `fulltext` | ✓ |
+| M2-验收·问答 | 同 KB SSE：`message_created`…`citations`…`delta*`…`done` | ✓ |
+
+**决策落地**：Fake Embedding + Fake LLM；KB 可见性 = 租户内未删除库（`kb_grants` 留 M4）；拒答阈值对照**向量相似度**（RRF 量纲不适合 0.35）。
+
+**实现注意**：SSE 中途 `commit` 会结束事务并清掉 `SET LOCAL` 的 RLS 变量，需在 commit 后重写 `app.tenant_id` / `app.user_id`。
+
+**本地联调**：
+
+```bash
+make migrate
+make api && make web   # 已有 ready 文档即可
+# 登录 → 问答 → 选知识库提问；或 curl /search 与 /chat/completions
+```
+
+**下一步**：合并 `feat/m2-retrieval`；M3 做 pdf.js 引用跳转与反馈；可选换真实 Embedding/LLM 对比召回。
 
 ---
 
