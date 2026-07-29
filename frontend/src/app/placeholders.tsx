@@ -19,18 +19,17 @@ export function OverviewPage() {
       </div>
 
       <section className="rounded-xl border border-slate-200 bg-white p-5">
-        <h2 className="text-sm font-medium text-slate-900">M1 摄取链路开发中</h2>
+        <h2 className="text-sm font-medium text-slate-900">M2 检索与问答已接入</h2>
         <ul className="mt-3 space-y-1.5 text-sm text-slate-600">
-          <li>· 知识库 CRUD、文档上传与摄取进度轮询已就绪</li>
-          <li>· 解析 / 分块 / 嵌入由 Celery 双队列异步执行</li>
-          <li>· 下一步 M2：混合检索与流式问答</li>
+          <li>· 知识库摄取（M1）与混合检索 / SSE 问答（M2）可用</li>
+          <li>· 前往「问答」页选择知识库并发问，右侧查看证据</li>
+          <li>· 下一步 M3：引用高亮与反馈</li>
         </ul>
       </section>
     </div>
   );
 }
 
-export const ChatPlaceholder = () => <Placeholder title="问答" milestone="M2" />;
 export const ModelOpsPlaceholder = () => <Placeholder title="模型接入管理" milestone="M4" />;
 
 function Placeholder({ title, milestone }: { title: string; milestone: string }) {
