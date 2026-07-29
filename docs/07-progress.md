@@ -6,10 +6,31 @@
 
 | 项 | 值 |
 | --- | --- |
-| 阶段 | **M1 摄取链路开发中**（`feat/m1-ingestion`） |
-| 下一里程碑 | M1 验收：真实 PDF → `ready` + 带页码坐标的 chunks |
-| 代码量 | 知识库/文档 API、Celery parse/embed、解析分块、前端上传进度 |
-| 阻塞项 | 需本地 `make migrate && make seed`，并启动 `make worker` 跑通端到端 |
+| 阶段 | **M1 摄取链路已收尾**（分支 `feat/m1-ingestion`） |
+| 下一里程碑 | M2 检索与问答（混合检索 + 流式对话） |
+| 代码量 | 知识库/文档 API、Celery parse/embed、PDF+OCR、分块嵌入、前端上传 |
+| 阻塞项 | 无；进 M2 前建议先 merge `feat/m1-ingestion` |
+
+---
+
+## 2026-07-29（M1 收尾）
+
+### 完成内容：M1 摄取链路
+
+| # | 任务 | 状态 |
+| --- | --- | --- |
+| M1-1 | 知识库 / 文档 CRUD + 预签名 + multipart 上传 | ✓ |
+| M1-2 | Celery 双队列 parse / embed + 状态机 | ✓ |
+| M1-3 | PDF 文本层解析 + OCR 回退 + normalize / layout | ✓（`uv sync --extra ocr`；Intel Mac 钉住 onnxruntime&lt;1.24） |
+| M1-4 | 结构感知分块 + `clause_mode` | ✓ |
+| M1-5 | Embedding 写入 + HNSW（Fake Provider） | ✓ |
+| M1-6 | 前端：知识库列表、拖拽上传、进度轮询、失败重试 | ✓ |
+| M1-验收·文本层 | AQ4102（17 页）→ `ready`，约 8s，12 chunks | ✓ |
+| M1-验收·扫描件 | OCR 依赖修复后对失败文档重试 | ✓ AQ3072（8 页扫描）parse≈108s → `ready` |
+
+**已知遗留（不阻塞 M2）**：DOCX 解析、SSE 进度（现为轮询）、页级 Celery 并行（R1c）、100 页手册性能压测。
+
+**下一步**：开 `feat/m2-retrieval`——向量 + 全文 + RRF、`POST /search`、流式问答 SSE。
 
 ---
 
