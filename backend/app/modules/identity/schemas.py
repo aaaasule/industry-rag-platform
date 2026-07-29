@@ -56,3 +56,24 @@ class SessionInfo(BaseModel):
     user: UserProfile
     current_tenant: TenantBrief
     tenants: list[TenantBrief]
+
+
+class MemberCreate(BaseModel):
+    email: EmailStr
+    role: str = Field(default="member", description="member | admin | owner")
+
+
+class MemberRoleUpdate(BaseModel):
+    role: str = Field(description="member | admin | owner")
+
+
+class MemberOut(BaseModel):
+    user_id: uuid.UUID
+    email: str
+    display_name: str
+    role: str
+    created_at: datetime
+
+
+class MembershipList(BaseModel):
+    items: list[MemberOut]

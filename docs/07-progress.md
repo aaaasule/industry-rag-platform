@@ -6,10 +6,27 @@
 
 | 项 | 值 |
 | --- | --- |
-| 阶段 | **M4 切片：kb_grants + 跨租户验收**（分支 `feat/m4-kb-grants`） |
-| 下一里程碑 | 合并本切片后继续 M4（成员管理 / 模型运营 / 用量） |
-| 代码量 | `visible_kb_ids`、grants CRUD、search/chat 收窄、交叉访问测试 |
+| 阶段 | **M4 切片：成员管理 + 审计日志**（分支 `feat/m4-members-audit`） |
+| 下一里程碑 | 合并后继续 M4（模型运营 / 用量看板） |
+| 代码量 | `/memberships` CRUD、`audit_logs` + `GET /admin/audit-logs`、关键写操作钩子 |
 | 阻塞项 | 无 |
+
+---
+
+## 2026-07-29（M4 · 成员管理 + 审计）
+
+### 完成内容
+
+| # | 任务 | 状态 |
+| --- | --- | --- |
+| A-1 | 规格 / 计划 | ✓ |
+| A-2 | 迁移 `0005_audit_logs` + RLS | ✓ |
+| A-3 | `AuditService.record` + `GET /admin/audit-logs` | ✓ |
+| A-4 | `/memberships` CRUD（admin+，邮箱加人） | ✓ |
+| A-5 | 钩子：成员 / grant / 删 KB / login / switch-tenant | ✓ |
+| A-6 | 集成测试 | ✓ |
+
+**决策**：加人仅限已存在用户；审计写入失败不阻断主业务；admin 不可改/删 owner。
 
 ---
 

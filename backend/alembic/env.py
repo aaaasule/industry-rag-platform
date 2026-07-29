@@ -16,6 +16,7 @@ from sqlalchemy.ext.asyncio import async_engine_from_config
 from alembic import context
 
 # 导入所有模型，让 Base.metadata 完整，autogenerate 才能正确比对
+from app.modules.audit import models as audit_models  # noqa: F401
 from app.modules.chat import models as chat_models  # noqa: F401
 from app.modules.identity import models as identity_models  # noqa: F401
 from app.modules.knowledge import models as knowledge_models  # noqa: F401
