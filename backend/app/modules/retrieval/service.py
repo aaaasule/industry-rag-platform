@@ -14,7 +14,7 @@ from app.modules.retrieval.expand import expand_hits, load_document_titles
 from app.modules.retrieval.repository import RetrievalRepository
 from app.modules.retrieval.rrf import rrf_fuse
 from app.platform.errors import NotFound
-from app.platform.llm.base import EmbeddingProvider
+from app.platform.llm.base import EmbeddingProvider, RerankProvider
 
 
 class RetrievalService:
@@ -24,10 +24,12 @@ class RetrievalService:
         embedding: EmbeddingProvider,
         *,
         repo: RetrievalRepository | None = None,
+        rerank: RerankProvider | None = None,
     ) -> None:
         self._session = session
         self._embedding = embedding
         self._repo = repo or RetrievalRepository(session)
+        self._rerank = rerank
 
     async def search(
         self,
@@ -57,7 +59,6 @@ class RetrievalService:
         emb_t0 = time.perf_counter()
         vectors = await self._embedding.embed([q_norm], input_type="query")
         query_vec = vectors[0]
-        # 向量与全文串行即可（同 session）；耗时分别统计
         vec_hits = await self._repo.vector_search(
             tenant_id=tenant_id,
             kb_ids=resolved,
@@ -90,7 +91,6 @@ class RetrievalService:
             seed_chunk_ids=top_ids[: max(top_k, 8)],
             n=opts.expand_context,
         )
-        # 生成用：优先 RRF 序的种子，再补 expand；最终截断 top_k
         by_id = {c.id: c for c in expanded}
         ordered: list = []
         seen: set[uuid.UUID] = set()
@@ -102,11 +102,34 @@ class RetrievalService:
             if c.id not in seen:
                 ordered.append(c)
                 seen.add(c.id)
-        ordered = ordered[:top_k]
 
-        titles = await load_document_titles(
-            self._session, [c.document_id for c in ordered]
-        )
+        # 重排候选：RRF Top 池，再截断 top_k
+        candidates = ordered[: max(top_k, min(30, len(ordered)))]
+        rerank_scores: dict[str, float] = {}
+        rerank_ms = 0.0
+        if opts.rerank and self._rerank is not None and candidates:
+            rr_t0 = time.perf_counter()
+            docs = [c.content for c in candidates]
+            scored = await self._rerank.rerank(q_norm, docs, top_n=min(top_k, len(docs)))
+            rerank_ms = (time.perf_counter() - rr_t0) * 1000
+            reranked: list = []
+            used: set[uuid.UUID] = set()
+            for item in scored:
+                if 0 <= item.index < len(candidates):
+                    chunk = candidates[item.index]
+                    if chunk.id in used:
+                        continue
+                    reranked.append(chunk)
+                    used.add(chunk.id)
+                    rerank_scores[str(chunk.id)] = item.score
+            for c in candidates:
+                if c.id not in used:
+                    reranked.append(c)
+            ordered = reranked[:top_k]
+        else:
+            ordered = candidates[:top_k]
+
+        titles = await load_document_titles(self._session, [c.document_id for c in ordered])
         hits: list[SearchHit] = []
         for c in ordered:
             cid = str(c.id)
@@ -127,7 +150,7 @@ class RetrievalService:
                         "vector": vec_scores.get(cid),
                         "fulltext": ft_scores.get(cid),
                         "rrf": rrf_scores.get(cid),
-                        "rerank": None,
+                        "rerank": rerank_scores.get(cid),
                     },
                 )
             )
@@ -138,7 +161,7 @@ class RetrievalService:
             stats={
                 "vector_ms": round(vector_ms, 2),
                 "fulltext_ms": round(fulltext_ms, 2),
-                "rerank_ms": 0.0,
+                "rerank_ms": round(rerank_ms, 2),
                 "total_ms": round(total_ms, 2),
             },
             rewritten_query=q_norm,

@@ -49,14 +49,26 @@ class Settings(BaseSettings):
     access_token_ttl_minutes: int = 30
     refresh_token_ttl_days: int = 7
 
-    # 模型接入（M0 阶段用 fake，不产生外部调用）
+    # 模型接入（默认 fake，不产生外部调用）
     llm_provider: Literal["fake", "openai_compatible"] = "fake"
     llm_base_url: str = "https://api.openai.com/v1"
     llm_api_key: SecretStr = SecretStr("")
     llm_model: str = "gpt-4o-mini"
     embedding_provider: Literal["fake", "openai_compatible"] = "fake"
+    # 空则回退 llm_base_url / llm_api_key（单厂商场景）
+    embedding_base_url: str = ""
+    embedding_api_key: SecretStr = SecretStr("")
     embedding_model: str = "bge-m3"
     embedding_dim: int = 1024
+    embedding_batch_size: int = 10
+    # None = 跟随 embedding_provider
+    rerank_provider: Literal["fake", "openai_compatible"] | None = None
+    rerank_base_url: str = ""
+    rerank_api_key: SecretStr = SecretStr("")
+    rerank_model: str = "qwen3-rerank"
+    rerank_path: str = "/reranks"
+    # None = 真实 Embedding+Rerank 时默认开，否则关
+    retrieval_rerank_default: bool | None = None
     llm_timeout_seconds: int = 60
 
     # 可观测性
@@ -76,6 +88,36 @@ class Settings(BaseSettings):
     @property
     def is_local(self) -> bool:
         return self.environment == "local"
+
+    @property
+    def resolved_embedding_base_url(self) -> str:
+        return self.embedding_base_url or self.llm_base_url
+
+    @property
+    def resolved_embedding_api_key(self) -> str:
+        key = self.embedding_api_key.get_secret_value()
+        return key or self.llm_api_key.get_secret_value()
+
+    @property
+    def resolved_rerank_provider(self) -> Literal["fake", "openai_compatible"]:
+        if self.rerank_provider is not None:
+            return self.rerank_provider
+        return self.embedding_provider
+
+    @property
+    def resolved_rerank_base_url(self) -> str:
+        return self.rerank_base_url or self.resolved_embedding_base_url
+
+    @property
+    def resolved_rerank_api_key(self) -> str:
+        key = self.rerank_api_key.get_secret_value()
+        return key or self.resolved_embedding_api_key
+
+    @property
+    def effective_rerank_default(self) -> bool:
+        if self.retrieval_rerank_default is not None:
+            return self.retrieval_rerank_default
+        return self.embedding_provider != "fake" and self.resolved_rerank_provider != "fake"
 
 
 @lru_cache

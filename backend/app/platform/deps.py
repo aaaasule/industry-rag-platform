@@ -18,7 +18,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.platform.config import Settings, get_settings
 from app.platform.db import get_sessionmaker, set_rls_context
 from app.platform.errors import Forbidden, Unauthenticated
-from app.platform.llm.base import EmbeddingProvider, LLMProvider
+from app.platform.llm.base import EmbeddingProvider, LLMProvider, RerankProvider
 from app.platform.logging import tenant_id_var, user_id_var
 from app.platform.security import TokenClaims, decode_token
 
@@ -102,5 +102,10 @@ def embedding_provider(request: Request) -> EmbeddingProvider:
     return request.app.state.embedding
 
 
+def rerank_provider(request: Request) -> RerankProvider:
+    return request.app.state.rerank
+
+
 LLMDep = Annotated[LLMProvider, Depends(llm_provider)]
 EmbeddingDep = Annotated[EmbeddingProvider, Depends(embedding_provider)]
+RerankDep = Annotated[RerankProvider, Depends(rerank_provider)]

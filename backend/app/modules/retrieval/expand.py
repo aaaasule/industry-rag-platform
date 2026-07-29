@@ -22,9 +22,7 @@ async def expand_hits(
         rows = list(
             (
                 await session.execute(
-                    select(Chunk).where(
-                        Chunk.tenant_id == tenant_id, Chunk.id.in_(seed_chunk_ids)
-                    )
+                    select(Chunk).where(Chunk.tenant_id == tenant_id, Chunk.id.in_(seed_chunk_ids))
                 )
             )
             .scalars()

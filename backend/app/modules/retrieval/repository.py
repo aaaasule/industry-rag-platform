@@ -18,13 +18,17 @@ class RetrievalRepository:
 
     async def list_visible_kb_ids(self, tenant_id: uuid.UUID) -> list[uuid.UUID]:
         rows = (
-            await self._session.execute(
-                select(KnowledgeBase.id).where(
-                    KnowledgeBase.tenant_id == tenant_id,
-                    KnowledgeBase.deleted_at.is_(None),
+            (
+                await self._session.execute(
+                    select(KnowledgeBase.id).where(
+                        KnowledgeBase.tenant_id == tenant_id,
+                        KnowledgeBase.deleted_at.is_(None),
+                    )
                 )
             )
-        ).scalars().all()
+            .scalars()
+            .all()
+        )
         return list(rows)
 
     async def vector_search(
@@ -51,9 +55,7 @@ class RetrievalRepository:
             .limit(limit)
         )
         rows = (await self._session.execute(stmt)).all()
-        return [
-            RankedHit(chunk_id=r[0], score=max(0.0, 1.0 - float(r[1]))) for r in rows
-        ]
+        return [RankedHit(chunk_id=r[0], score=max(0.0, 1.0 - float(r[1]))) for r in rows]
 
     async def fulltext_search(
         self,

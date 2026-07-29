@@ -24,6 +24,18 @@ from app.platform.security import hash_password
 TEST_PASSWORD = "Test-Passw0rd!"
 
 
+@pytest.fixture(scope="session", autouse=True)
+def _force_fake_providers_for_tests() -> None:
+    """本地 .env 可能切到真实模型；单测/集成测必须保持 Fake，避免外网与密钥依赖。"""
+    import os
+
+    os.environ["IRP_LLM_PROVIDER"] = "fake"
+    os.environ["IRP_EMBEDDING_PROVIDER"] = "fake"
+    os.environ["IRP_RERANK_PROVIDER"] = "fake"
+    os.environ["IRP_RETRIEVAL_RERANK_DEFAULT"] = "false"
+    get_settings.cache_clear()
+
+
 @pytest.fixture(scope="session")
 def anyio_backend() -> str:
     return "asyncio"

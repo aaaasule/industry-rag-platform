@@ -27,6 +27,7 @@ from app.modules.chat.schemas import ConversationCreate, ConversationOut, Messag
 from app.modules.chat.sse import sse_event
 from app.modules.retrieval.base import SearchOptions
 from app.modules.retrieval.service import RetrievalService
+from app.platform.config import get_settings
 from app.platform.db import set_rls_context
 from app.platform.errors import AppError, NotFound, UnprocessableState
 from app.platform.ids import uuid7
@@ -148,7 +149,7 @@ class ChatService:
                 query=message,
                 kb_ids=list(conv.kb_ids),
                 top_k=8,
-                options=SearchOptions(),
+                options=SearchOptions(rerank=get_settings().effective_rerank_default),
             )
         except AppError as exc:
             asst.content = str(exc.message)

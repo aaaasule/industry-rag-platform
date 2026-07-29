@@ -128,46 +128,79 @@ class OpenAICompatibleLLM:
 class OpenAICompatibleEmbedding:
     name = "openai_compatible"
 
-    def __init__(self, client: OpenAICompatibleClient, model: str, dimension: int) -> None:
+    def __init__(
+        self,
+        client: OpenAICompatibleClient,
+        model: str,
+        dimension: int,
+        *,
+        batch_size: int = 10,
+    ) -> None:
         self._client = client
         self.model = model
         self._dimension = dimension
+        self._batch_size = max(1, batch_size)
 
     @property
     def dimension(self) -> int:
         return self._dimension
 
     async def embed(self, texts: list[str], input_type: InputType) -> list[Vector]:
+        del input_type  # OpenAI 兼容端点多数不区分；保留签名以兼容 Protocol
         if not texts:
             return []
-        data = await self._client.post(
-            "/embeddings", {"model": self.model, "input": texts, "encoding_format": "float"}
-        )
-        # 部分端点不保证返回顺序，按 index 归位
-        items = sorted(data["data"], key=lambda d: d.get("index", 0))
-        return [item["embedding"] for item in items]
+        out: list[Vector] = []
+        for i in range(0, len(texts), self._batch_size):
+            batch = texts[i : i + self._batch_size]
+            payload: dict[str, Any] = {
+                "model": self.model,
+                "input": batch,
+                "encoding_format": "float",
+                "dimensions": self._dimension,
+            }
+            data = await self._client.post("/embeddings", payload)
+            items = sorted(data["data"], key=lambda d: d.get("index", 0))
+            out.extend(item["embedding"] for item in items)
+        return out
 
 
 class OpenAICompatibleRerank:
-    """`/rerank` 不属于 OpenAI 规范，但 Jina / Cohere / bge-reranker 服务端一致。"""
+    """DashScope 兼容路径为 `/reranks`；Jina 等仍用 `/rerank`，由 path 配置。"""
 
     name = "openai_compatible"
 
-    def __init__(self, client: OpenAICompatibleClient, model: str) -> None:
+    def __init__(
+        self,
+        client: OpenAICompatibleClient,
+        model: str,
+        *,
+        path: str = "/reranks",
+    ) -> None:
         self._client = client
         self.model = model
+        self._path = path if path.startswith("/") else f"/{path}"
 
     async def rerank(self, query: str, docs: list[str], top_n: int) -> list[ScoredIndex]:
         if not docs:
             return []
         data = await self._client.post(
-            "/rerank",
-            {"model": self.model, "query": query, "documents": docs, "top_n": top_n},
+            self._path,
+            {
+                "model": self.model,
+                "query": query,
+                "documents": docs,
+                "top_n": top_n,
+            },
         )
-        return [
-            ScoredIndex(index=item["index"], score=float(item["relevance_score"]))
-            for item in data["results"]
-        ]
+        results = data.get("results") or data.get("data") or []
+        scored: list[ScoredIndex] = []
+        for item in results:
+            idx = item.get("index")
+            score = item.get("relevance_score", item.get("score"))
+            if idx is None or score is None:
+                continue
+            scored.append(ScoredIndex(index=int(idx), score=float(score)))
+        return scored
 
 
 def _parse_usage(raw: dict[str, Any] | None) -> Usage:

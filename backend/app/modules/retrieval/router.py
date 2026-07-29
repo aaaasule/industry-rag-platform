@@ -14,13 +14,15 @@ from app.modules.retrieval.schemas import (
     SearchStats,
 )
 from app.modules.retrieval.service import RetrievalService
-from app.platform.deps import ClaimsDep, EmbeddingDep, TenantSessionDep
+from app.platform.deps import ClaimsDep, EmbeddingDep, RerankDep, SettingsDep, TenantSessionDep
 
 router = APIRouter(tags=["retrieval"])
 
 
-def _service(session: TenantSessionDep, embedding: EmbeddingDep) -> RetrievalService:
-    return RetrievalService(session, embedding, repo=RetrievalRepository(session))
+def _service(
+    session: TenantSessionDep, embedding: EmbeddingDep, rerank: RerankDep
+) -> RetrievalService:
+    return RetrievalService(session, embedding, repo=RetrievalRepository(session), rerank=rerank)
 
 
 ServiceDep = Depends(_service)
@@ -30,11 +32,13 @@ ServiceDep = Depends(_service)
 async def search(
     payload: SearchRequest,
     claims: ClaimsDep,
+    settings: SettingsDep,
     service: RetrievalService = ServiceDep,
 ) -> SearchResponse:
+    rerank_default = settings.effective_rerank_default
     opts = SearchOptions(
         expand_context=int(payload.options.get("expand_context", 1)),
-        rerank=bool(payload.options.get("rerank", False)),
+        rerank=bool(payload.options.get("rerank", rerank_default)),
     )
     result = await service.search(
         tenant_id=claims.tenant_id,

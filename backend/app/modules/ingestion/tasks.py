@@ -278,7 +278,7 @@ async def _embed_document(document_id: uuid.UUID, tenant_id: uuid.UUID, job_id: 
 
             texts = [d.content for d in drafts]
             vectors: list[list[float]] = []
-            batch_size = 64
+            batch_size = settings.embedding_batch_size
             for i in range(0, len(texts), batch_size):
                 batch = texts[i : i + batch_size]
                 if batch:
