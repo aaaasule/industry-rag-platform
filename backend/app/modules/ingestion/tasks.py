@@ -9,6 +9,7 @@ HTTP 登记文档后才 commit，Celery 可能抢跑；任务对 missing 做短�
 from __future__ import annotations
 
 import asyncio
+import time
 import uuid
 from datetime import UTC, datetime
 from typing import Any
@@ -281,10 +282,51 @@ async def _embed_document(document_id: uuid.UUID, tenant_id: uuid.UUID, job_id: 
             texts = [d.content for d in drafts]
             vectors: list[list[float]] = []
             batch_size = settings.embedding_batch_size
+            from app.modules.modelops.usage_recorder import (
+                UsageRecorder,
+                estimate_tokens,
+                resolve_usage_route,
+            )
+
+            conn_id, provider_type, model = await resolve_usage_route(
+                session, tenant_id, "embedding"
+            )
             for i in range(0, len(texts), batch_size):
                 batch = texts[i : i + batch_size]
-                if batch:
+                if not batch:
+                    continue
+                emb_t0 = time.perf_counter()
+                try:
                     vectors.extend(await embedding.embed(batch, input_type="document"))
+                    latency_ms = int((time.perf_counter() - emb_t0) * 1000)
+                    await UsageRecorder.record(
+                        tenant_id=tenant_id,
+                        connection_id=conn_id,
+                        kb_id=doc.kb_id,
+                        purpose="embedding",
+                        provider_type=provider_type,
+                        model=model,
+                        prompt_tokens=sum(estimate_tokens(t) for t in batch),
+                        completion_tokens=0,
+                        latency_ms=latency_ms,
+                        success=True,
+                    )
+                except Exception:
+                    latency_ms = int((time.perf_counter() - emb_t0) * 1000)
+                    await UsageRecorder.record(
+                        tenant_id=tenant_id,
+                        connection_id=conn_id,
+                        kb_id=doc.kb_id,
+                        purpose="embedding",
+                        provider_type=provider_type,
+                        model=model,
+                        prompt_tokens=sum(estimate_tokens(t) for t in batch),
+                        completion_tokens=0,
+                        latency_ms=latency_ms,
+                        success=False,
+                        error_code="embed_failed",
+                    )
+                    raise
 
             if len(vectors) != len(drafts):
                 raise RuntimeError(

@@ -6,10 +6,27 @@
 
 | 项 | 值 |
 | --- | --- |
-| 阶段 | **M4 切片：模型接入点 + 用途路由**（分支 `feat/m4-model-connections`） |
-| 下一里程碑 | 健康探测 / 用量埋点与仪表盘 |
-| 代码量 | `model_connections`、加密凭证、`ProviderFactory`、chat/retrieval/worker 接线 |
+| 阶段 | **M4 切片：用量埋点**（分支 `feat/m4-usage-metering`） |
+| 下一里程碑 | 健康探测 / 故障转移 |
+| 代码量 | `llm_usages` / `hourlies` / Redis 缓冲 / `/usages/*` |
 | 阻塞项 | 无 |
+
+---
+
+## 2026-07-30（M4 · 用量埋点）
+
+### 完成内容
+
+| # | 任务 | 状态 |
+| --- | --- | --- |
+| U-1 | 规格 | ✓ |
+| U-2 | 迁移 `0007`：pricing / usages / hourlies + RLS | ✓ |
+| U-3 | `UsageRecorder` → Redis；Celery flush + hourlies | ✓ |
+| U-4 | chat / retrieval / ingestion 埋点 | ✓ |
+| U-5 | `GET /usages/summary|series|breakdown`（admin+） | ✓ |
+| U-6 | seed 占位定价 + 测试 | ✓ |
+
+**决策**：方案 1 扩展 modelops；Redis 缓冲；成本写入快照；本切片无前端、无配额 429、usages 不分区。
 
 ---
 

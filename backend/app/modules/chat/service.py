@@ -348,6 +348,7 @@ class ChatService:
         ]
         buf: list[str] = []
         usage = None
+        llm_t0 = time.perf_counter()
         try:
             async for delta in self._llm.stream(llm_msgs, temperature=temperature):
                 if delta.content:
@@ -371,6 +372,14 @@ class ChatService:
                 }
             conv.updated_at = datetime.now(UTC)
             await self._commit_keep_rls(claims)
+            await self._record_chat_usage(
+                claims,
+                latency_ms=int((time.perf_counter() - llm_t0) * 1000),
+                success=True,
+                prompt_tokens=int((usage.prompt_tokens if usage else 0) or 0),
+                completion_tokens=int((usage.completion_tokens if usage else 0) or 0),
+                kb_id=next(iter(conv.kb_ids)) if conv.kb_ids else None,
+            )
             yield sse_event(
                 "done",
                 {
@@ -384,4 +393,44 @@ class ChatService:
             asst.content = "".join(buf)
             asst.status = MSG_FAILED
             await self._commit_keep_rls(claims)
+            await self._record_chat_usage(
+                claims,
+                latency_ms=int((time.perf_counter() - llm_t0) * 1000),
+                success=False,
+                prompt_tokens=int((usage.prompt_tokens if usage else 0) or 0),
+                completion_tokens=int((usage.completion_tokens if usage else 0) or 0),
+                kb_id=next(iter(conv.kb_ids)) if conv.kb_ids else None,
+                error_code="stream_failed",
+            )
             yield sse_event("error", {"code": "stream_failed", "message": str(exc)})
+
+    async def _record_chat_usage(
+        self,
+        claims: TokenClaims,
+        *,
+        latency_ms: int,
+        success: bool,
+        prompt_tokens: int,
+        completion_tokens: int,
+        kb_id: uuid.UUID | None,
+        error_code: str | None = None,
+    ) -> None:
+        from app.modules.modelops.usage_recorder import UsageRecorder, resolve_usage_route
+
+        conn_id, provider_type, model = await resolve_usage_route(
+            self._session, claims.tenant_id, "chat"
+        )
+        await UsageRecorder.record(
+            tenant_id=claims.tenant_id,
+            user_id=claims.user_id,
+            connection_id=conn_id,
+            kb_id=kb_id,
+            purpose="chat",
+            provider_type=provider_type,
+            model=model or getattr(self._llm, "model", None) or self._llm.name,
+            prompt_tokens=prompt_tokens,
+            completion_tokens=completion_tokens,
+            latency_ms=latency_ms,
+            success=success,
+            error_code=error_code,
+        )

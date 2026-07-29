@@ -67,6 +67,16 @@ class RetrievalService:
 
         emb_t0 = time.perf_counter()
         vectors = await self._embedding.embed([q_norm], input_type="query")
+        emb_ms = int((time.perf_counter() - emb_t0) * 1000)
+        await self._record_usage(
+            tenant_id=tenant_id,
+            user_id=user_id,
+            purpose="embedding",
+            texts=[q_norm],
+            latency_ms=emb_ms,
+            success=True,
+            kb_id=resolved[0] if resolved else None,
+        )
         query_vec = vectors[0]
         vec_hits = await self._repo.vector_search(
             tenant_id=tenant_id,
@@ -121,6 +131,15 @@ class RetrievalService:
             docs = [c.content for c in candidates]
             scored = await self._rerank.rerank(q_norm, docs, top_n=min(top_k, len(docs)))
             rerank_ms = (time.perf_counter() - rr_t0) * 1000
+            await self._record_usage(
+                tenant_id=tenant_id,
+                user_id=user_id,
+                purpose="rerank",
+                texts=[q_norm, *docs],
+                latency_ms=int(rerank_ms),
+                success=True,
+                kb_id=resolved[0] if resolved else None,
+            )
             reranked: list = []
             used: set[uuid.UUID] = set()
             for item in scored:
@@ -174,4 +193,41 @@ class RetrievalService:
                 "total_ms": round(total_ms, 2),
             },
             rewritten_query=q_norm,
+        )
+
+    async def _record_usage(
+        self,
+        *,
+        tenant_id: uuid.UUID,
+        user_id: uuid.UUID,
+        purpose: str,
+        texts: list[str],
+        latency_ms: int,
+        success: bool,
+        kb_id: uuid.UUID | None,
+        error_code: str | None = None,
+    ) -> None:
+        from app.modules.modelops.usage_recorder import (
+            UsageRecorder,
+            estimate_tokens,
+            resolve_usage_route,
+        )
+
+        conn_id, provider_type, model = await resolve_usage_route(
+            self._session, tenant_id, purpose
+        )
+        prompt_tokens = sum(estimate_tokens(t) for t in texts)
+        await UsageRecorder.record(
+            tenant_id=tenant_id,
+            user_id=user_id,
+            connection_id=conn_id,
+            kb_id=kb_id,
+            purpose=purpose,
+            provider_type=provider_type,
+            model=model,
+            prompt_tokens=prompt_tokens,
+            completion_tokens=0,
+            latency_ms=latency_ms,
+            success=success,
+            error_code=error_code,
         )
