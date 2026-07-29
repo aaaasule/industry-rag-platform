@@ -36,8 +36,10 @@ celery_app.conf.update(
     result_expires=3600,
 )
 
-# 业务任务在 M1 加入，届时在此处 autodiscover
-celery_app.autodiscover_tasks(["app.modules"], related_name="tasks")
+# 显式导入业务任务模块；autodiscover(["app.modules"]) 只会找 app.modules.tasks
+import app.modules.ingestion.tasks  # noqa: F401
+
+celery_app.autodiscover_tasks(["app.modules.ingestion"], related_name="tasks")
 
 
 @celery_app.task(name="system.ping")

@@ -8,8 +8,10 @@ from __future__ import annotations
 
 import asyncio
 import sys
+from typing import Any
 
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from app.modules.identity.models import (
     ROLE_ADMIN,
@@ -19,8 +21,10 @@ from app.modules.identity.models import (
     Tenant,
     User,
 )
+from app.modules.knowledge.models import IndustryProfile
 from app.platform.config import get_settings
 from app.platform.db import session_scope
+from app.platform.ids import uuid7
 from app.platform.logging import configure_logging, get_logger
 from app.platform.security import hash_password
 
@@ -49,6 +53,54 @@ MEMBERSHIPS = [
     ("north-chem", "owner@acme.example", ROLE_MEMBER),
 ]
 
+BUILTIN_PROFILES: list[dict[str, Any]] = [
+    {
+        "code": "general",
+        "name": "通用",
+        "chunk_rules": {
+            "max_tokens": 512,
+            "min_tokens": 80,
+            "overlap_tokens": 64,
+            "clause_mode": False,
+            "keep_heading_prefix": True,
+        },
+        "parse_rules": {},
+        "metadata_schema": {},
+        "prompt_overrides": {},
+        "retrieval_rules": {"top_k": 8},
+    },
+    {
+        "code": "discrete_manufacturing",
+        "name": "离散制造",
+        "chunk_rules": {
+            "max_tokens": 512,
+            "min_tokens": 80,
+            "overlap_tokens": 64,
+            "clause_mode": False,
+            "keep_heading_prefix": True,
+        },
+        "parse_rules": {},
+        "metadata_schema": {"equipment_model": {"type": "string"}},
+        "prompt_overrides": {},
+        "retrieval_rules": {"top_k": 8},
+    },
+    {
+        "code": "process_industry",
+        "name": "流程工业",
+        "chunk_rules": {
+            "max_tokens": 480,
+            "min_tokens": 60,
+            "overlap_tokens": 48,
+            "clause_mode": True,
+            "keep_heading_prefix": True,
+        },
+        "parse_rules": {},
+        "metadata_schema": {"standard_no": {"type": "string"}},
+        "prompt_overrides": {},
+        "retrieval_rules": {"top_k": 10},
+    },
+]
+
 
 async def seed() -> None:
     settings = get_settings()
@@ -56,13 +108,52 @@ async def seed() -> None:
         logger.error("seed_rejected", environment=settings.environment)
         sys.exit(1)
 
+    await _seed_builtin_profiles()
     tenant_ids, user_ids = await _seed_principals()
-    # memberships 有 RLS，写入必须带租户上下文，因此按租户分事务
     for slug, tenant_id in tenant_ids.items():
         rows = [(email, role) for s, email, role in MEMBERSHIPS if s == slug]
         await _seed_memberships(slug, tenant_id, user_ids, rows)
 
     logger.info("seed_completed", password=SEED_PASSWORD)
+
+
+async def _seed_builtin_profiles() -> None:
+    """内置 profile 的 tenant_id 为 NULL，需用迁移角色写入（超级用户绕过 RLS）。"""
+    settings = get_settings()
+    url = settings.database_migration_url or settings.database_url
+    engine = create_async_engine(url, pool_pre_ping=True)
+    maker = async_sessionmaker(engine, expire_on_commit=False, autoflush=False)
+    try:
+        async with maker() as session:
+            for spec in BUILTIN_PROFILES:
+                exists = (
+                    await session.execute(
+                        select(IndustryProfile.id).where(
+                            IndustryProfile.code == spec["code"],
+                            IndustryProfile.tenant_id.is_(None),
+                        )
+                    )
+                ).scalar_one_or_none()
+                if exists is not None:
+                    continue
+                session.add(
+                    IndustryProfile(
+                        id=uuid7(),
+                        tenant_id=None,
+                        code=spec["code"],
+                        name=spec["name"],
+                        parse_rules=spec["parse_rules"],
+                        chunk_rules=spec["chunk_rules"],
+                        metadata_schema=spec["metadata_schema"],
+                        prompt_overrides=spec["prompt_overrides"],
+                        retrieval_rules=spec["retrieval_rules"],
+                        is_builtin=True,
+                    )
+                )
+                logger.info("profile_created", code=spec["code"])
+            await session.commit()
+    finally:
+        await engine.dispose()
 
 
 async def _seed_principals() -> tuple[dict[str, object], dict[str, object]]:
