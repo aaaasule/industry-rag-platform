@@ -6,10 +6,37 @@
 
 | 项 | 值 |
 | --- | --- |
-| 阶段 | **M2 检索与问答已落地**（分支 `feat/m2-retrieval`） |
-| 下一里程碑 | M3 引用高亮 / 反馈（或合并 M2 后换真实模型联调） |
-| 代码量 | 混合检索 RRF、`POST /search`、SSE 问答、会话/引用落库、前端问答页 |
+| 阶段 | **真实 Embedding/LLM/Rerank 联调完成**（分支 `feat/real-providers-compare`） |
+| 下一里程碑 | M3 引用高亮 / 反馈；或合并真实 Provider 配置进 `main` |
+| 代码量 | Provider 凭证拆分、DashScope dimensions/批大小、`qwen3-rerank` 接线、对比脚本 |
 | 阻塞项 | 无 |
+
+---
+
+## 2026-07-29（真实 Embedding / LLM / Rerank）
+
+### 完成内容
+
+| # | 任务 | 状态 |
+| --- | --- | --- |
+| P-1 | Settings：LLM / Embedding / Rerank 独立 base_url、api_key | ✓ |
+| P-2 | Embedding：`dimensions=1024`，`batch_size≤10`（DashScope） | ✓ |
+| P-3 | Rerank：`compatible-api` + `/reranks` + `qwen3-rerank`；检索默认开 | ✓ |
+| P-4 | AQ4102 文档 reingest（真实向量）→ `ready` | ✓ ~10s |
+| P-5 | `scripts/compare_retrieval.py`：RRF vs RRF+rerank 报告 | ✓ |
+| P-6 | DeepSeek `deepseek-v4-flash` SSE 问答 → `done` | ✓ |
+
+**配置要点**（本地 `.env`，勿提交）：
+
+- LLM：`https://api.deepseek.com/v1`，模型须为 `deepseek-v4-flash` 或 `deepseek-v4-pro`（裸名 `deepseek-v4` 会 400）
+- Embedding：`compatible-mode` + `text-embedding-v4`
+- Rerank：`compatible-api`（**不是** `compatible-mode`）+ `/reranks`
+
+**对比摘录（AQ4102 KB）**：相关问「烟花爆竹流向登记」Top5 重叠 5/5，rerank 调整次序且 `scores.rerank≈0.94`；无关问「液压泵保养」重叠仅 2/5，重排改变候选集。报告目录：`backend/artifacts/retrieval-compare/`（gitignore）。
+
+**说明**：reingest 后 Fake 向量已被覆盖，本次报告为 **真实向量下 RRF vs RRF+rerank**；若需 Fake vs Real，须另建 KB 或先落 Fake 快照再切模型。
+
+**下一步**：合并本分支；密钥曾出现在聊天中，建议在控制台轮换。
 
 ---
 
