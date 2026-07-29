@@ -96,3 +96,16 @@ class IndustryProfileOut(BaseModel):
 class PreviewUrlOut(BaseModel):
     url: str
     expires_in: int
+
+
+class ChunkOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    seq: int
+    content: str
+    heading_path: list[str]
+    page_start: int
+    page_end: int
+    bboxes: list[dict[str, Any]]
+    chunk_type: str

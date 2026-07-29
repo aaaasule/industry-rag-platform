@@ -9,6 +9,9 @@ export default defineConfig({
       '@': fileURLToPath(new URL('./src', import.meta.url)),
     },
   },
+  optimizeDeps: {
+    include: ['react-pdf', 'pdfjs-dist'],
+  },
   server: {
     port: 5173,
     // 走代理而非 CORS：开发与生产（同源部署在 Nginx 后）的请求路径保持一致，

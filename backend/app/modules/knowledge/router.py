@@ -8,6 +8,7 @@ from fastapi import APIRouter, Depends, File, Form, UploadFile
 
 from app.modules.knowledge.repository import KnowledgeRepository
 from app.modules.knowledge.schemas import (
+    ChunkOut,
     DocumentCreated,
     DocumentOut,
     DocumentRegisterRequest,
@@ -162,3 +163,10 @@ async def preview_url(
     doc_id: uuid.UUID, claims: ClaimsDep, service: KnowledgeService = ServiceDep
 ) -> PreviewUrlOut:
     return await service.preview_url(claims.tenant_id, doc_id)
+
+
+@router.get("/documents/{doc_id}/chunks", response_model=list[ChunkOut])
+async def list_chunks(
+    doc_id: uuid.UUID, claims: ClaimsDep, service: KnowledgeService = ServiceDep
+) -> list[ChunkOut]:
+    return await service.list_chunks(claims.tenant_id, doc_id)

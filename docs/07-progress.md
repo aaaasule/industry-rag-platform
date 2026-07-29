@@ -6,10 +6,30 @@
 
 | 项 | 值 |
 | --- | --- |
-| 阶段 | **真实 Embedding/LLM/Rerank 联调完成**（分支 `feat/real-providers-compare`） |
-| 下一里程碑 | M3 引用高亮 / 反馈；或合并真实 Provider 配置进 `main` |
-| 代码量 | Provider 凭证拆分、DashScope dimensions/批大小、`qwen3-rerank` 接线、对比脚本 |
+| 阶段 | **M3 引用溯源实施中**（分支 `feat/m3-citation-trace`） |
+| 下一里程碑 | 完成本地验收后合并 M3；M4 多租户权限 / 模型运营 |
+| 代码量 | chunks API、feedback、PdfHighlightViewer、问答右栏 PDF、文档详情双栏 |
 | 阻塞项 | 无 |
+
+---
+
+## 2026-07-29（M3 引用溯源）
+
+### 完成内容（进行中 → 代码已落地）
+
+| # | 任务 | 状态 |
+| --- | --- | --- |
+| M3-1 | 规格 / 计划 | ✓ |
+| M3-2 | `GET /documents/{id}/chunks` | ✓ |
+| M3-3 | 迁移 `0004` + `POST /messages/{id}/feedback` | ✓ |
+| M3-4 | `MessageOut`：`document_title` / `used_citations` / `feedback` | ✓ |
+| M3-5 | 共享 `PdfHighlightViewer`（react-pdf） | ✓ |
+| M3-6 | 问答右栏列表⇄PDF + 赞踩 + used 置灰 | ✓ |
+| M3-7 | 文档详情双栏 + 列表入口 | ✓ |
+
+**范围**：标准 M3 核心（方案 A）；不做重新生成 / XLSX·PPTX·MD 解析。
+
+**本地**：`make migrate` 后起 api/web；点 `[n]` 看右栏高亮；知识库文档标题进详情。
 
 ---
 

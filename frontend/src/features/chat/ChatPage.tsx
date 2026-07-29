@@ -5,7 +5,8 @@ import { useKnowledgeBases } from '@/features/knowledge/hooks';
 
 import * as chatApi from './api';
 import type { Citation, ChatMessage } from './api';
-import { EvidencePanel } from './EvidencePanel';
+import { ChatRightPanel } from './ChatRightPanel';
+import { MessageFeedback } from './MessageFeedback';
 import { useConversations, useDeleteConversation, useMessages } from './hooks';
 
 type UiMessage = {
@@ -14,6 +15,8 @@ type UiMessage = {
   content: string;
   status?: string;
   citations?: Citation[];
+  used_citations?: number[] | undefined;
+  feedback?: ChatMessage['feedback'];
 };
 
 export function ChatPage() {
@@ -28,12 +31,12 @@ export function ChatPage() {
   const [error, setError] = useState<string | null>(null);
   const [liveMessages, setLiveMessages] = useState<UiMessage[]>([]);
   const [activeCitation, setActiveCitation] = useState<number | null>(null);
+  const [rightMode, setRightMode] = useState<'list' | 'pdf'>('list');
   const abortRef = useRef<AbortController | null>(null);
   const bottomRef = useRef<HTMLDivElement | null>(null);
 
   const { data: history = [] } = useMessages(conversationId);
 
-  // 默认勾选全部知识库（有文档的优先）
   useEffect(() => {
     if (bases.length === 0 || selectedKbIds.length > 0) return;
     const withDocs = bases.filter((b) => b.doc_count > 0).map((b) => b.id);
@@ -42,13 +45,7 @@ export function ChatPage() {
 
   const displayMessages: UiMessage[] = useMemo(() => {
     if (liveMessages.length > 0) return liveMessages;
-    return history.map((m: ChatMessage) => ({
-      id: m.id,
-      role: m.role === 'user' ? 'user' : 'assistant',
-      content: m.content,
-      status: m.status,
-      citations: m.citations,
-    }));
+    return history.map(toUi);
   }, [history, liveMessages]);
 
   const panelCitations = useMemo(() => {
@@ -66,6 +63,16 @@ export function ChatPage() {
     return [];
   }, [displayMessages]);
 
+  const panelUsed = useMemo(() => {
+    for (let i = displayMessages.length - 1; i >= 0; i -= 1) {
+      const m = displayMessages[i];
+      if (m !== undefined && m.role === 'assistant' && m.citations && m.citations.length > 0) {
+        return m.used_citations ?? null;
+      }
+    }
+    return null;
+  }, [displayMessages]);
+
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [displayMessages, streaming]);
@@ -81,6 +88,7 @@ export function ChatPage() {
     setConversationId(null);
     setLiveMessages([]);
     setActiveCitation(null);
+    setRightMode('list');
     setError(null);
   }
 
@@ -88,8 +96,14 @@ export function ChatPage() {
     abortRef.current?.abort();
     setLiveMessages([]);
     setActiveCitation(null);
+    setRightMode('list');
     setError(null);
     setConversationId(id);
+  }
+
+  function openCitation(n: number) {
+    setActiveCitation(n);
+    setRightMode('pdf');
   }
 
   async function onSubmit(e: FormEvent) {
@@ -105,6 +119,7 @@ export function ChatPage() {
     setInput('');
     setStreaming(true);
     setActiveCitation(null);
+    setRightMode('list');
 
     const userMsg: UiMessage = {
       id: `local-user-${Date.now()}`,
@@ -117,6 +132,7 @@ export function ChatPage() {
       content: '',
       status: 'streaming',
       citations: [],
+      used_citations: [],
     };
     setLiveMessages((prev) => {
       const base = prev.length > 0 ? prev : history.map(toUi);
@@ -170,9 +186,14 @@ export function ChatPage() {
           );
           setError(`拒答：${reason}`);
         } else if (ev.event === 'done') {
+          const used = Array.isArray(data.used_citations)
+            ? (data.used_citations as number[])
+            : [];
           setLiveMessages((prev) =>
             prev.map((m, i) =>
-              i === prev.length - 1 ? { ...m, status: 'completed' } : m,
+              i === prev.length - 1
+                ? { ...m, status: 'completed', used_citations: used }
+                : m,
             ),
           );
         } else if (ev.event === 'error') {
@@ -205,7 +226,11 @@ export function ChatPage() {
       <aside className="flex w-56 shrink-0 flex-col overflow-hidden rounded-xl border border-slate-200 bg-white">
         <div className="flex items-center justify-between border-b border-slate-100 px-3 py-2">
           <span className="text-sm font-medium text-slate-900">会话</span>
-          <button type="button" className="text-xs text-brand-700 hover:underline" onClick={startNewChat}>
+          <button
+            type="button"
+            className="text-xs text-brand-700 hover:underline"
+            onClick={startNewChat}
+          >
             新对话
           </button>
         </div>
@@ -290,19 +315,24 @@ export function ChatPage() {
               <div
                 className={[
                   'max-w-[85%] rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed',
-                  m.role === 'user'
-                    ? 'bg-brand-600 text-white'
-                    : 'bg-slate-100 text-slate-800',
+                  m.role === 'user' ? 'bg-brand-600 text-white' : 'bg-slate-100 text-slate-800',
                 ].join(' ')}
               >
                 <MessageBody
                   content={m.content}
                   isAssistant={m.role === 'assistant'}
                   activeCitation={activeCitation}
-                  onCitationClick={setActiveCitation}
+                  onCitationClick={openCitation}
                 />
                 {m.role === 'assistant' && m.status === 'streaming' && (
                   <span className="ml-1 inline-block h-3 w-1 animate-pulse bg-slate-400 align-middle" />
+                )}
+                {m.role === 'assistant' && m.status === 'completed' && (
+                  <MessageFeedback
+                    messageId={m.id}
+                    initial={m.feedback}
+                    disabled={streaming}
+                  />
                 )}
               </div>
             </div>
@@ -339,11 +369,14 @@ export function ChatPage() {
         {error && <p className="px-3 pb-3 text-sm text-red-600">{error}</p>}
       </section>
 
-      <div className="hidden w-72 shrink-0 lg:block">
-        <EvidencePanel
+      <div className="hidden w-80 shrink-0 lg:block">
+        <ChatRightPanel
           citations={panelCitations}
           activeIndex={activeCitation}
-          onSelect={setActiveCitation}
+          usedCitations={panelUsed}
+          mode={rightMode}
+          onSelectCitation={openCitation}
+          onBackToList={() => setRightMode('list')}
         />
       </div>
     </div>
@@ -361,6 +394,8 @@ function toUi(m: ChatMessage): UiMessage {
     content: m.content,
     status: m.status,
     citations: m.citations,
+    used_citations: m.used_citations,
+    feedback: m.feedback,
   };
 }
 
@@ -394,7 +429,9 @@ function MessageBody({
             onClick={() => onCitationClick(n)}
             className={[
               'mx-0.5 inline-flex h-5 min-w-5 items-center justify-center rounded px-1 text-xs font-medium',
-              active ? 'bg-brand-600 text-white' : 'bg-white/80 text-brand-700 ring-1 ring-brand-200',
+              active
+                ? 'bg-brand-600 text-white'
+                : 'bg-white/80 text-brand-700 ring-1 ring-brand-200',
             ].join(' ')}
           >
             {n}

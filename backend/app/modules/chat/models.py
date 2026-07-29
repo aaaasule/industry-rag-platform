@@ -57,6 +57,9 @@ class Message(UUIDPrimaryKeyMixin, Base):
     citations: Mapped[list[Citation]] = relationship(
         back_populates="message", cascade="all, delete-orphan"
     )
+    feedbacks: Mapped[list[MessageFeedback]] = relationship(
+        back_populates="message", cascade="all, delete-orphan"
+    )
 
 
 class Citation(UUIDPrimaryKeyMixin, Base):
@@ -76,3 +79,19 @@ class Citation(UUIDPrimaryKeyMixin, Base):
     score: Mapped[float] = mapped_column(Float, nullable=False)
 
     message: Mapped[Message] = relationship(back_populates="citations")
+
+
+class MessageFeedback(UUIDPrimaryKeyMixin, TimestampMixin, Base):
+    __tablename__ = "message_feedbacks"
+    __table_args__ = (UniqueConstraint("message_id", "user_id"),)
+
+    tenant_id: Mapped[uuid.UUID] = mapped_column(nullable=False)
+    message_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("messages.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"), nullable=False)
+    rating: Mapped[str] = mapped_column(Text, nullable=False)
+    reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+    comment: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    message: Mapped[Message] = relationship(back_populates="feedbacks")

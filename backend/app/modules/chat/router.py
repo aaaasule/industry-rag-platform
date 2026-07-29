@@ -12,6 +12,8 @@ from app.modules.chat.schemas import (
     ChatCompletionRequest,
     ConversationCreate,
     ConversationOut,
+    FeedbackCreate,
+    FeedbackOut,
     MessageOut,
 )
 from app.modules.chat.service import ChatService
@@ -65,6 +67,16 @@ async def list_messages(
     conv_id: uuid.UUID, claims: ClaimsDep, service: ChatService = ServiceDep
 ) -> list[MessageOut]:
     return await service.list_messages(claims, conv_id)
+
+
+@router.post("/messages/{message_id}/feedback", response_model=FeedbackOut)
+async def upsert_feedback(
+    message_id: uuid.UUID,
+    payload: FeedbackCreate,
+    claims: ClaimsDep,
+    service: ChatService = ServiceDep,
+) -> FeedbackOut:
+    return await service.upsert_feedback(claims, message_id, payload)
 
 
 @router.post("/chat/completions")

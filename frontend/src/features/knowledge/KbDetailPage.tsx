@@ -119,7 +119,12 @@ export function KbDetailPage() {
             {docs.map((doc) => (
               <tr key={doc.id} className="border-b border-slate-50 last:border-0">
                 <td className="px-4 py-3">
-                  <div className="font-medium text-slate-900">{doc.title}</div>
+                  <Link
+                    to={`/knowledge/${kbId}/documents/${doc.id}`}
+                    className="font-medium text-slate-900 hover:text-brand-700 hover:underline"
+                  >
+                    {doc.title}
+                  </Link>
                   {doc.status === 'failed' && doc.error_detail && (
                     <div className="mt-1 max-w-md truncate text-xs text-red-600">
                       {doc.error_detail}
