@@ -6,10 +6,27 @@
 
 | 项 | 值 |
 | --- | --- |
-| 阶段 | **M4 切片：成员管理 + 审计日志**（分支 `feat/m4-members-audit`） |
-| 下一里程碑 | 合并后继续 M4（模型运营 / 用量看板） |
-| 代码量 | `/memberships` CRUD、`audit_logs` + `GET /admin/audit-logs`、关键写操作钩子 |
+| 阶段 | **M4 切片：模型接入点 + 用途路由**（分支 `feat/m4-model-connections`） |
+| 下一里程碑 | 健康探测 / 用量埋点与仪表盘 |
+| 代码量 | `model_connections`、加密凭证、`ProviderFactory`、chat/retrieval/worker 接线 |
 | 阻塞项 | 无 |
+
+---
+
+## 2026-07-30（M4 · 模型接入点）
+
+### 完成内容
+
+| # | 任务 | 状态 |
+| --- | --- | --- |
+| C-1 | 规格 / 计划 | ✓ |
+| C-2 | 迁移 `0006` + Fernet 凭证 | ✓ |
+| C-3 | `/model-connections` CRUD / test / routes | ✓ |
+| C-4 | `ProviderFactory` 租户→平台→env | ✓ |
+| C-5 | chat / retrieval / ingestion 接线 | ✓ |
+| C-6 | seed 平台接入点 | ✓ |
+
+**决策**：凭证应用层加密；本切片不做 health 故障转移与用量。
 
 ---
 

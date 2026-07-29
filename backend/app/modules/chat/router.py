@@ -19,16 +19,22 @@ from app.modules.chat.schemas import (
 from app.modules.chat.service import ChatService
 from app.modules.retrieval.repository import RetrievalRepository
 from app.modules.retrieval.service import RetrievalService
-from app.platform.deps import ClaimsDep, EmbeddingDep, LLMDep, RerankDep, TenantSessionDep
+from app.platform.deps import (
+    ClaimsDep,
+    ResolvedEmbeddingDep,
+    ResolvedLLMDep,
+    ResolvedRerankDep,
+    TenantSessionDep,
+)
 
 router = APIRouter(tags=["chat"])
 
 
 def _service(
     session: TenantSessionDep,
-    embedding: EmbeddingDep,
-    llm: LLMDep,
-    rerank: RerankDep,
+    embedding: ResolvedEmbeddingDep,
+    llm: ResolvedLLMDep,
+    rerank: ResolvedRerankDep,
 ) -> ChatService:
     retrieval = RetrievalService(
         session, embedding, repo=RetrievalRepository(session), rerank=rerank

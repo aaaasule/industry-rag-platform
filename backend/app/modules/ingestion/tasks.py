@@ -38,7 +38,6 @@ from app.modules.knowledge.models import (
 from app.platform.config import get_settings
 from app.platform.db import init_engine, session_scope
 from app.platform.ids import uuid7
-from app.platform.llm.factory import build_embedding_provider
 from app.platform.logging import get_logger
 from app.platform.storage.object_store import S3ObjectStore
 from app.worker import celery_app
@@ -221,9 +220,12 @@ def _parse_all_pages(data: bytes, mime_type: str) -> list[PageParse]:
 async def _embed_document(document_id: uuid.UUID, tenant_id: uuid.UUID, job_id: uuid.UUID) -> str:
     settings = get_settings()
     init_engine(settings)
-    embedding = build_embedding_provider(settings)
 
     async with session_scope(tenant_id=tenant_id) as session:
+        from app.modules.modelops.provider_factory import ProviderFactory
+
+        embedding = await ProviderFactory(session, settings).get_embedding(tenant_id)
+
         job = await session.get(IngestionJob, job_id)
         doc = await session.get(Document, document_id)
         if job is None or doc is None:

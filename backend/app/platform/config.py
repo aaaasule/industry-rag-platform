@@ -48,6 +48,8 @@ class Settings(BaseSettings):
     jwt_algorithm: str = "HS256"
     access_token_ttl_minutes: int = 30
     refresh_token_ttl_days: int = 7
+    # 接入点凭证 Fernet 密钥；local 可空并回退 jwt_secret
+    credential_secret: SecretStr = SecretStr("")
 
     # 模型接入（默认 fake，不产生外部调用）
     llm_provider: Literal["fake", "openai_compatible"] = "fake"
@@ -118,6 +120,15 @@ class Settings(BaseSettings):
         if self.retrieval_rerank_default is not None:
             return self.retrieval_rerank_default
         return self.embedding_provider != "fake" and self.resolved_rerank_provider != "fake"
+
+    @property
+    def resolved_credential_secret(self) -> str:
+        explicit = self.credential_secret.get_secret_value()
+        if explicit:
+            return explicit
+        if self.is_local:
+            return self.jwt_secret.get_secret_value()
+        raise ValueError("非 local 环境必须设置 IRP_CREDENTIAL_SECRET")
 
 
 @lru_cache
