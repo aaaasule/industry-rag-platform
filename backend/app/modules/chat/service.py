@@ -19,13 +19,22 @@ from app.modules.chat.models import (
     Citation,
     Conversation,
     Message,
+    MessageFeedback,
 )
 from app.modules.chat.prompts import build_messages
 from app.modules.chat.refuse import should_refuse
 from app.modules.chat.repository import ChatRepository
-from app.modules.chat.schemas import ConversationCreate, ConversationOut, MessageOut
+from app.modules.chat.schemas import (
+    CitationOut,
+    ConversationCreate,
+    ConversationOut,
+    FeedbackCreate,
+    FeedbackOut,
+    MessageOut,
+)
 from app.modules.chat.sse import sse_event
 from app.modules.retrieval.base import SearchOptions
+from app.modules.retrieval.expand import load_document_titles
 from app.modules.retrieval.service import RetrievalService
 from app.platform.config import get_settings
 from app.platform.db import set_rls_context
@@ -83,7 +92,97 @@ class ChatService:
         if conv is None:
             raise NotFound("会话不存在")
         rows = await self._repo.list_messages(claims.tenant_id, conv_id)
-        return [MessageOut.model_validate(r) for r in rows]
+        doc_ids = [c.document_id for m in rows for c in m.citations]
+        titles = await load_document_titles(self._session, doc_ids)
+        return [self._to_message_out(m, titles, claims.user_id) for m in rows]
+
+    async def upsert_feedback(
+        self, claims: TokenClaims, message_id: uuid.UUID, payload: FeedbackCreate
+    ) -> FeedbackOut:
+        msg = await self._repo.get_message(claims.tenant_id, message_id)
+        if msg is None:
+            raise NotFound("消息不存在")
+        conv = msg.conversation
+        if (
+            conv is None
+            or conv.user_id != claims.user_id
+            or conv.deleted_at is not None
+            or conv.tenant_id != claims.tenant_id
+        ):
+            raise NotFound("消息不存在")
+        if msg.role != ROLE_ASSISTANT:
+            raise UnprocessableState("只能评价助手消息")
+        if msg.status != MSG_COMPLETED:
+            raise UnprocessableState("只能评价已完成的回答")
+        if payload.rating == "down" and payload.reason is None and not payload.comment:
+            # 允许无原因的踩，但前端默认会带 reason
+            pass
+
+        existing = await self._repo.get_feedback(
+            claims.tenant_id, message_id, claims.user_id
+        )
+        now = datetime.now(UTC)
+        if existing is None:
+            row = MessageFeedback(
+                id=uuid7(),
+                tenant_id=claims.tenant_id,
+                message_id=message_id,
+                user_id=claims.user_id,
+                rating=payload.rating,
+                reason=payload.reason,
+                comment=payload.comment,
+            )
+            await self._repo.add_feedback(row)
+        else:
+            existing.rating = payload.rating
+            existing.reason = payload.reason
+            existing.comment = payload.comment
+            existing.updated_at = now
+            row = existing
+        await self._session.flush()
+        return FeedbackOut.model_validate(row)
+
+    @staticmethod
+    def _to_message_out(
+        msg: Message, titles: dict[uuid.UUID, str], user_id: uuid.UUID
+    ) -> MessageOut:
+        used: list[int] = []
+        if isinstance(msg.retrieval_meta, dict):
+            raw = msg.retrieval_meta.get("used_citations")
+            if isinstance(raw, list):
+                for x in raw:
+                    if isinstance(x, (int, float)) or (isinstance(x, str) and x.isdigit()):
+                        used.append(int(x))
+
+        feedback = None
+        for fb in msg.feedbacks or []:
+            if fb.user_id == user_id:
+                feedback = FeedbackOut.model_validate(fb)
+                break
+
+        citations = [
+            CitationOut(
+                index_no=c.index_no,
+                chunk_id=c.chunk_id,
+                document_id=c.document_id,
+                document_title=titles.get(c.document_id, ""),
+                quote=c.quote,
+                page_start=c.page_start,
+                bboxes=list(c.bboxes or []),
+                score=c.score,
+            )
+            for c in sorted(msg.citations, key=lambda x: x.index_no)
+        ]
+        return MessageOut(
+            id=msg.id,
+            role=msg.role,
+            content=msg.content,
+            status=msg.status,
+            citations=citations,
+            used_citations=used,
+            feedback=feedback,
+            created_at=msg.created_at,
+        )
 
     async def stream_completion(
         self,

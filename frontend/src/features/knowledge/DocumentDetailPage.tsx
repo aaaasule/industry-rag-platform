@@ -1,0 +1,163 @@
+import { useEffect, useMemo, useState } from 'react';
+import { Link, useParams, useSearchParams } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
+
+import { PdfHighlightViewer } from '@/components/PdfHighlightViewer';
+import type { PdfBBox } from '@/components/PdfHighlightViewer';
+
+import * as kbApi from './api';
+import { useDocument, useKnowledgeBase } from './hooks';
+
+export function DocumentDetailPage() {
+  const { kbId: kbIdParam = '', docId = '' } = useParams();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const { data: doc } = useDocument(docId);
+  const kbId = kbIdParam && kbIdParam !== '_' ? kbIdParam : (doc?.kb_id ?? '');
+  const { data: kb } = useKnowledgeBase(kbId);
+
+  const chunkParam = searchParams.get('chunk');
+  const pageParam = Number(searchParams.get('page') || '0');
+
+  const { data: chunks = [], isLoading: chunksLoading } = useQuery({
+    queryKey: ['chunks', docId],
+    queryFn: () => kbApi.listChunks(docId),
+    enabled: Boolean(docId),
+  });
+
+  const { data: preview, error: previewError } = useQuery({
+    queryKey: ['preview-url', docId],
+    queryFn: () => kbApi.getPreviewUrl(docId),
+    enabled: Boolean(docId) && Boolean(doc?.mime_type?.includes('pdf')),
+    staleTime: 10 * 60 * 1000,
+  });
+
+  const [activeChunkId, setActiveChunkId] = useState<string | null>(chunkParam);
+  const [page, setPage] = useState(pageParam > 0 ? pageParam : 1);
+
+  useEffect(() => {
+    if (chunkParam) setActiveChunkId(chunkParam);
+  }, [chunkParam]);
+
+  useEffect(() => {
+    if (pageParam > 0) setPage(pageParam);
+  }, [pageParam]);
+
+  const activeChunk = useMemo(
+    () => chunks.find((c) => c.id === activeChunkId) ?? null,
+    [chunks, activeChunkId],
+  );
+
+  const bboxes: PdfBBox[] = useMemo(() => {
+    if (!activeChunk) return [];
+    return (activeChunk.bboxes || []).map((b) => ({
+      page: Number(b.page),
+      bbox: b.bbox,
+    }));
+  }, [activeChunk]);
+
+  useEffect(() => {
+    if (activeChunk && !(pageParam > 0)) {
+      setPage(activeChunk.page_start || 1);
+    }
+  }, [activeChunk, pageParam]);
+
+  function selectChunk(chunk: kbApi.ChunkItem) {
+    setActiveChunkId(chunk.id);
+    setPage(chunk.page_start || 1);
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        next.set('chunk', chunk.id);
+        next.set('page', String(chunk.page_start || 1));
+        return next;
+      },
+      { replace: true },
+    );
+  }
+
+  const isPdf = Boolean(doc?.mime_type?.includes('pdf'));
+
+  return (
+    <div className="mx-auto flex h-[calc(100vh-5.5rem)] max-w-6xl flex-col gap-3">
+      <div>
+        <Link
+          to={kbId ? `/knowledge/${kbId}` : '/knowledge'}
+          className="text-sm text-slate-500 hover:text-slate-800"
+        >
+          ← {kb?.name ?? '知识库'}
+        </Link>
+        <h1 className="mt-1 text-lg font-semibold text-slate-900">
+          {doc?.title ?? '文档详情'}
+        </h1>
+        <p className="text-xs text-slate-500">
+          {doc ? `${kbApi.statusLabel(doc.status)} · ${doc.page_count ?? '—'} 页` : '加载中…'}
+        </p>
+      </div>
+
+      <div className="grid min-h-0 flex-1 gap-3 lg:grid-cols-2">
+        <section className="min-h-0 overflow-hidden rounded-xl border border-slate-200 bg-white">
+          {!isPdf && (
+            <p className="p-6 text-sm text-slate-500">当前文件类型暂不支持 PDF 预览。</p>
+          )}
+          {isPdf && previewError && (
+            <p className="p-6 text-sm text-red-600">预览地址获取失败</p>
+          )}
+          {isPdf && preview?.url && (
+            <PdfHighlightViewer
+              url={preview.url}
+              page={page}
+              bboxes={bboxes}
+              onPageChange={setPage}
+            />
+          )}
+          {isPdf && !preview && !previewError && (
+            <p className="p-6 text-sm text-slate-500">加载预览…</p>
+          )}
+        </section>
+
+        <aside className="flex min-h-0 flex-col overflow-hidden rounded-xl border border-slate-200 bg-white">
+          <div className="border-b border-slate-100 px-4 py-3">
+            <h2 className="text-sm font-medium text-slate-900">分块（{chunks.length}）</h2>
+          </div>
+          <ul className="flex-1 space-y-2 overflow-auto p-3">
+            {chunksLoading && (
+              <li className="px-2 py-4 text-sm text-slate-400">加载分块…</li>
+            )}
+            {!chunksLoading && chunks.length === 0 && (
+              <li className="px-2 py-4 text-sm text-slate-400">暂无分块</li>
+            )}
+            {chunks.map((c) => {
+              const active = c.id === activeChunkId;
+              return (
+                <li key={c.id}>
+                  <button
+                    type="button"
+                    onClick={() => selectChunk(c)}
+                    className={[
+                      'w-full rounded-lg border px-3 py-2 text-left transition',
+                      active
+                        ? 'border-brand-300 bg-brand-50'
+                        : 'border-slate-200 hover:border-slate-300',
+                    ].join(' ')}
+                  >
+                    <div className="flex items-center gap-2 text-xs text-slate-500">
+                      <span className="font-medium text-slate-700">#{c.seq}</span>
+                      <span>
+                        p.{c.page_start}
+                        {c.page_end !== c.page_start ? `–${c.page_end}` : ''}
+                      </span>
+                      {c.heading_path?.length > 0 && (
+                        <span className="truncate">{c.heading_path.join(' › ')}</span>
+                      )}
+                    </div>
+                    <p className="mt-1.5 line-clamp-4 text-sm text-slate-700">{c.content}</p>
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        </aside>
+      </div>
+    </div>
+  );
+}

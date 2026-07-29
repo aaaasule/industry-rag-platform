@@ -26,6 +26,8 @@ export interface ChatMessage {
   content: string;
   status: string;
   citations: Citation[];
+  used_citations?: number[];
+  feedback?: { rating: 'up' | 'down'; reason?: string | null; comment?: string | null } | null;
   created_at: string;
 }
 
@@ -35,6 +37,8 @@ export interface ChatCompletionBody {
   message: string;
   options?: Record<string, unknown>;
 }
+
+export type FeedbackReason = 'irrelevant' | 'bad_citation' | 'other';
 
 export function listConversations(): Promise<Conversation[]> {
   return api.get('/conversations');
@@ -53,6 +57,13 @@ export function deleteConversation(id: string): Promise<void> {
 
 export function listMessages(conversationId: string): Promise<ChatMessage[]> {
   return api.get(`/conversations/${conversationId}/messages`);
+}
+
+export function submitFeedback(
+  messageId: string,
+  payload: { rating: 'up' | 'down'; reason?: FeedbackReason; comment?: string },
+): Promise<{ rating: 'up' | 'down'; reason?: string | null; comment?: string | null }> {
+  return api.post(`/messages/${messageId}/feedback`, payload);
 }
 
 export function streamChatCompletions(

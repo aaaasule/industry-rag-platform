@@ -15,7 +15,7 @@ from httpx import ASGITransport, AsyncClient
 from sqlalchemy import delete, select
 
 from app.main import create_app
-from app.modules.chat.models import Citation, Conversation, Message
+from app.modules.chat.models import Citation, Conversation, Message, MessageFeedback
 from app.modules.identity.models import ROLE_MEMBER, ROLE_OWNER, Membership, Tenant, User
 from app.platform.config import get_settings
 from app.platform.db import session_scope
@@ -109,6 +109,9 @@ async def fixture_data() -> AsyncIterator[Fixture]:
                 )
             ).scalars().all()
             if msg_ids:
+                await session.execute(
+                    delete(MessageFeedback).where(MessageFeedback.message_id.in_(msg_ids))
+                )
                 await session.execute(delete(Citation).where(Citation.message_id.in_(msg_ids)))
                 await session.execute(delete(Message).where(Message.id.in_(msg_ids)))
             await session.execute(delete(Conversation).where(Conversation.id.in_(conv_ids)))

@@ -9,7 +9,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.modules.chat.models import Conversation, Message
+from app.modules.chat.models import Conversation, Message, MessageFeedback
 
 
 class ChatRepository:
@@ -54,7 +54,7 @@ class ChatRepository:
     ) -> list[Message]:
         stmt = (
             select(Message)
-            .options(selectinload(Message.citations))
+            .options(selectinload(Message.citations), selectinload(Message.feedbacks))
             .where(
                 Message.tenant_id == tenant_id,
                 Message.conversation_id == conversation_id,
@@ -67,3 +67,28 @@ class ChatRepository:
         self._session.add(msg)
         await self._session.flush()
         return msg
+
+    async def get_message(
+        self, tenant_id: uuid.UUID, message_id: uuid.UUID
+    ) -> Message | None:
+        stmt = (
+            select(Message)
+            .options(selectinload(Message.conversation))
+            .where(Message.id == message_id, Message.tenant_id == tenant_id)
+        )
+        return (await self._session.execute(stmt)).scalar_one_or_none()
+
+    async def get_feedback(
+        self, tenant_id: uuid.UUID, message_id: uuid.UUID, user_id: uuid.UUID
+    ) -> MessageFeedback | None:
+        stmt = select(MessageFeedback).where(
+            MessageFeedback.tenant_id == tenant_id,
+            MessageFeedback.message_id == message_id,
+            MessageFeedback.user_id == user_id,
+        )
+        return (await self._session.execute(stmt)).scalar_one_or_none()
+
+    async def add_feedback(self, row: MessageFeedback) -> MessageFeedback:
+        self._session.add(row)
+        await self._session.flush()
+        return row

@@ -9,6 +9,7 @@ from datetime import UTC, datetime
 from app.modules.knowledge.models import Document, KnowledgeBase
 from app.modules.knowledge.repository import KnowledgeRepository
 from app.modules.knowledge.schemas import (
+    ChunkOut,
     DocumentCreated,
     DocumentOut,
     DocumentRegisterRequest,
@@ -199,6 +200,23 @@ class KnowledgeService:
         doc = await self._require_doc(tenant_id, doc_id)
         url = self._store.presign_download(doc.storage_key)
         return PreviewUrlOut(url=url, expires_in=self._settings.s3_presign_ttl_seconds)
+
+    async def list_chunks(self, tenant_id: uuid.UUID, doc_id: uuid.UUID) -> list[ChunkOut]:
+        await self._require_doc(tenant_id, doc_id)
+        rows = await self._repo.list_chunks(tenant_id, doc_id)
+        return [
+            ChunkOut(
+                id=c.id,
+                seq=c.seq,
+                content=c.raw_content,
+                heading_path=list(c.heading_path or []),
+                page_start=c.page_start,
+                page_end=c.page_end,
+                bboxes=list(c.bboxes or []),
+                chunk_type=c.chunk_type,
+            )
+            for c in rows
+        ]
 
     async def _require_kb(self, tenant_id: uuid.UUID, kb_id: uuid.UUID) -> KnowledgeBase:
         kb = await self._repo.get_knowledge_base(tenant_id, kb_id)

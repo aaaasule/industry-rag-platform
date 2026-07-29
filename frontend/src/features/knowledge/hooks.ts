@@ -74,4 +74,12 @@ export function useDeleteDocument(kbId: string) {
   });
 }
 
+export function useDocument(docId: string) {
+  return useQuery({
+    queryKey: ['document', docId],
+    queryFn: () => kbApi.getDocument(docId),
+    enabled: Boolean(docId),
+  });
+}
+
 export type { ApiError };

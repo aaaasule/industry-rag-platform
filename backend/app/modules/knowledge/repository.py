@@ -7,7 +7,7 @@ import uuid
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.modules.knowledge.models import Document, IndustryProfile, KnowledgeBase
+from app.modules.knowledge.models import Chunk, Document, IndustryProfile, KnowledgeBase
 
 
 class KnowledgeRepository:
@@ -96,3 +96,11 @@ class KnowledgeRepository:
         self._session.add(doc)
         await self._session.flush()
         return doc
+
+    async def list_chunks(self, tenant_id: uuid.UUID, doc_id: uuid.UUID) -> list[Chunk]:
+        stmt = (
+            select(Chunk)
+            .where(Chunk.tenant_id == tenant_id, Chunk.document_id == doc_id)
+            .order_by(Chunk.seq.asc())
+        )
+        return list((await self._session.execute(stmt)).scalars().all())

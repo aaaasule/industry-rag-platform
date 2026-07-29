@@ -70,6 +70,25 @@ export function getDocument(docId: string): Promise<DocumentItem> {
   return api.get(`/documents/${docId}`);
 }
 
+export function getPreviewUrl(docId: string): Promise<{ url: string; expires_in: number }> {
+  return api.get(`/documents/${docId}/preview-url`);
+}
+
+export interface ChunkItem {
+  id: string;
+  seq: number;
+  content: string;
+  heading_path: string[];
+  page_start: number;
+  page_end: number;
+  bboxes: { page: number; bbox: number[] }[];
+  chunk_type: string;
+}
+
+export function listChunks(docId: string): Promise<ChunkItem[]> {
+  return api.get(`/documents/${docId}/chunks`);
+}
+
 export function reingestDocument(docId: string): Promise<DocumentCreated> {
   return api.post(`/documents/${docId}/reingest`);
 }

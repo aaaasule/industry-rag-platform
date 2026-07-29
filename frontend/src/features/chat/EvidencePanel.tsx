@@ -3,10 +3,16 @@ import type { Citation } from './api';
 interface Props {
   citations: Citation[];
   activeIndex: number | null;
+  usedCitations?: number[] | null | undefined;
   onSelect: (indexNo: number) => void;
 }
 
-export function EvidencePanel({ citations, activeIndex, onSelect }: Props) {
+export function EvidencePanel({
+  citations,
+  activeIndex,
+  usedCitations,
+  onSelect,
+}: Props) {
   if (citations.length === 0) {
     return (
       <aside className="flex h-full flex-col rounded-xl border border-dashed border-slate-300 bg-white p-4">
@@ -16,6 +22,9 @@ export function EvidencePanel({ citations, activeIndex, onSelect }: Props) {
     );
   }
 
+  const usedSet =
+    usedCitations && usedCitations.length > 0 ? new Set(usedCitations) : null;
+
   return (
     <aside className="flex h-full flex-col overflow-hidden rounded-xl border border-slate-200 bg-white">
       <div className="border-b border-slate-100 px-4 py-3">
@@ -24,6 +33,7 @@ export function EvidencePanel({ citations, activeIndex, onSelect }: Props) {
       <ul className="flex-1 space-y-2 overflow-auto p-3">
         {citations.map((c) => {
           const active = activeIndex === c.index_no;
+          const unused = usedSet !== null && !usedSet.has(c.index_no);
           return (
             <li key={`${c.document_id}-${c.index_no}`}>
               <button
@@ -34,6 +44,7 @@ export function EvidencePanel({ citations, activeIndex, onSelect }: Props) {
                   active
                     ? 'border-brand-300 bg-brand-50'
                     : 'border-slate-200 bg-white hover:border-slate-300',
+                  unused ? 'opacity-45' : '',
                 ].join(' ')}
               >
                 <div className="flex items-center gap-2 text-xs text-slate-500">
@@ -48,6 +59,7 @@ export function EvidencePanel({ citations, activeIndex, onSelect }: Props) {
                   <span className="truncate">
                     {c.document_title || '文档'} · p.{c.page_start}
                   </span>
+                  {unused && <span className="shrink-0 text-[10px] text-slate-400">未引用</span>}
                 </div>
                 <p className="mt-1.5 line-clamp-4 text-sm text-slate-700">{c.quote}</p>
               </button>
