@@ -18,7 +18,9 @@ def ocr_page(page: Any, *, dpi: int = DEFAULT_DPI) -> PageParse:
     try:
         from rapidocr_onnxruntime import RapidOCR
     except ImportError as exc:  # pragma: no cover
-        raise RuntimeError("未安装 OCR 依赖：pip install 'industry-rag-platform[ocr]'") from exc
+        raise RuntimeError(
+            "未安装 OCR 依赖。本地请执行：cd backend && uv sync --extra ocr"
+        ) from exc
 
     engine = RapidOCR()
     pixmap = page.get_pixmap(dpi=dpi)

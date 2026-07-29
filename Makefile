@@ -26,7 +26,7 @@ env: ## 从模板生成 backend/.env（已存在则跳过）
 
 .PHONY: install
 install: env ## 安装前后端依赖
-	$(UV) sync --extra dev
+	$(UV) sync --extra dev --extra ocr
 	cd frontend && pnpm install
 
 .PHONY: migrate
