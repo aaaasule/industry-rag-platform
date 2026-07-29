@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter
 
+from app.modules.chat.router import router as chat_router
 from app.modules.identity.router import router as identity_router
 from app.modules.knowledge.router import router as knowledge_router
 from app.modules.retrieval.router import router as retrieval_router
@@ -12,3 +13,4 @@ api_router = APIRouter(prefix="/api/v1")
 api_router.include_router(identity_router)
 api_router.include_router(knowledge_router)
 api_router.include_router(retrieval_router)
+api_router.include_router(chat_router)

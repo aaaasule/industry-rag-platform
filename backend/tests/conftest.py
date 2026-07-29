@@ -12,9 +12,10 @@ from dataclasses import dataclass
 
 import pytest
 from httpx import ASGITransport, AsyncClient
-from sqlalchemy import delete
+from sqlalchemy import delete, select
 
 from app.main import create_app
+from app.modules.chat.models import Citation, Conversation, Message
 from app.modules.identity.models import ROLE_MEMBER, ROLE_OWNER, Membership, Tenant, User
 from app.platform.config import get_settings
 from app.platform.db import session_scope
@@ -81,6 +82,24 @@ async def fixture_data() -> AsyncIterator[Fixture]:
         secondary_tenant_slug=f"secondary-{marker}",
         outsider_tenant_id=ids[2],
     )
+
+    async with session_scope(tenant_id=ids[0], user_id=ids[3]) as session:
+        # chat 表有 RLS；必须在租户上下文中清理
+        conv_ids = (
+            await session.execute(
+                select(Conversation.id).where(Conversation.user_id == ids[3])
+            )
+        ).scalars().all()
+        if conv_ids:
+            msg_ids = (
+                await session.execute(
+                    select(Message.id).where(Message.conversation_id.in_(conv_ids))
+                )
+            ).scalars().all()
+            if msg_ids:
+                await session.execute(delete(Citation).where(Citation.message_id.in_(msg_ids)))
+                await session.execute(delete(Message).where(Message.id.in_(msg_ids)))
+            await session.execute(delete(Conversation).where(Conversation.id.in_(conv_ids)))
 
     async with session_scope() as session:
         # memberships 由 tenants 的级联删除带走

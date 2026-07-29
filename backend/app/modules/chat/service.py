@@ -1,0 +1,262 @@
+"""会话与流式问答编排。"""
+
+from __future__ import annotations
+
+import time
+import uuid
+from collections.abc import AsyncIterator
+from datetime import UTC, datetime
+
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.modules.chat.citations import validate_citations
+from app.modules.chat.models import (
+    MSG_COMPLETED,
+    MSG_FAILED,
+    MSG_STREAMING,
+    ROLE_ASSISTANT,
+    ROLE_USER,
+    Citation,
+    Conversation,
+    Message,
+)
+from app.modules.chat.prompts import build_messages
+from app.modules.chat.refuse import should_refuse
+from app.modules.chat.repository import ChatRepository
+from app.modules.chat.schemas import ConversationCreate, ConversationOut, MessageOut
+from app.modules.chat.sse import sse_event
+from app.modules.retrieval.base import SearchOptions
+from app.modules.retrieval.service import RetrievalService
+from app.platform.db import set_rls_context
+from app.platform.errors import AppError, NotFound, UnprocessableState
+from app.platform.ids import uuid7
+from app.platform.llm.base import LLMProvider
+from app.platform.llm.base import Message as LLMMessage
+from app.platform.security import TokenClaims
+
+
+class ChatService:
+    def __init__(
+        self,
+        session: AsyncSession,
+        retrieval: RetrievalService,
+        llm: LLMProvider,
+        *,
+        repo: ChatRepository | None = None,
+    ) -> None:
+        self._session = session
+        self._retrieval = retrieval
+        self._llm = llm
+        self._repo = repo or ChatRepository(session)
+
+    async def _commit_keep_rls(self, claims: TokenClaims) -> None:
+        """中途 commit 会结束事务，SET LOCAL 的 RLS 变量随之失效，必须重写。"""
+        await self._session.commit()
+        await set_rls_context(self._session, tenant_id=claims.tenant_id, user_id=claims.user_id)
+
+    async def list_conversations(self, claims: TokenClaims) -> list[ConversationOut]:
+        rows = await self._repo.list_conversations(claims.tenant_id, claims.user_id)
+        return [ConversationOut.model_validate(r) for r in rows]
+
+    async def create_conversation(
+        self, claims: TokenClaims, payload: ConversationCreate
+    ) -> ConversationOut:
+        conv = Conversation(
+            id=uuid7(),
+            tenant_id=claims.tenant_id,
+            user_id=claims.user_id,
+            kb_ids=payload.kb_ids,
+            title=payload.title,
+        )
+        await self._repo.add_conversation(conv)
+        return ConversationOut.model_validate(conv)
+
+    async def delete_conversation(self, claims: TokenClaims, conv_id: uuid.UUID) -> None:
+        conv = await self._repo.get_conversation(claims.tenant_id, claims.user_id, conv_id)
+        if conv is None:
+            raise NotFound("会话不存在")
+        await self._repo.soft_delete(conv)
+
+    async def list_messages(self, claims: TokenClaims, conv_id: uuid.UUID) -> list[MessageOut]:
+        conv = await self._repo.get_conversation(claims.tenant_id, claims.user_id, conv_id)
+        if conv is None:
+            raise NotFound("会话不存在")
+        rows = await self._repo.list_messages(claims.tenant_id, conv_id)
+        return [MessageOut.model_validate(r) for r in rows]
+
+    async def stream_completion(
+        self,
+        claims: TokenClaims,
+        *,
+        message: str,
+        conversation_id: uuid.UUID | None,
+        kb_ids: list[uuid.UUID] | None,
+        temperature: float = 0.1,
+    ) -> AsyncIterator[bytes]:
+        if conversation_id is None:
+            if not kb_ids:
+                raise UnprocessableState("新建会话必须提供 kb_ids")
+            conv = Conversation(
+                id=uuid7(),
+                tenant_id=claims.tenant_id,
+                user_id=claims.user_id,
+                kb_ids=kb_ids,
+                title=message[:40] or "新会话",
+            )
+            await self._repo.add_conversation(conv)
+        else:
+            found = await self._repo.get_conversation(
+                claims.tenant_id, claims.user_id, conversation_id
+            )
+            if found is None:
+                raise NotFound("会话不存在")
+            conv = found
+            if kb_ids:
+                conv.kb_ids = kb_ids
+
+        user_msg = Message(
+            id=uuid7(),
+            tenant_id=claims.tenant_id,
+            conversation_id=conv.id,
+            role=ROLE_USER,
+            content=message,
+            status=MSG_COMPLETED,
+        )
+        await self._repo.add_message(user_msg)
+
+        asst = Message(
+            id=uuid7(),
+            tenant_id=claims.tenant_id,
+            conversation_id=conv.id,
+            role=ROLE_ASSISTANT,
+            content="",
+            status=MSG_STREAMING,
+            model=getattr(self._llm, "model", None) or self._llm.name,
+        )
+        await self._repo.add_message(asst)
+        await self._commit_keep_rls(claims)
+
+        yield sse_event(
+            "message_created",
+            {"message_id": str(asst.id), "conversation_id": str(conv.id)},
+        )
+
+        t0 = time.perf_counter()
+        try:
+            search = await self._retrieval.search(
+                tenant_id=claims.tenant_id,
+                query=message,
+                kb_ids=list(conv.kb_ids),
+                top_k=8,
+                options=SearchOptions(),
+            )
+        except AppError as exc:
+            asst.content = str(exc.message)
+            asst.status = MSG_FAILED
+            await self._commit_keep_rls(claims)
+            yield sse_event("error", {"code": exc.code, "message": exc.message})
+            return
+
+        took_ms = int((time.perf_counter() - t0) * 1000)
+        yield sse_event(
+            "retrieval",
+            {
+                "rewritten_query": search.rewritten_query,
+                "hit_count": len(search.hits),
+                "took_ms": took_ms,
+            },
+        )
+
+        reason = should_refuse(search.hits)
+        if reason:
+            text = "未找到足够相关的资料，请换一种问法或补充上传文档。"
+            asst.content = text
+            asst.status = MSG_COMPLETED
+            asst.retrieval_meta = {
+                "rewritten_query": search.rewritten_query,
+                "hit_count": len(search.hits),
+                "refuse_reason": reason,
+            }
+            await self._commit_keep_rls(claims)
+            yield sse_event(
+                "no_answer",
+                {"reason": reason, "suggestions": ["缩小知识库范围", "换用文档中的术语提问"]},
+            )
+            return
+
+        citations_payload = []
+        for i, h in enumerate(search.hits, start=1):
+            quote = h.content[:280]
+            score = float(h.scores.get("rrf") or 0.0)
+            self._session.add(
+                Citation(
+                    id=uuid7(),
+                    tenant_id=claims.tenant_id,
+                    message_id=asst.id,
+                    chunk_id=h.chunk_id,
+                    document_id=h.document_id,
+                    index_no=i,
+                    quote=quote,
+                    page_start=h.page_start,
+                    bboxes=h.bboxes,
+                    score=score,
+                )
+            )
+            citations_payload.append(
+                {
+                    "index_no": i,
+                    "document_id": str(h.document_id),
+                    "document_title": h.document_title,
+                    "page_start": h.page_start,
+                    "bboxes": h.bboxes,
+                    "quote": quote,
+                    "chunk_id": str(h.chunk_id),
+                    "score": score,
+                }
+            )
+        await self._session.flush()
+        yield sse_event("citations", {"citations": citations_payload})
+
+        llm_msgs = [
+            LLMMessage(role=m["role"], content=m["content"])  # type: ignore[arg-type]
+            for m in build_messages(message, search.hits)
+        ]
+        buf: list[str] = []
+        usage = None
+        try:
+            async for delta in self._llm.stream(llm_msgs, temperature=temperature):
+                if delta.content:
+                    buf.append(delta.content)
+                    yield sse_event("delta", {"text": delta.content})
+                if delta.usage is not None:
+                    usage = delta.usage
+            raw = "".join(buf)
+            cleaned, used = validate_citations(raw, max_index=len(search.hits))
+            asst.content = cleaned
+            asst.status = MSG_COMPLETED
+            asst.retrieval_meta = {
+                "rewritten_query": search.rewritten_query,
+                "hit_count": len(search.hits),
+                "used_citations": used,
+            }
+            if usage is not None:
+                asst.token_usage = {
+                    "prompt_tokens": usage.prompt_tokens,
+                    "completion_tokens": usage.completion_tokens,
+                }
+            conv.updated_at = datetime.now(UTC)
+            await self._commit_keep_rls(claims)
+            yield sse_event(
+                "done",
+                {
+                    "finish_reason": "stop",
+                    "used_citations": used,
+                    "usage": asst.token_usage or {},
+                    "took_ms": int((time.perf_counter() - t0) * 1000),
+                },
+            )
+        except Exception as exc:
+            asst.content = "".join(buf)
+            asst.status = MSG_FAILED
+            await self._commit_keep_rls(claims)
+            yield sse_event("error", {"code": "stream_failed", "message": str(exc)})
