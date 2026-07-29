@@ -8,28 +8,13 @@ from typing import Any
 from sqlalchemy import Select, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.modules.knowledge.models import Chunk, Document, KnowledgeBase
+from app.modules.knowledge.models import Chunk, Document
 from app.modules.retrieval.base import RankedHit
 
 
 class RetrievalRepository:
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
-
-    async def list_visible_kb_ids(self, tenant_id: uuid.UUID) -> list[uuid.UUID]:
-        rows = (
-            (
-                await self._session.execute(
-                    select(KnowledgeBase.id).where(
-                        KnowledgeBase.tenant_id == tenant_id,
-                        KnowledgeBase.deleted_at.is_(None),
-                    )
-                )
-            )
-            .scalars()
-            .all()
-        )
-        return list(rows)
 
     async def vector_search(
         self,

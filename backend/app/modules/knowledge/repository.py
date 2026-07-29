@@ -7,7 +7,7 @@ import uuid
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.modules.knowledge.models import Chunk, Document, IndustryProfile, KnowledgeBase
+from app.modules.knowledge.models import Chunk, Document, IndustryProfile, KbGrant, KnowledgeBase
 
 
 class KnowledgeRepository:
@@ -41,12 +41,17 @@ class KnowledgeRepository:
             )
         ).scalar_one_or_none()
 
-    async def list_knowledge_bases(self, tenant_id: uuid.UUID) -> list[KnowledgeBase]:
-        stmt = (
-            select(KnowledgeBase)
-            .where(KnowledgeBase.tenant_id == tenant_id, KnowledgeBase.deleted_at.is_(None))
-            .order_by(KnowledgeBase.created_at.desc())
+    async def list_knowledge_bases(
+        self, tenant_id: uuid.UUID, *, kb_ids: list[uuid.UUID] | None = None
+    ) -> list[KnowledgeBase]:
+        stmt = select(KnowledgeBase).where(
+            KnowledgeBase.tenant_id == tenant_id, KnowledgeBase.deleted_at.is_(None)
         )
+        if kb_ids is not None:
+            if not kb_ids:
+                return []
+            stmt = stmt.where(KnowledgeBase.id.in_(kb_ids))
+        stmt = stmt.order_by(KnowledgeBase.created_at.desc())
         return list((await self._session.execute(stmt)).scalars().all())
 
     async def get_knowledge_base(
@@ -63,6 +68,33 @@ class KnowledgeRepository:
         self._session.add(kb)
         await self._session.flush()
         return kb
+
+    async def list_grants(self, tenant_id: uuid.UUID, kb_id: uuid.UUID) -> list[KbGrant]:
+        stmt = (
+            select(KbGrant)
+            .where(KbGrant.tenant_id == tenant_id, KbGrant.kb_id == kb_id)
+            .order_by(KbGrant.created_at.asc())
+        )
+        return list((await self._session.execute(stmt)).scalars().all())
+
+    async def get_grant(
+        self, tenant_id: uuid.UUID, kb_id: uuid.UUID, user_id: uuid.UUID
+    ) -> KbGrant | None:
+        stmt = select(KbGrant).where(
+            KbGrant.tenant_id == tenant_id,
+            KbGrant.kb_id == kb_id,
+            KbGrant.user_id == user_id,
+        )
+        return (await self._session.execute(stmt)).scalar_one_or_none()
+
+    async def add_grant(self, grant: KbGrant) -> KbGrant:
+        self._session.add(grant)
+        await self._session.flush()
+        return grant
+
+    async def delete_grant(self, grant: KbGrant) -> None:
+        await self._session.delete(grant)
+        await self._session.flush()
 
     async def list_documents(self, tenant_id: uuid.UUID, kb_id: uuid.UUID) -> list[Document]:
         stmt = (

@@ -6,13 +6,22 @@ import hashlib
 import uuid
 from datetime import UTC, datetime
 
-from app.modules.knowledge.models import Document, KnowledgeBase
+from app.modules.identity.permissions import (
+    PERM_MANAGE,
+    PERM_READ,
+    PERM_WRITE,
+    kb_exists_in_tenant,
+    visible_kb_ids,
+)
+from app.modules.knowledge.models import Document, KbGrant, KnowledgeBase
 from app.modules.knowledge.repository import KnowledgeRepository
 from app.modules.knowledge.schemas import (
     ChunkOut,
     DocumentCreated,
     DocumentOut,
     DocumentRegisterRequest,
+    GrantOut,
+    GrantUpsert,
     IndustryProfileOut,
     KnowledgeBaseCreate,
     KnowledgeBaseOut,
@@ -22,7 +31,7 @@ from app.modules.knowledge.schemas import (
     UploadUrlResponse,
 )
 from app.platform.config import Settings
-from app.platform.errors import Conflict, NotFound, UnprocessableState
+from app.platform.errors import Conflict, Forbidden, NotFound, UnprocessableState
 from app.platform.ids import uuid7
 from app.platform.security import TokenClaims
 from app.platform.storage.object_store import S3ObjectStore, document_key
@@ -46,8 +55,15 @@ class KnowledgeService:
         rows = await self._repo.list_profiles(tenant_id)
         return [IndustryProfileOut.model_validate(r) for r in rows]
 
-    async def list_knowledge_bases(self, tenant_id: uuid.UUID) -> list[KnowledgeBaseOut]:
-        rows = await self._repo.list_knowledge_bases(tenant_id)
+    async def list_knowledge_bases(self, claims: TokenClaims) -> list[KnowledgeBaseOut]:
+        ids = await visible_kb_ids(
+            self._repo._session,
+            tenant_id=claims.tenant_id,
+            user_id=claims.user_id,
+            role=claims.role,
+            permission=PERM_READ,
+        )
+        rows = await self._repo.list_knowledge_bases(claims.tenant_id, kb_ids=ids)
         return [KnowledgeBaseOut.model_validate(r) for r in rows]
 
     async def create_knowledge_base(
@@ -70,14 +86,14 @@ class KnowledgeService:
         await self._repo.add_knowledge_base(kb)
         return KnowledgeBaseOut.model_validate(kb)
 
-    async def get_knowledge_base(self, tenant_id: uuid.UUID, kb_id: uuid.UUID) -> KnowledgeBaseOut:
-        kb = await self._require_kb(tenant_id, kb_id)
+    async def get_knowledge_base(self, claims: TokenClaims, kb_id: uuid.UUID) -> KnowledgeBaseOut:
+        kb = await self._require_kb(claims, kb_id, PERM_READ)
         return KnowledgeBaseOut.model_validate(kb)
 
     async def update_knowledge_base(
-        self, tenant_id: uuid.UUID, kb_id: uuid.UUID, payload: KnowledgeBaseUpdate
+        self, claims: TokenClaims, kb_id: uuid.UUID, payload: KnowledgeBaseUpdate
     ) -> KnowledgeBaseOut:
-        kb = await self._require_kb(tenant_id, kb_id)
+        kb = await self._require_kb(claims, kb_id, PERM_WRITE)
         if payload.name is not None:
             kb.name = payload.name
         if payload.description is not None:
@@ -87,14 +103,52 @@ class KnowledgeService:
         await self._repo._session.flush()
         return KnowledgeBaseOut.model_validate(kb)
 
-    async def delete_knowledge_base(self, tenant_id: uuid.UUID, kb_id: uuid.UUID) -> None:
-        kb = await self._require_kb(tenant_id, kb_id)
+    async def delete_knowledge_base(self, claims: TokenClaims, kb_id: uuid.UUID) -> None:
+        kb = await self._require_kb(claims, kb_id, PERM_MANAGE)
         kb.deleted_at = datetime.now(UTC)
+
+    async def list_grants(self, claims: TokenClaims, kb_id: uuid.UUID) -> list[GrantOut]:
+        await self._require_kb(claims, kb_id, PERM_MANAGE)
+        rows = await self._repo.list_grants(claims.tenant_id, kb_id)
+        return [GrantOut.model_validate(r) for r in rows]
+
+    async def upsert_grant(
+        self,
+        claims: TokenClaims,
+        kb_id: uuid.UUID,
+        user_id: uuid.UUID,
+        payload: GrantUpsert,
+    ) -> GrantOut:
+        await self._require_kb(claims, kb_id, PERM_MANAGE)
+        existing = await self._repo.get_grant(claims.tenant_id, kb_id, user_id)
+        if existing is None:
+            row = KbGrant(
+                id=uuid7(),
+                tenant_id=claims.tenant_id,
+                kb_id=kb_id,
+                user_id=user_id,
+                permission=payload.permission,
+            )
+            await self._repo.add_grant(row)
+        else:
+            existing.permission = payload.permission
+            row = existing
+            await self._repo._session.flush()
+        return GrantOut.model_validate(row)
+
+    async def delete_grant(
+        self, claims: TokenClaims, kb_id: uuid.UUID, user_id: uuid.UUID
+    ) -> None:
+        await self._require_kb(claims, kb_id, PERM_MANAGE)
+        existing = await self._repo.get_grant(claims.tenant_id, kb_id, user_id)
+        if existing is None:
+            raise NotFound("授权不存在")
+        await self._repo.delete_grant(existing)
 
     async def create_upload_url(
         self, claims: TokenClaims, kb_id: uuid.UUID, payload: UploadUrlRequest
     ) -> UploadUrlResponse:
-        await self._require_kb(claims.tenant_id, kb_id)
+        await self._require_kb(claims, kb_id, PERM_WRITE)
         document_id = uuid7()
         key = document_key(claims.tenant_id, document_id, payload.filename)
         signed = self._store.presign_upload(key, payload.mime_type)
@@ -108,7 +162,7 @@ class KnowledgeService:
     async def register_document(
         self, claims: TokenClaims, kb_id: uuid.UUID, payload: DocumentRegisterRequest
     ) -> DocumentCreated:
-        kb = await self._require_kb(claims.tenant_id, kb_id)
+        kb = await self._require_kb(claims, kb_id, PERM_WRITE)
         expected_prefix = f"tenants/{claims.tenant_id}/documents/{payload.document_id}/"
         if not payload.storage_key.startswith(expected_prefix):
             raise Conflict("storage_key 与租户/文档不匹配", code="invalid_storage_key")
@@ -155,7 +209,7 @@ class KnowledgeService:
                 f"文件超过 {DIRECT_UPLOAD_MAX_BYTES // (1024 * 1024)}MB，请使用预签名直传"
             )
 
-        await self._require_kb(claims.tenant_id, kb_id)
+        await self._require_kb(claims, kb_id, PERM_WRITE)
         document_id = uuid7()
         key = document_key(claims.tenant_id, document_id, filename)
         mime = content_type or "application/octet-stream"
@@ -174,36 +228,36 @@ class KnowledgeService:
             ),
         )
 
-    async def list_documents(self, tenant_id: uuid.UUID, kb_id: uuid.UUID) -> list[DocumentOut]:
-        await self._require_kb(tenant_id, kb_id)
-        rows = await self._repo.list_documents(tenant_id, kb_id)
+    async def list_documents(self, claims: TokenClaims, kb_id: uuid.UUID) -> list[DocumentOut]:
+        await self._require_kb(claims, kb_id, PERM_READ)
+        rows = await self._repo.list_documents(claims.tenant_id, kb_id)
         return [DocumentOut.model_validate(r) for r in rows]
 
-    async def get_document(self, tenant_id: uuid.UUID, doc_id: uuid.UUID) -> DocumentOut:
-        doc = await self._require_doc(tenant_id, doc_id)
+    async def get_document(self, claims: TokenClaims, doc_id: uuid.UUID) -> DocumentOut:
+        doc = await self._require_doc(claims, doc_id, PERM_READ)
         return DocumentOut.model_validate(doc)
 
-    async def delete_document(self, tenant_id: uuid.UUID, doc_id: uuid.UUID) -> None:
-        doc = await self._require_doc(tenant_id, doc_id)
+    async def delete_document(self, claims: TokenClaims, doc_id: uuid.UUID) -> None:
+        doc = await self._require_doc(claims, doc_id, PERM_WRITE)
         doc.deleted_at = datetime.now(UTC)
-        kb = await self._require_kb(tenant_id, doc.kb_id)
+        kb = await self._require_kb(claims, doc.kb_id, PERM_WRITE)
         kb.doc_count = max(0, kb.doc_count - 1)
 
-    async def reingest(self, tenant_id: uuid.UUID, doc_id: uuid.UUID) -> DocumentCreated:
-        doc = await self._require_doc(tenant_id, doc_id)
+    async def reingest(self, claims: TokenClaims, doc_id: uuid.UUID) -> DocumentCreated:
+        doc = await self._require_doc(claims, doc_id, PERM_WRITE)
         from app.modules.ingestion.service import enqueue_ingest
 
-        job_id = await enqueue_ingest(doc.id, tenant_id, self._repo._session, force=True)
+        job_id = await enqueue_ingest(doc.id, claims.tenant_id, self._repo._session, force=True)
         return DocumentCreated(document_id=doc.id, status=doc.status, job_id=job_id)
 
-    async def preview_url(self, tenant_id: uuid.UUID, doc_id: uuid.UUID) -> PreviewUrlOut:
-        doc = await self._require_doc(tenant_id, doc_id)
+    async def preview_url(self, claims: TokenClaims, doc_id: uuid.UUID) -> PreviewUrlOut:
+        doc = await self._require_doc(claims, doc_id, PERM_READ)
         url = self._store.presign_download(doc.storage_key)
         return PreviewUrlOut(url=url, expires_in=self._settings.s3_presign_ttl_seconds)
 
-    async def list_chunks(self, tenant_id: uuid.UUID, doc_id: uuid.UUID) -> list[ChunkOut]:
-        await self._require_doc(tenant_id, doc_id)
-        rows = await self._repo.list_chunks(tenant_id, doc_id)
+    async def list_chunks(self, claims: TokenClaims, doc_id: uuid.UUID) -> list[ChunkOut]:
+        await self._require_doc(claims, doc_id, PERM_READ)
+        rows = await self._repo.list_chunks(claims.tenant_id, doc_id)
         return [
             ChunkOut(
                 id=c.id,
@@ -218,14 +272,33 @@ class KnowledgeService:
             for c in rows
         ]
 
-    async def _require_kb(self, tenant_id: uuid.UUID, kb_id: uuid.UUID) -> KnowledgeBase:
-        kb = await self._repo.get_knowledge_base(tenant_id, kb_id)
+    async def _require_kb(
+        self, claims: TokenClaims, kb_id: uuid.UUID, permission: str
+    ) -> KnowledgeBase:
+        kb = await self._repo.get_knowledge_base(claims.tenant_id, kb_id)
         if kb is None:
+            raise NotFound("知识库不存在")
+        ids = await visible_kb_ids(
+            self._repo._session,
+            tenant_id=claims.tenant_id,
+            user_id=claims.user_id,
+            role=claims.role,
+            permission=permission,
+        )
+        if kb.id not in ids:
+            # 同租户存在但无权 → 403；避免与跨租户 404 混淆
+            if await kb_exists_in_tenant(
+                self._repo._session, tenant_id=claims.tenant_id, kb_id=kb_id
+            ):
+                raise Forbidden("没有权限访问该知识库")
             raise NotFound("知识库不存在")
         return kb
 
-    async def _require_doc(self, tenant_id: uuid.UUID, doc_id: uuid.UUID) -> Document:
-        doc = await self._repo.get_document(tenant_id, doc_id)
+    async def _require_doc(
+        self, claims: TokenClaims, doc_id: uuid.UUID, permission: str
+    ) -> Document:
+        doc = await self._repo.get_document(claims.tenant_id, doc_id)
         if doc is None:
             raise NotFound("文档不存在")
+        await self._require_kb(claims, doc.kb_id, permission)
         return doc

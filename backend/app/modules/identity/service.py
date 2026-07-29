@@ -10,6 +10,8 @@ from __future__ import annotations
 import uuid
 
 from app.modules.identity.models import Membership, Tenant, User
+from app.modules.identity.permissions import PERM_READ
+from app.modules.identity.permissions import visible_kb_ids as compute_visible_kb_ids
 from app.modules.identity.repository import IdentityRepository
 from app.modules.identity.schemas import (
     SessionInfo,
@@ -78,6 +80,17 @@ class IdentityService:
             user=UserProfile.model_validate(user),
             current_tenant=_brief(current),
             tenants=[_brief(m) for m in memberships if m.tenant.is_active],
+        )
+
+    async def visible_kb_ids(
+        self, claims: TokenClaims, permission: str = PERM_READ
+    ) -> list[uuid.UUID]:
+        return await compute_visible_kb_ids(
+            self._repo._session,
+            tenant_id=claims.tenant_id,
+            user_id=claims.user_id,
+            role=claims.role,
+            permission=permission,
         )
 
     async def _pick_membership(self, user: User, tenant_slug: str | None) -> Membership:

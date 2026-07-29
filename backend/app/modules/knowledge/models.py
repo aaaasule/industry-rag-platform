@@ -89,6 +89,28 @@ class KnowledgeBase(UUIDPrimaryKeyMixin, Base):
 
     profile: Mapped[IndustryProfile | None] = relationship()
     documents: Mapped[list[Document]] = relationship(back_populates="knowledge_base")
+    grants: Mapped[list[KbGrant]] = relationship(
+        back_populates="knowledge_base", cascade="all, delete-orphan"
+    )
+
+
+class KbGrant(UUIDPrimaryKeyMixin, Base):
+    __tablename__ = "kb_grants"
+    __table_args__ = (UniqueConstraint("kb_id", "user_id"),)
+
+    tenant_id: Mapped[uuid.UUID] = mapped_column(nullable=False)
+    kb_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("knowledge_bases.id", ondelete="CASCADE"), nullable=False
+    )
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    permission: Mapped[str] = mapped_column(Text, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+    knowledge_base: Mapped[KnowledgeBase] = relationship(back_populates="grants")
 
 
 class Document(UUIDPrimaryKeyMixin, TimestampMixin, Base):

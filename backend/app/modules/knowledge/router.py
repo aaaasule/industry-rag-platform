@@ -12,6 +12,8 @@ from app.modules.knowledge.schemas import (
     DocumentCreated,
     DocumentOut,
     DocumentRegisterRequest,
+    GrantOut,
+    GrantUpsert,
     IndustryProfileOut,
     KnowledgeBaseCreate,
     KnowledgeBaseOut,
@@ -44,7 +46,7 @@ async def list_profiles(
 async def list_knowledge_bases(
     claims: ClaimsDep, service: KnowledgeService = ServiceDep
 ) -> list[KnowledgeBaseOut]:
-    return await service.list_knowledge_bases(claims.tenant_id)
+    return await service.list_knowledge_bases(claims)
 
 
 @router.post("/knowledge-bases", response_model=KnowledgeBaseOut, status_code=201)
@@ -60,7 +62,7 @@ async def create_knowledge_base(
 async def get_knowledge_base(
     kb_id: uuid.UUID, claims: ClaimsDep, service: KnowledgeService = ServiceDep
 ) -> KnowledgeBaseOut:
-    return await service.get_knowledge_base(claims.tenant_id, kb_id)
+    return await service.get_knowledge_base(claims, kb_id)
 
 
 @router.patch("/knowledge-bases/{kb_id}", response_model=KnowledgeBaseOut)
@@ -70,14 +72,42 @@ async def update_knowledge_base(
     claims: ClaimsDep,
     service: KnowledgeService = ServiceDep,
 ) -> KnowledgeBaseOut:
-    return await service.update_knowledge_base(claims.tenant_id, kb_id, payload)
+    return await service.update_knowledge_base(claims, kb_id, payload)
 
 
 @router.delete("/knowledge-bases/{kb_id}", status_code=204)
 async def delete_knowledge_base(
     kb_id: uuid.UUID, claims: ClaimsDep, service: KnowledgeService = ServiceDep
 ) -> None:
-    await service.delete_knowledge_base(claims.tenant_id, kb_id)
+    await service.delete_knowledge_base(claims, kb_id)
+
+
+@router.get("/knowledge-bases/{kb_id}/grants", response_model=list[GrantOut])
+async def list_grants(
+    kb_id: uuid.UUID, claims: ClaimsDep, service: KnowledgeService = ServiceDep
+) -> list[GrantOut]:
+    return await service.list_grants(claims, kb_id)
+
+
+@router.put("/knowledge-bases/{kb_id}/grants/{user_id}", response_model=GrantOut)
+async def upsert_grant(
+    kb_id: uuid.UUID,
+    user_id: uuid.UUID,
+    payload: GrantUpsert,
+    claims: ClaimsDep,
+    service: KnowledgeService = ServiceDep,
+) -> GrantOut:
+    return await service.upsert_grant(claims, kb_id, user_id, payload)
+
+
+@router.delete("/knowledge-bases/{kb_id}/grants/{user_id}", status_code=204)
+async def delete_grant(
+    kb_id: uuid.UUID,
+    user_id: uuid.UUID,
+    claims: ClaimsDep,
+    service: KnowledgeService = ServiceDep,
+) -> None:
+    await service.delete_grant(claims, kb_id, user_id)
 
 
 @router.post(
@@ -134,39 +164,39 @@ async def upload_document(
 async def list_documents(
     kb_id: uuid.UUID, claims: ClaimsDep, service: KnowledgeService = ServiceDep
 ) -> list[DocumentOut]:
-    return await service.list_documents(claims.tenant_id, kb_id)
+    return await service.list_documents(claims, kb_id)
 
 
 @router.get("/documents/{doc_id}", response_model=DocumentOut)
 async def get_document(
     doc_id: uuid.UUID, claims: ClaimsDep, service: KnowledgeService = ServiceDep
 ) -> DocumentOut:
-    return await service.get_document(claims.tenant_id, doc_id)
+    return await service.get_document(claims, doc_id)
 
 
 @router.delete("/documents/{doc_id}", status_code=204)
 async def delete_document(
     doc_id: uuid.UUID, claims: ClaimsDep, service: KnowledgeService = ServiceDep
 ) -> None:
-    await service.delete_document(claims.tenant_id, doc_id)
+    await service.delete_document(claims, doc_id)
 
 
 @router.post("/documents/{doc_id}/reingest", response_model=DocumentCreated, status_code=202)
 async def reingest(
     doc_id: uuid.UUID, claims: ClaimsDep, service: KnowledgeService = ServiceDep
 ) -> DocumentCreated:
-    return await service.reingest(claims.tenant_id, doc_id)
+    return await service.reingest(claims, doc_id)
 
 
 @router.get("/documents/{doc_id}/preview-url", response_model=PreviewUrlOut)
 async def preview_url(
     doc_id: uuid.UUID, claims: ClaimsDep, service: KnowledgeService = ServiceDep
 ) -> PreviewUrlOut:
-    return await service.preview_url(claims.tenant_id, doc_id)
+    return await service.preview_url(claims, doc_id)
 
 
 @router.get("/documents/{doc_id}/chunks", response_model=list[ChunkOut])
 async def list_chunks(
     doc_id: uuid.UUID, claims: ClaimsDep, service: KnowledgeService = ServiceDep
 ) -> list[ChunkOut]:
-    return await service.list_chunks(claims.tenant_id, doc_id)
+    return await service.list_chunks(claims, doc_id)

@@ -6,10 +6,26 @@
 
 | 项 | 值 |
 | --- | --- |
-| 阶段 | **M3 引用溯源实施中**（分支 `feat/m3-citation-trace`） |
-| 下一里程碑 | 完成本地验收后合并 M3；M4 多租户权限 / 模型运营 |
-| 代码量 | chunks API、feedback、PdfHighlightViewer、问答右栏 PDF、文档详情双栏 |
+| 阶段 | **M4 切片：kb_grants + 跨租户验收**（分支 `feat/m4-kb-grants`） |
+| 下一里程碑 | 合并本切片后继续 M4（成员管理 / 模型运营 / 用量） |
+| 代码量 | `visible_kb_ids`、grants CRUD、search/chat 收窄、交叉访问测试 |
 | 阻塞项 | 无 |
+
+---
+
+## 2026-07-29（M4 · kb_grants）
+
+### 完成内容
+
+| # | 任务 | 状态 |
+| --- | --- | --- |
+| G-1 | `KbGrant` ORM + `identity.permissions.visible_kb_ids` | ✓ |
+| G-2 | KB list/get/写操作按权限收窄；同租户无权 403 | ✓ |
+| G-3 | grants CRUD API | ✓ |
+| G-4 | search/chat 走同一可见集 | ✓ |
+| G-5 | 跨租户 / private / 授撤权 / owner 绕过测试 | ✓ |
+
+**决策**：owner/admin 对本租户全部 KB 视为 manage；`manage` ⊃ `write` ⊃ `read`。
 
 ---
 

@@ -33,12 +33,13 @@ from app.modules.chat.schemas import (
     MessageOut,
 )
 from app.modules.chat.sse import sse_event
+from app.modules.identity.permissions import PERM_READ, visible_kb_ids
 from app.modules.retrieval.base import SearchOptions
 from app.modules.retrieval.expand import load_document_titles
 from app.modules.retrieval.service import RetrievalService
 from app.platform.config import get_settings
 from app.platform.db import set_rls_context
-from app.platform.errors import AppError, NotFound, UnprocessableState
+from app.platform.errors import AppError, Forbidden, NotFound, UnprocessableState
 from app.platform.ids import uuid7
 from app.platform.llm.base import LLMProvider
 from app.platform.llm.base import Message as LLMMessage
@@ -71,6 +72,7 @@ class ChatService:
     async def create_conversation(
         self, claims: TokenClaims, payload: ConversationCreate
     ) -> ConversationOut:
+        await self._assert_kb_readable(claims, payload.kb_ids)
         conv = Conversation(
             id=uuid7(),
             tenant_id=claims.tenant_id,
@@ -184,6 +186,31 @@ class ChatService:
             created_at=msg.created_at,
         )
 
+    async def _assert_kb_readable(
+        self, claims: TokenClaims, kb_ids: list[uuid.UUID]
+    ) -> None:
+        visible = set(
+            await visible_kb_ids(
+                self._session,
+                tenant_id=claims.tenant_id,
+                user_id=claims.user_id,
+                role=claims.role,
+                permission=PERM_READ,
+            )
+        )
+        unknown = [i for i in kb_ids if i not in visible]
+        if not unknown:
+            return
+        # 同租户存在但不可见 → 403；否则 404
+        from app.modules.identity.permissions import kb_exists_in_tenant
+
+        for kid in unknown:
+            if await kb_exists_in_tenant(
+                self._session, tenant_id=claims.tenant_id, kb_id=kid
+            ):
+                raise Forbidden("没有权限访问所选知识库")
+        raise NotFound("知识库不存在或不可见")
+
     async def stream_completion(
         self,
         claims: TokenClaims,
@@ -196,6 +223,7 @@ class ChatService:
         if conversation_id is None:
             if not kb_ids:
                 raise UnprocessableState("新建会话必须提供 kb_ids")
+            await self._assert_kb_readable(claims, kb_ids)
             conv = Conversation(
                 id=uuid7(),
                 tenant_id=claims.tenant_id,
@@ -212,6 +240,7 @@ class ChatService:
                 raise NotFound("会话不存在")
             conv = found
             if kb_ids:
+                await self._assert_kb_readable(claims, kb_ids)
                 conv.kb_ids = kb_ids
 
         user_msg = Message(
@@ -245,6 +274,8 @@ class ChatService:
         try:
             search = await self._retrieval.search(
                 tenant_id=claims.tenant_id,
+                user_id=claims.user_id,
+                role=claims.role,
                 query=message,
                 kb_ids=list(conv.kb_ids),
                 top_k=8,
