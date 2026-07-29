@@ -1,0 +1,17 @@
+.git
+**/__pycache__
+**/*.pyc
+**/.venv
+**/node_modules
+**/dist
+**/.mypy_cache
+**/.pytest_cache
+**/.ruff_cache
+**/out
+spikes/
+test_doc/
+docs/
+*.md
+!README.md
+backend/.env
+frontend/dist

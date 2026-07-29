@@ -13,9 +13,29 @@
 
 后端 Python 3.11 + FastAPI + SQLAlchemy 2.0 + Celery，存储 PostgreSQL 16 + pgvector + S3 兼容对象存储，前端 React 18 + TypeScript + Vite + TanStack Query + Tailwind。
 
+## 本地启动（M0）
+
+前置：Docker、[uv](https://docs.astral.sh/uv/)、[pnpm](https://pnpm.io/)。
+
+```bash
+make bootstrap   # 起依赖 → 装包 → 迁移 → 种子数据 → 导出 OpenAPI 类型
+make api         # http://localhost:8000  文档 /docs
+make web         # http://localhost:5173
+```
+
+种子账号（口令均为 `Passw0rd!2026`）：
+
+| 邮箱 | 租户 | 角色 |
+| --- | --- | --- |
+| `owner@acme.example` | 艾克姆装备制造（兼北方化工） | owner / member |
+| `admin@acme.example` | 艾克姆装备制造 | admin |
+| `owner@northchem.example` | 北方化工 | owner |
+
+常用命令见 `make help`。
+
 ## 项目状态
 
-设计完成，解析风险已用真实文档验证，即将进入 M0 工程骨架。进度与下一步任务见 [07 进展与计划](./docs/07-progress.md)，完整设计文档见 [`docs/`](./docs/README.md)。
+**M0 工程骨架已完成**（身份认证、多租户 RLS、Provider 抽象、前后端骨架、CI）。下一步是 M1 摄取链路。进度见 [07 进展与计划](./docs/07-progress.md)，设计文档见 [`docs/`](./docs/README.md)。
 
 | 文档 | 内容 |
 | --- | --- |

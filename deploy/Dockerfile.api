@@ -1,0 +1,39 @@
+# 后端 API 镜像。构建上下文必须是仓库根目录：
+#   docker build -f deploy/Dockerfile.api -t irp-api .
+
+FROM python:3.11-slim AS builder
+
+WORKDIR /build
+RUN pip install --no-cache-dir uv==0.6.14
+
+COPY backend/pyproject.toml backend/uv.lock ./
+# 不装本项目本身：运行时用 PYTHONPATH 加载 /app/app，避免 hatch 打包干扰
+RUN uv sync --frozen --no-dev --no-install-project
+
+COPY backend/app ./app
+COPY backend/alembic ./alembic
+COPY backend/alembic.ini ./alembic.ini
+COPY backend/scripts ./scripts
+
+
+FROM python:3.11-slim AS runtime
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PYTHONPATH=/app \
+    PATH="/app/.venv/bin:$PATH"
+
+WORKDIR /app
+RUN useradd --create-home --uid 10001 irp
+
+COPY --from=builder /build/.venv /app/.venv
+COPY --from=builder /build/app /app/app
+COPY --from=builder /build/alembic /app/alembic
+COPY --from=builder /build/alembic.ini /app/alembic.ini
+COPY --from=builder /build/scripts /app/scripts
+
+USER irp
+EXPOSE 8000
+
+# 迁移不放在启动命令里：多副本会并发跑迁移。由独立 Job / Makefile 执行。
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]

@@ -14,8 +14,9 @@ dist/
 downloads/
 eggs/
 .eggs/
-lib/
-lib64/
+# 仅忽略仓库根目录的 lib/（Python 打包产物），不要误伤 frontend/src/lib
+/lib/
+/lib64/
 parts/
 sdist/
 var/
@@ -219,3 +220,16 @@ __marimo__/
 
 # 客户真实文档，仅本地用于解析体检，不入库
 test_doc/
+
+# Node / 前端
+node_modules/
+frontend/dist/
+*.tsbuildinfo
+
+# IDE / OS
+.DS_Store
+.idea/
+.vscode/
+
+# 本地 OpenAPI 中间产物可入库（契约基线），但不要提交临时导出
+# frontend/src/types/openapi.json 与 openapi.gen.ts 作为契约基线入库

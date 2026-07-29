@@ -6,10 +6,55 @@
 
 | 项 | 值 |
 | --- | --- |
-| 阶段 | 设计完成 + 解析风险已验证，**尚未进入 M0** |
-| 下一里程碑 | M0 工程骨架（预计 1 周） |
-| 代码量 | 仅 spike 脚本，主工程未开始 |
-| 阻塞项 | 无（有 2 项待确认事项，不阻塞 M0） |
+| 阶段 | **M0 工程骨架已完成**，下一步进入 M1 摄取链路 |
+| 下一里程碑 | M1 文档摄取（解析 / 分块 / 嵌入） |
+| 代码量 | 后端身份模块 + 平台层 + 前端骨架 + CI；spike 保留 |
+| 阻塞项 | 无（首批行业、密级两项仍建议在 M1 前确认） |
+
+---
+
+## 2026-07-29
+
+### 完成内容：M0 工程骨架
+
+对照 06 / 07 文档的 M0 验收标准落地，并补齐此前未入库的缺口。
+
+| 任务 | 状态 | 产出 |
+| --- | --- | --- |
+| M0-1 monorepo | ✓ | `backend/` + `frontend/` + `deploy/` + `Makefile` |
+| M0-2 Compose | ✓ | Postgres 16 + pgvector / Redis / MinIO |
+| M0-3 FastAPI 装配 | ✓ | 配置、日志、异常、分页、中间件、依赖注入 |
+| M0-4 身份与 RLS | ✓ | Alembic 首迁、`tenants/users/memberships`、登录/切换租户 |
+| M0-5 Provider | ✓ | LLM / Embedding / Rerank 抽象 + Fake / OpenAI 兼容实现 |
+| M0-6 CI | ✓ | ruff + mypy + pytest(≥70%) + eslint + tsc + gitleaks + 镜像构建 |
+| M0-7 前端骨架 | ✓ | Vite + 登录页 + 布局 + HTTP/SSE + OpenAPI 类型基线 |
+
+**本地验收命令**：
+
+```bash
+make bootstrap && make test && make lint
+make api   # /healthz → 200；/docs 可登录
+make web   # 用种子账号登录；两个租户交叉资源应返回 404
+```
+
+**种子账号**：`owner@acme.example` / `Passw0rd!2026`（同属两个租户，可验切换）。
+
+### 下一步：M1 摄取链路（预计 2 周）
+
+目标：上传一个 PDF，数据库里出现带页码坐标的 chunks。
+
+| # | 任务 | 要点 |
+| --- | --- | --- |
+| M1-1 | 知识库 / 文档 CRUD + S3 预签名直传 | 沿用 03 文档上传协议 |
+| M1-2 | Celery 双队列（parse / embed）+ 摄取状态机 | 解析调度单位是**页**（见 R1c） |
+| M1-3 | PDF/DOCX 解析器 + OCR 回退 | 直接迁移 spike 的 normalize / heading / layout / ocr |
+| M1-4 | 结构感知分块 + `clause_mode` | 流程工业模板开启条款式切分 |
+| M1-5 | Embedding 写入 + HNSW | Fake Provider 可先通链路，再换真实模型 |
+| M1-6 | 前端：拖拽上传、进度轮询、失败重试 | 文档详情页分块列表为 M3 铺路 |
+
+**验收**：100 页真实手册 5 分钟内 `ready`；`chunk.content` 中标准号为半角 ASCII；抽查 `heading_path` / `page_start` 正确。
+
+开工前用 `spikes/parse-quality` 对本批文档再跑一遍体检，fail 项写入本阶段验收用例。
 
 ---
 
@@ -73,23 +118,9 @@
 
 ---
 
-## 下一步计划
+## 进行中事项与待确认
 
-### M0 工程骨架（预计 5 个工作日）
-
-目标：任何人 clone 后一条命令跑起全套环境。
-
-| # | 任务 | 产出 | 预计 |
-| --- | --- | --- | --- |
-| M0-1 | monorepo 目录结构、`uv` + `pnpm` 依赖管理、锁文件入库 | `backend/`、`frontend/`、`deploy/` | 0.5 d |
-| M0-2 | `docker-compose.dev.yml`：PostgreSQL 16 + pgvector、Redis、MinIO | 一条命令起全套依赖 | 0.5 d |
-| M0-3 | FastAPI 装配：配置层（Pydantic Settings，fail fast）、结构化日志、统一异常与错误码、游标分页、依赖注入 | `app/platform/` | 1 d |
-| M0-4 | Alembic 初始化 + 首个迁移：`tenants` / `users` / `memberships`，RLS 策略与会话变量注入 | 可跑通的迁移 | 0.5 d |
-| M0-5 | Provider 抽象层 + Fake 实现（LLM / Embedding / Rerank） | `app/platform/llm/` | 0.5 d |
-| M0-6 | CI：ruff + mypy + pytest（testcontainers 起真实 PG）+ gitleaks + 镜像构建 | `.github/workflows/` | 1 d |
-| M0-7 | 前端骨架：Vite + 路由 + 布局 + 登录页 + HTTP 客户端 + SSE 封装 + OpenAPI 类型生成 | `frontend/` | 1 d |
-
-**验收**：`docker compose up` 后可登录，`/healthz` 返回 200，CI 全绿，两个租户账号交叉访问返回 404。
+> M0 任务表与验收命令见上文「2026-07-29」一节；此处只保留仍有效的迁移清单与开放问题。
 
 ### spike 成果的迁移
 
@@ -105,12 +136,12 @@ M1 开工时以下代码可直接从 `spikes/parse-quality/` 搬进主工程，�
 
 ### 待确认事项
 
-不阻塞 M0，但需在 M1 之前有答复。
+不阻塞 M0；**需在 M1 之前有答复**。
 
 | 事项 | 影响 | 建议何时确认 |
 | --- | --- | --- |
-| 首批目标行业具体是哪两个 | 内置 profile 模板优先级、评测集构建、`clause_mode` 默认值 | M0 期间 |
-| 是否有文档密级要求 | 需在 `chunks` 加 `security_level` 并入检索过滤，现在加字段远比上线后便宜 | M0 期间 |
+| 首批目标行业具体是哪两个 | 内置 profile 模板优先级、评测集构建、`clause_mode` 默认值 | 立即 |
+| 是否有文档密级要求 | 需在 `chunks` 加 `security_level` 并入检索过滤，现在加字段远比上线后便宜 | 立即 |
 | 是否需要对接企业 SSO | `identity` 模块的认证扩展点 | M4 前 |
 | 知识库之间是否需要资料复用 | 文档与知识库是否从一对多改为多对多 | M4 前 |
 | 回答是否会被写入正式文件 | 引用快照与不可篡改审计的严格程度 | M4 前 |
@@ -129,7 +160,9 @@ M1 开工时以下代码可直接从 `spikes/parse-quality/` 搬进主工程，�
 
 | 日期 | 提交 | 内容 |
 | --- | --- | --- |
-| 2026-07-28 | `a2145d8` | 六篇设计文档 |
-| 2026-07-28 | `cd7e0b6` | 解析质量体检 spike |
-| 2026-07-28 | `e62c5f2` | 字符规范化 + 页眉页脚算法修正 |
+| 2026-07-29 | （待提交） | M0 工程骨架：后端身份/平台层、前端骨架、Compose、CI、Docker |
+| 2026-07-28 | `bf9753d` | 进展与计划文档 |
 | 2026-07-28 | `0d3e29b` | OCR 分支 + 页级并行 + 条款式分块 |
+| 2026-07-28 | `e62c5f2` | 字符规范化 + 页眉页脚算法修正 |
+| 2026-07-28 | `cd7e0b6` | 解析质量体检 spike |
+| 2026-07-28 | `a2145d8` | 六篇设计文档 |
