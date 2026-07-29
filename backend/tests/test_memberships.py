@@ -50,18 +50,14 @@ async def _delete_user(user_id: uuid.UUID, tenant_id: uuid.UUID) -> None:
         await session.execute(delete(User).where(User.id == user_id))
 
 
-async def test_member_cannot_list_memberships(
-    client: AsyncClient, fixture_data: Fixture
-) -> None:
+async def test_member_cannot_list_memberships(client: AsyncClient, fixture_data: Fixture) -> None:
     member_email = f"mem-{uuid.uuid4().hex[:8]}@example.com"
     member_id = await _create_user_in_tenant(
         tenant_id=fixture_data.primary_tenant_id,
         email=member_email,
         role=ROLE_MEMBER,
     )
-    headers = await _login(
-        client, member_email, TEST_PASSWORD, fixture_data.primary_tenant_slug
-    )
+    headers = await _login(client, member_email, TEST_PASSWORD, fixture_data.primary_tenant_slug)
     resp = await client.get("/api/v1/memberships", headers=headers)
     assert resp.status_code == 403, resp.text
     await _delete_user(member_id, fixture_data.primary_tenant_id)

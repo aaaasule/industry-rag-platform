@@ -43,9 +43,7 @@ async def test_login_writes_audit(
     assert all(i["action"] == "auth.login" for i in body["items"])
 
 
-async def test_member_cannot_read_audit(
-    client: AsyncClient, fixture_data: Fixture
-) -> None:
+async def test_member_cannot_read_audit(client: AsyncClient, fixture_data: Fixture) -> None:
     member_email = f"aud-m-{uuid.uuid4().hex[:8]}@example.com"
     async with session_scope(tenant_id=fixture_data.primary_tenant_id) as session:
         user = User(
@@ -64,9 +62,7 @@ async def test_member_cannot_read_audit(
         )
         member_id = user.id
 
-    headers = await _login(
-        client, member_email, TEST_PASSWORD, fixture_data.primary_tenant_slug
-    )
+    headers = await _login(client, member_email, TEST_PASSWORD, fixture_data.primary_tenant_slug)
     resp = await client.get("/api/v1/admin/audit-logs", headers=headers)
     assert resp.status_code == 403, resp.text
 

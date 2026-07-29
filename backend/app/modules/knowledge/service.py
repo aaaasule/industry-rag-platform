@@ -172,9 +172,7 @@ class KnowledgeService:
             )
         return GrantOut.model_validate(row)
 
-    async def delete_grant(
-        self, claims: TokenClaims, kb_id: uuid.UUID, user_id: uuid.UUID
-    ) -> None:
+    async def delete_grant(self, claims: TokenClaims, kb_id: uuid.UUID, user_id: uuid.UUID) -> None:
         await self._require_kb(claims, kb_id, PERM_MANAGE)
         existing = await self._repo.get_grant(claims.tenant_id, kb_id, user_id)
         if existing is None:

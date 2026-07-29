@@ -108,10 +108,7 @@ class MembershipService:
         if membership.role == ROLE_OWNER and not role_at_least(claims.role, ROLE_OWNER):
             raise Forbidden("admin 不能删除 owner")
 
-        if (
-            membership.role == ROLE_OWNER
-            and await self._repo.count_owners(claims.tenant_id) <= 1
-        ):
+        if membership.role == ROLE_OWNER and await self._repo.count_owners(claims.tenant_id) <= 1:
             raise AppError("cannot remove the last owner", code="bad_request")
 
         email = membership.user.email if membership.user else None

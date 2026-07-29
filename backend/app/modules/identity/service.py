@@ -69,9 +69,7 @@ class IdentityService:
         membership = await self._pick_membership(user, tenant_slug)
         await self._repo.touch_last_login(user)
         # 审计行受 RLS 约束，写入前切到目标租户
-        await set_rls_context(
-            self._repo._session, tenant_id=membership.tenant_id, user_id=user.id
-        )
+        await set_rls_context(self._repo._session, tenant_id=membership.tenant_id, user_id=user.id)
         await AuditService(self._repo._session).record(
             tenant_id=membership.tenant_id,
             actor_id=user.id,
