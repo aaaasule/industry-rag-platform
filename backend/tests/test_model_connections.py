@@ -30,9 +30,7 @@ async def _login(
     return {"Authorization": f"Bearer {resp.json()['access_token']}"}
 
 
-async def test_member_cannot_manage_connections(
-    client: AsyncClient, fixture_data: Fixture
-) -> None:
+async def test_member_cannot_manage_connections(client: AsyncClient, fixture_data: Fixture) -> None:
     email = f"mc-m-{uuid.uuid4().hex[:8]}@example.com"
     async with session_scope(tenant_id=fixture_data.primary_tenant_id) as session:
         user = User(
@@ -206,9 +204,7 @@ async def test_tenant_overrides_platform_and_env_fallback(
     assert any(i["purpose"] == "chat" for i in routes4.json()["items"])
 
 
-async def test_cannot_mutate_platform(
-    client: AsyncClient, auth_headers: dict[str, str]
-) -> None:
+async def test_cannot_mutate_platform(client: AsyncClient, auth_headers: dict[str, str]) -> None:
     settings = get_settings()
     platform_id = uuid7()
     url = settings.database_migration_url or settings.database_url

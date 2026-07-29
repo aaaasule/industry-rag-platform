@@ -159,9 +159,7 @@ class ModelOpsService:
             payload={"name": name},
         )
 
-    async def test(
-        self, claims: TokenClaims, connection_id: uuid.UUID
-    ) -> ConnectionTestResult:
+    async def test(self, claims: TokenClaims, connection_id: uuid.UUID) -> ConnectionTestResult:
         row = await self._repo.get(connection_id)
         if row is None:
             raise NotFound("接入点不存在")
@@ -192,9 +190,7 @@ class ModelOpsService:
                 target_id=row.id,
                 payload={"ok": True, "latency_ms": round(latency, 2)},
             )
-            return ConnectionTestResult(
-                ok=True, latency_ms=round(latency, 2), model_echo=row.model
-            )
+            return ConnectionTestResult(ok=True, latency_ms=round(latency, 2), model_echo=row.model)
         except Exception as exc:  # 探测失败是正常诊断结果
             latency = (time.perf_counter() - t0) * 1000
             row.health = HEALTH_UNKNOWN
@@ -216,9 +212,7 @@ class ModelOpsService:
             )
 
     async def routes(self, claims: TokenClaims) -> RoutesOut:
-        return await ProviderFactory(self._repo._session, self._settings).routes(
-            claims.tenant_id
-        )
+        return await ProviderFactory(self._repo._session, self._settings).routes(claims.tenant_id)
 
     async def _require_tenant_row(
         self, claims: TokenClaims, connection_id: uuid.UUID
