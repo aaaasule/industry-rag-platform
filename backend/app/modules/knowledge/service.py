@@ -6,6 +6,7 @@ import hashlib
 import uuid
 from datetime import UTC, datetime
 
+from app.modules.audit.service import AuditService
 from app.modules.identity.permissions import (
     PERM_MANAGE,
     PERM_READ,
@@ -105,7 +106,16 @@ class KnowledgeService:
 
     async def delete_knowledge_base(self, claims: TokenClaims, kb_id: uuid.UUID) -> None:
         kb = await self._require_kb(claims, kb_id, PERM_MANAGE)
+        name = kb.name
         kb.deleted_at = datetime.now(UTC)
+        await AuditService(self._repo._session).record(
+            tenant_id=claims.tenant_id,
+            actor_id=claims.user_id,
+            action="knowledge_base.delete",
+            target_type="knowledge_base",
+            target_id=kb_id,
+            payload={"name": name},
+        )
 
     async def list_grants(self, claims: TokenClaims, kb_id: uuid.UUID) -> list[GrantOut]:
         await self._require_kb(claims, kb_id, PERM_MANAGE)
@@ -130,20 +140,53 @@ class KnowledgeService:
                 permission=payload.permission,
             )
             await self._repo.add_grant(row)
+            await AuditService(self._repo._session).record(
+                tenant_id=claims.tenant_id,
+                actor_id=claims.user_id,
+                action="kb_grant.create",
+                target_type="kb_grant",
+                target_id=row.id,
+                payload={
+                    "grant_id": str(row.id),
+                    "kb_id": str(kb_id),
+                    "grantee_user_id": str(user_id),
+                    "permission": payload.permission,
+                },
+            )
         else:
+            old_perm = existing.permission
             existing.permission = payload.permission
             row = existing
             await self._repo._session.flush()
+            await AuditService(self._repo._session).record(
+                tenant_id=claims.tenant_id,
+                actor_id=claims.user_id,
+                action="kb_grant.update",
+                target_type="kb_grant",
+                target_id=row.id,
+                payload={
+                    "grant_id": str(row.id),
+                    "kb_id": str(kb_id),
+                    "changes": {"permission": {"from": old_perm, "to": payload.permission}},
+                },
+            )
         return GrantOut.model_validate(row)
 
-    async def delete_grant(
-        self, claims: TokenClaims, kb_id: uuid.UUID, user_id: uuid.UUID
-    ) -> None:
+    async def delete_grant(self, claims: TokenClaims, kb_id: uuid.UUID, user_id: uuid.UUID) -> None:
         await self._require_kb(claims, kb_id, PERM_MANAGE)
         existing = await self._repo.get_grant(claims.tenant_id, kb_id, user_id)
         if existing is None:
             raise NotFound("授权不存在")
+        grant_id = existing.id
         await self._repo.delete_grant(existing)
+        await AuditService(self._repo._session).record(
+            tenant_id=claims.tenant_id,
+            actor_id=claims.user_id,
+            action="kb_grant.delete",
+            target_type="kb_grant",
+            target_id=grant_id,
+            payload={"grant_id": str(grant_id), "kb_id": str(kb_id)},
+        )
 
     async def create_upload_url(
         self, claims: TokenClaims, kb_id: uuid.UUID, payload: UploadUrlRequest

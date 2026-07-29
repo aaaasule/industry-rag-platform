@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, Request, status
 
 from app.modules.identity.repository import IdentityRepository
 from app.modules.identity.schemas import (
@@ -25,9 +25,21 @@ def _service(session: SessionDep) -> IdentityService:
 ServiceDep = Depends(_service)
 
 
+def _client_ip(request: Request) -> str | None:
+    if request.client is None:
+        return None
+    return request.client.host
+
+
 @router.post("/login", response_model=TokenPair, summary="口令登录")
-async def login(payload: LoginRequest, service: IdentityService = ServiceDep) -> TokenPair:
-    return await service.login(payload.email, payload.password, payload.tenant_slug)
+async def login(
+    payload: LoginRequest,
+    request: Request,
+    service: IdentityService = ServiceDep,
+) -> TokenPair:
+    return await service.login(
+        payload.email, payload.password, payload.tenant_slug, ip=_client_ip(request)
+    )
 
 
 @router.post("/refresh", response_model=TokenPair, summary="刷新访问令牌")
@@ -39,9 +51,10 @@ async def refresh(payload: RefreshRequest, service: IdentityService = ServiceDep
 async def switch_tenant(
     payload: SwitchTenantRequest,
     claims: ClaimsDep,
+    request: Request,
     service: IdentityService = ServiceDep,
 ) -> TokenPair:
-    return await service.switch_tenant(claims, payload.tenant_id)
+    return await service.switch_tenant(claims, payload.tenant_id, ip=_client_ip(request))
 
 
 @router.get("/me", response_model=SessionInfo, summary="当前会话信息")
@@ -53,7 +66,7 @@ async def me(claims: ClaimsDep, service: IdentityService = ServiceDep) -> Sessio
 async def logout(claims: ClaimsDep) -> None:
     """M0 用无状态 JWT，登出由前端清除本地令牌完成。
 
-    引入令牌吊销名单（Redis 存 jti 黑名单至过期）留到 M4 与审计一起做——
+    引入令牌吊销名单（Redis 存 jti 黑名单至过期）留到后续——
     在只有内网试点用户的阶段，为它引入一次额外的 Redis 往返不划算。
     """
     return None

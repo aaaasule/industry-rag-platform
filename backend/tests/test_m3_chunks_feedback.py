@@ -98,9 +98,7 @@ async def test_list_document_chunks(
     assert missing.status_code == 404
 
 
-async def test_message_feedback_upsert(
-    auth_headers: dict[str, str], fixture_data: Fixture
-) -> None:
+async def test_message_feedback_upsert(auth_headers: dict[str, str], fixture_data: Fixture) -> None:
     async with session_scope(
         tenant_id=fixture_data.primary_tenant_id, user_id=fixture_data.user_id
     ) as session:
@@ -164,9 +162,7 @@ async def test_message_feedback_upsert(
         )
         assert bad.status_code == 422
 
-        msgs = await http.get(
-            f"/api/v1/conversations/{conv_id}/messages", headers=auth_headers
-        )
+        msgs = await http.get(f"/api/v1/conversations/{conv_id}/messages", headers=auth_headers)
         assert msgs.status_code == 200
         asst_out = next(m for m in msgs.json() if m["id"] == str(asst_id))
         assert asst_out["used_citations"] == [1]

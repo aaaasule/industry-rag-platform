@@ -98,16 +98,20 @@ async def fixture_data() -> AsyncIterator[Fixture]:
     async with session_scope(tenant_id=ids[0], user_id=ids[3]) as session:
         # chat 表有 RLS；必须在租户上下文中清理
         conv_ids = (
-            await session.execute(
-                select(Conversation.id).where(Conversation.user_id == ids[3])
-            )
-        ).scalars().all()
+            (await session.execute(select(Conversation.id).where(Conversation.user_id == ids[3])))
+            .scalars()
+            .all()
+        )
         if conv_ids:
             msg_ids = (
-                await session.execute(
-                    select(Message.id).where(Message.conversation_id.in_(conv_ids))
+                (
+                    await session.execute(
+                        select(Message.id).where(Message.conversation_id.in_(conv_ids))
+                    )
                 )
-            ).scalars().all()
+                .scalars()
+                .all()
+            )
             if msg_ids:
                 await session.execute(
                     delete(MessageFeedback).where(MessageFeedback.message_id.in_(msg_ids))

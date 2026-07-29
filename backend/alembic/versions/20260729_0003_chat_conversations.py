@@ -54,9 +54,7 @@ def upgrade() -> None:
             name="fk_messages_conversation",
         ),
         sa.PrimaryKeyConstraint("id", name="pk_messages"),
-        sa.CheckConstraint(
-            "role IN ('user','assistant','system')", name="ck_messages_role"
-        ),
+        sa.CheckConstraint("role IN ('user','assistant','system')", name="ck_messages_role"),
         sa.CheckConstraint(
             "status IN ('streaming','completed','failed')", name="ck_messages_status"
         ),

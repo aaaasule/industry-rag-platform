@@ -104,9 +104,7 @@ def upgrade() -> None:
         sa.ForeignKeyConstraint(
             ["tenant_id"], ["tenants.id"], ondelete="CASCADE", name="fk_kb_tenant"
         ),
-        sa.ForeignKeyConstraint(
-            ["profile_id"], ["industry_profiles.id"], name="fk_kb_profile"
-        ),
+        sa.ForeignKeyConstraint(["profile_id"], ["industry_profiles.id"], name="fk_kb_profile"),
         sa.ForeignKeyConstraint(["created_by"], ["users.id"], name="fk_kb_created_by"),
         sa.PrimaryKeyConstraint("id", name="pk_knowledge_bases"),
         sa.CheckConstraint(

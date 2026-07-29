@@ -141,7 +141,7 @@ class RetrievalService:
         titles = await load_document_titles(self._session, [c.document_id for c in ordered])
         hits: list[SearchHit] = []
         for c in ordered:
-            cid = str(c.id)
+            chunk_key = str(c.id)
             hits.append(
                 SearchHit(
                     chunk_id=c.id,
@@ -156,10 +156,10 @@ class RetrievalService:
                     chunk_type=c.chunk_type,
                     seq=c.seq,
                     scores={
-                        "vector": vec_scores.get(cid),
-                        "fulltext": ft_scores.get(cid),
-                        "rrf": rrf_scores.get(cid),
-                        "rerank": rerank_scores.get(cid),
+                        "vector": vec_scores.get(chunk_key),
+                        "fulltext": ft_scores.get(chunk_key),
+                        "rrf": rrf_scores.get(chunk_key),
+                        "rerank": rerank_scores.get(chunk_key),
                     },
                 )
             )

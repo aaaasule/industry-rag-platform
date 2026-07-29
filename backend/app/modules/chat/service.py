@@ -120,9 +120,7 @@ class ChatService:
             # 允许无原因的踩，但前端默认会带 reason
             pass
 
-        existing = await self._repo.get_feedback(
-            claims.tenant_id, message_id, claims.user_id
-        )
+        existing = await self._repo.get_feedback(claims.tenant_id, message_id, claims.user_id)
         now = datetime.now(UTC)
         if existing is None:
             row = MessageFeedback(
@@ -186,9 +184,7 @@ class ChatService:
             created_at=msg.created_at,
         )
 
-    async def _assert_kb_readable(
-        self, claims: TokenClaims, kb_ids: list[uuid.UUID]
-    ) -> None:
+    async def _assert_kb_readable(self, claims: TokenClaims, kb_ids: list[uuid.UUID]) -> None:
         visible = set(
             await visible_kb_ids(
                 self._session,
@@ -205,9 +201,7 @@ class ChatService:
         from app.modules.identity.permissions import kb_exists_in_tenant
 
         for kid in unknown:
-            if await kb_exists_in_tenant(
-                self._session, tenant_id=claims.tenant_id, kb_id=kid
-            ):
+            if await kb_exists_in_tenant(self._session, tenant_id=claims.tenant_id, kb_id=kid):
                 raise Forbidden("没有权限访问所选知识库")
         raise NotFound("知识库不存在或不可见")
 

@@ -68,9 +68,7 @@ class ChatRepository:
         await self._session.flush()
         return msg
 
-    async def get_message(
-        self, tenant_id: uuid.UUID, message_id: uuid.UUID
-    ) -> Message | None:
+    async def get_message(self, tenant_id: uuid.UUID, message_id: uuid.UUID) -> Message | None:
         stmt = (
             select(Message)
             .options(selectinload(Message.conversation))
