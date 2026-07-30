@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import time
 import uuid
 from datetime import UTC, datetime
 
@@ -13,12 +12,14 @@ from app.modules.modelops.credentials import (
     mask_credential,
 )
 from app.modules.modelops.models import (
+    HEALTH_DOWN,
     HEALTH_HEALTHY,
     HEALTH_UNKNOWN,
     PROVIDER_FAKE,
     PURPOSES,
     ModelConnection,
 )
+from app.modules.modelops.probe import probe_connection
 from app.modules.modelops.provider_factory import ProviderFactory, clear_provider_cache
 from app.modules.modelops.repository import ModelConnectionRepository
 from app.modules.modelops.schemas import (
@@ -32,12 +33,6 @@ from app.modules.modelops.schemas import (
 from app.platform.config import Settings, get_settings
 from app.platform.errors import AppError, Forbidden, NotFound
 from app.platform.ids import uuid7
-from app.platform.llm.base import Message
-from app.platform.llm.factory import (
-    build_embedding_from_connection,
-    build_llm_from_connection,
-    build_rerank_from_connection,
-)
 from app.platform.security import TokenClaims
 
 
@@ -166,19 +161,8 @@ class ModelOpsService:
         if row.tenant_id is not None and row.tenant_id != claims.tenant_id:
             raise NotFound("接入点不存在")
 
-        purpose = row.purposes[0] if row.purposes else "chat"
-        t0 = time.perf_counter()
-        try:
-            if purpose == "embedding":
-                emb = build_embedding_from_connection(row, settings=self._settings)
-                await emb.embed(["ping"], input_type="query")
-            elif purpose == "rerank":
-                rr = build_rerank_from_connection(row, settings=self._settings)
-                await rr.rerank("q", ["d1"], top_n=1)
-            else:
-                llm = build_llm_from_connection(row, settings=self._settings)
-                await llm.chat([Message(role="user", content="ping")], max_tokens=8)
-            latency = (time.perf_counter() - t0) * 1000
+        result = await probe_connection(row, settings=self._settings)
+        if result.ok:
             row.health = HEALTH_HEALTHY
             row.health_checked_at = datetime.now(UTC)
             await self._repo._session.flush()
@@ -188,28 +172,29 @@ class ModelOpsService:
                 action="model_connection.test",
                 target_type="model_connection",
                 target_id=row.id,
-                payload={"ok": True, "latency_ms": round(latency, 2)},
-            )
-            return ConnectionTestResult(ok=True, latency_ms=round(latency, 2), model_echo=row.model)
-        except Exception as exc:  # 探测失败是正常诊断结果
-            latency = (time.perf_counter() - t0) * 1000
-            row.health = HEALTH_UNKNOWN
-            row.health_checked_at = datetime.now(UTC)
-            await self._repo._session.flush()
-            await self._audit.record(
-                tenant_id=claims.tenant_id,
-                actor_id=claims.user_id,
-                action="model_connection.test",
-                target_type="model_connection",
-                target_id=row.id,
-                payload={"ok": False, "error": str(exc)[:200]},
+                payload={"ok": True, "latency_ms": round(result.latency_ms, 2)},
             )
             return ConnectionTestResult(
-                ok=False,
-                latency_ms=round(latency, 2),
-                error_code="network_error",
-                error_message=str(exc)[:200],
+                ok=True, latency_ms=round(result.latency_ms, 2), model_echo=row.model
             )
+
+        row.health = HEALTH_DOWN
+        row.health_checked_at = datetime.now(UTC)
+        await self._repo._session.flush()
+        await self._audit.record(
+            tenant_id=claims.tenant_id,
+            actor_id=claims.user_id,
+            action="model_connection.test",
+            target_type="model_connection",
+            target_id=row.id,
+            payload={"ok": False, "error": result.error_message},
+        )
+        return ConnectionTestResult(
+            ok=False,
+            latency_ms=round(result.latency_ms, 2),
+            error_code="network_error",
+            error_message=result.error_message,
+        )
 
     async def routes(self, claims: TokenClaims) -> RoutesOut:
         return await ProviderFactory(self._repo._session, self._settings).routes(claims.tenant_id)

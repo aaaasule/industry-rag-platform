@@ -8,6 +8,7 @@ from typing import Any, Literal
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.modules.modelops.models import (
+    HEALTH_DOWN,
     PURPOSE_CHAT,
     PURPOSE_EMBEDDING,
     PURPOSE_RERANK,
@@ -48,9 +49,10 @@ class ProviderFactory:
         self, purpose: Purpose, tenant_id: uuid.UUID
     ) -> tuple[ModelConnection | None, Literal["tenant", "platform", "env"]]:
         rows = await self._repo.list_for_purpose(tenant_id=tenant_id, purpose=purpose)
-        if not rows:
+        usable = [r for r in rows if r.health != HEALTH_DOWN]
+        if not usable:
             return None, "env"
-        row = rows[0]
+        row = usable[0]
         source: Literal["tenant", "platform"] = (
             "tenant" if row.tenant_id == tenant_id else "platform"
         )

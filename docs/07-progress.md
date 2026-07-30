@@ -6,10 +6,27 @@
 
 | 项 | 值 |
 | --- | --- |
-| 阶段 | **M4 切片：用量埋点**（分支 `feat/m4-usage-metering`） |
-| 下一里程碑 | 健康探测 / 故障转移 |
-| 代码量 | `llm_usages` / `hourlies` / Redis 缓冲 / `/usages/*` |
+| 阶段 | **M4 切片：health 故障转移**（分支 `feat/m4-health-failover`） |
+| 下一里程碑 | 配额 429 / 用量仪表盘前端；运营管理 UI |
+| 代码量 | `probe` / Celery 探测 / resolve 跳过 `down` |
 | 阻塞项 | 无 |
+
+---
+
+## 2026-07-30（M4 · health 故障转移）
+
+### 完成内容
+
+| # | 任务 | 状态 |
+| --- | --- | --- |
+| H-1 | 规格 / 计划 | ✓ |
+| H-2 | `probe_connection` 共用探针 | ✓ |
+| H-3 | `/test` 失败写 `down` | ✓ |
+| H-4 | `ProviderFactory` 跳过 `down`，全 down → env | ✓ |
+| H-5 | Celery `modelops.probe_connections`（300s） | ✓ |
+| H-6 | 集成测试 | ✓ |
+
+**决策**：仅定时探测改 health；路由只跳过 `down`；不写 `degraded`；无前端。
 
 ---
 
