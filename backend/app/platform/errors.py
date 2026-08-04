@@ -81,6 +81,16 @@ class RateLimited(AppError):
     code = "rate_limited"
     message = "请求过于频繁，请稍后重试"
 
+    def __init__(
+        self,
+        message: str | None = None,
+        *,
+        details: dict[str, Any] | None = None,
+        retry_after_seconds: int = 60,
+    ) -> None:
+        super().__init__(message, details=details)
+        self.retry_after_seconds = max(0, int(retry_after_seconds))
+
 
 class QuotaExceeded(AppError):
     status_code = status.HTTP_429_TOO_MANY_REQUESTS

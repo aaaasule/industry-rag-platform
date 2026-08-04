@@ -73,6 +73,10 @@ class Settings(BaseSettings):
     retrieval_rerank_default: bool | None = None
     llm_timeout_seconds: int = 60
 
+    # 限流（≤0 关闭对应规则）
+    rate_limit_user_per_minute: int = 20
+    rate_limit_tenant_chat_concurrency: int = 10
+
     # 可观测性
     log_level: str = "INFO"
     log_format: Literal["json", "console"] = "console"

@@ -94,6 +94,20 @@ async def require_token_quota(claims: ClaimsDep, session: TenantSessionDep) -> N
     await QuotaService(session).check_monthly_tokens(claims.tenant_id)
 
 
+async def require_search_rate_limit(claims: ClaimsDep) -> None:
+    """search 用户 QPS。"""
+    from app.platform.rate_limit import RateLimiter
+
+    RateLimiter().check_user_qps(tenant_id=claims.tenant_id, user_id=claims.user_id, route="search")
+
+
+async def require_chat_qps(claims: ClaimsDep) -> None:
+    """chat 用户 QPS（并发在 endpoint 内占到 SSE 结束）。"""
+    from app.platform.rate_limit import RateLimiter
+
+    RateLimiter().check_user_qps(tenant_id=claims.tenant_id, user_id=claims.user_id, route="chat")
+
+
 def current_tenant_id(claims: ClaimsDep) -> uuid.UUID:
     return claims.tenant_id
 

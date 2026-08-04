@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import uuid
+from collections.abc import AsyncIterator
 
 from fastapi import APIRouter, Depends
 from fastapi.responses import StreamingResponse
@@ -25,8 +26,10 @@ from app.platform.deps import (
     ResolvedLLMDep,
     ResolvedRerankDep,
     TenantSessionDep,
+    require_chat_qps,
     require_token_quota,
 )
+from app.platform.rate_limit import RateLimiter
 
 router = APIRouter(tags=["chat"])
 
@@ -86,12 +89,17 @@ async def upsert_feedback(
     return await service.upsert_feedback(claims, message_id, payload)
 
 
-@router.post("/chat/completions", dependencies=[Depends(require_token_quota)])
+@router.post(
+    "/chat/completions",
+    dependencies=[Depends(require_chat_qps), Depends(require_token_quota)],
+)
 async def chat_completions(
     payload: ChatCompletionRequest,
     claims: ClaimsDep,
     service: ChatService = ServiceDep,
 ) -> StreamingResponse:
+    limiter = RateLimiter()
+    lease_id = limiter.acquire_chat_slot(tenant_id=claims.tenant_id)
     temperature = float(payload.options.get("temperature", 0.1))
     gen = service.stream_completion(
         claims,
@@ -100,4 +108,12 @@ async def chat_completions(
         kb_ids=payload.kb_ids,
         temperature=temperature,
     )
-    return StreamingResponse(gen, media_type="text/event-stream")
+
+    async def _stream_with_lease() -> AsyncIterator[str | bytes]:
+        try:
+            async for chunk in gen:
+                yield chunk
+        finally:
+            limiter.release_chat_slot(tenant_id=claims.tenant_id, lease_id=lease_id)
+
+    return StreamingResponse(_stream_with_lease(), media_type="text/event-stream")
