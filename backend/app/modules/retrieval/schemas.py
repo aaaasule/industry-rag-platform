@@ -11,7 +11,8 @@ from pydantic import BaseModel, Field
 class SearchRequest(BaseModel):
     query: str = Field(min_length=1, max_length=2000)
     kb_ids: list[uuid.UUID] | None = None
-    top_k: int = Field(default=8, ge=1, le=50)
+    # None：由首个 KB 的 EffectiveProfile.retrieval_rules.top_k 填充（无 KB 时为 8）
+    top_k: int | None = Field(default=None, ge=1, le=50)
     options: dict[str, Any] = Field(default_factory=dict)
 
 

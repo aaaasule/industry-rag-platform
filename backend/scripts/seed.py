@@ -96,7 +96,13 @@ BUILTIN_PROFILES: list[dict[str, Any]] = [
         },
         "parse_rules": {},
         "metadata_schema": {"standard_no": {"type": "string"}},
-        "prompt_overrides": {},
+        "prompt_overrides": {
+            "system": (
+                "你是流程工业（化工/石化/制药）知识库助手。请仅根据下列编号证据回答。"
+                "规则：1) 事实后标注 [n]；2) 标准号、工艺参数、联锁值必须与证据一致；"
+                "3) 证据不足时说明缺口。"
+            ),
+        },
         "retrieval_rules": {"top_k": 10},
     },
 ]
@@ -282,15 +288,23 @@ async def _seed_builtin_profiles() -> None:
     try:
         async with maker() as session:
             for spec in BUILTIN_PROFILES:
-                exists = (
+                existing = (
                     await session.execute(
-                        select(IndustryProfile.id).where(
+                        select(IndustryProfile).where(
                             IndustryProfile.code == spec["code"],
                             IndustryProfile.tenant_id.is_(None),
                         )
                     )
                 ).scalar_one_or_none()
-                if exists is not None:
+                if existing is not None:
+                    # 内置模板随 seed 刷新规则，便于切片演进（如 process system prompt）
+                    existing.name = spec["name"]
+                    existing.parse_rules = spec["parse_rules"]
+                    existing.chunk_rules = spec["chunk_rules"]
+                    existing.metadata_schema = spec["metadata_schema"]
+                    existing.prompt_overrides = spec["prompt_overrides"]
+                    existing.retrieval_rules = spec["retrieval_rules"]
+                    logger.info("profile_refreshed", code=spec["code"])
                     continue
                 session.add(
                     IndustryProfile(

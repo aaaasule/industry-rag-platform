@@ -16,7 +16,7 @@ from typing import Any
 
 from sqlalchemy import delete, func, select
 
-from app.modules.ingestion.chunkers.structure import ChunkRules, chunk_pages
+from app.modules.ingestion.chunkers.structure import chunk_pages
 from app.modules.ingestion.chunkers.tsv import build_tsv
 from app.modules.ingestion.parsers.layout import strip_headers_footers
 from app.modules.ingestion.parsers.pdf import PageParse, parse_pdf_bytes
@@ -32,10 +32,10 @@ from app.modules.knowledge.models import (
     Chunk,
     Document,
     DocumentPage,
-    IndustryProfile,
     IngestionJob,
     KnowledgeBase,
 )
+from app.modules.profile.service import resolve_effective_profile, to_ingestion_chunk_rules
 from app.platform.config import get_settings
 from app.platform.db import init_engine, session_scope
 from app.platform.ids import uuid7
@@ -262,19 +262,8 @@ async def _embed_document(document_id: uuid.UUID, tenant_id: uuid.UUID, job_id: 
             ]
 
             kb = await session.get(KnowledgeBase, doc.kb_id)
-            rules = ChunkRules()
-            if kb and kb.profile_id:
-                profile = await session.get(IndustryProfile, kb.profile_id)
-                if profile and profile.chunk_rules:
-                    rules = ChunkRules(
-                        max_tokens=int(profile.chunk_rules.get("max_tokens", 512)),
-                        min_tokens=int(profile.chunk_rules.get("min_tokens", 80)),
-                        overlap_tokens=int(profile.chunk_rules.get("overlap_tokens", 64)),
-                        clause_mode=bool(profile.chunk_rules.get("clause_mode", False)),
-                        keep_heading_prefix=bool(
-                            profile.chunk_rules.get("keep_heading_prefix", True)
-                        ),
-                    )
+            effective = await resolve_effective_profile(session, doc.kb_id)
+            rules = to_ingestion_chunk_rules(effective.chunk_rules)
 
             drafts = chunk_pages(page_dicts, rules, title=doc.title)
             await session.execute(delete(Chunk).where(Chunk.document_id == document_id))

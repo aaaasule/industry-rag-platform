@@ -1,25 +1,40 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 
+import { ApiError } from '@/lib/http';
 import { statusLabel } from './api';
 import {
   useDeleteDocument,
   useDocuments,
   useKnowledgeBase,
+  useProfiles,
   useReingest,
+  useUpdateKnowledgeBase,
   useUploadDocument,
 } from './hooks';
 
 export function KbDetailPage() {
   const { kbId = '' } = useParams();
   const { data: kb } = useKnowledgeBase(kbId);
+  const { data: profiles = [] } = useProfiles();
   const { data: docs = [], isLoading } = useDocuments(kbId);
   const upload = useUploadDocument(kbId);
+  const updateKb = useUpdateKnowledgeBase(kbId);
   const reingest = useReingest(kbId);
   const remove = useDeleteDocument(kbId);
   const inputRef = useRef<HTMLInputElement>(null);
   const [dragOver, setDragOver] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const [profileCode, setProfileCode] = useState('');
+
+  useEffect(() => {
+    if (!kb?.profile_id) {
+      setProfileCode('');
+      return;
+    }
+    const match = profiles.find((p) => p.id === kb.profile_id);
+    setProfileCode(match?.code ?? '');
+  }, [kb?.profile_id, profiles]);
 
   const onFiles = useCallback(
     async (files: FileList | File[]) => {
@@ -48,6 +63,40 @@ export function KbDetailPage() {
           {kb ? `${kb.doc_count} 文档 · ${kb.chunk_count} 分块` : '加载中…'}
         </p>
       </div>
+
+      <section className="flex flex-wrap items-end gap-3 rounded-xl border border-slate-200 bg-white p-4">
+        <label className="block text-xs text-slate-500">
+          行业模板
+          <select
+            value={profileCode}
+            onChange={(e) => setProfileCode(e.target.value)}
+            className="mt-1 block min-w-[220px] rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-800"
+          >
+            <option value="">未绑定</option>
+            {profiles.map((p) => (
+              <option key={p.id} value={p.code}>
+                {p.name} ({p.code})
+              </option>
+            ))}
+          </select>
+        </label>
+        <button
+          type="button"
+          disabled={!profileCode || updateKb.isPending}
+          onClick={() => {
+            setMessage(null);
+            updateKb
+              .mutateAsync({ profile_code: profileCode })
+              .then(() => setMessage(`已改绑模板：${profileCode}`))
+              .catch((err: unknown) =>
+                setMessage(err instanceof ApiError ? err.message : '改绑失败'),
+              );
+          }}
+          className="rounded-lg bg-brand-600 px-3 py-2 text-sm text-white hover:bg-brand-700 disabled:opacity-50"
+        >
+          保存绑定
+        </button>
+      </section>
 
       <div
         role="button"

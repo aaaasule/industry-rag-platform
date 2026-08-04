@@ -2,9 +2,13 @@
 
 from __future__ import annotations
 
+import copy
 import hashlib
 import uuid
 from datetime import UTC, datetime
+from typing import Any
+
+from pydantic import ValidationError
 
 from app.modules.audit.service import AuditService
 from app.modules.identity.permissions import (
@@ -14,7 +18,7 @@ from app.modules.identity.permissions import (
     kb_exists_in_tenant,
     visible_kb_ids,
 )
-from app.modules.knowledge.models import Document, KbGrant, KnowledgeBase
+from app.modules.knowledge.models import Document, IndustryProfile, KbGrant, KnowledgeBase
 from app.modules.knowledge.repository import KnowledgeRepository
 from app.modules.knowledge.schemas import (
     ChunkOut,
@@ -23,7 +27,9 @@ from app.modules.knowledge.schemas import (
     DocumentRegisterRequest,
     GrantOut,
     GrantUpsert,
+    IndustryProfileCreate,
     IndustryProfileOut,
+    IndustryProfileUpdate,
     KnowledgeBaseCreate,
     KnowledgeBaseOut,
     KnowledgeBaseUpdate,
@@ -31,11 +37,37 @@ from app.modules.knowledge.schemas import (
     UploadUrlRequest,
     UploadUrlResponse,
 )
+from app.modules.profile.schemas import (
+    ChunkRulesConfig,
+    PromptOverridesConfig,
+    RetrievalRulesConfig,
+)
 from app.platform.config import Settings
-from app.platform.errors import Conflict, Forbidden, NotFound, UnprocessableState
+from app.platform.errors import AppError, Conflict, Forbidden, NotFound, UnprocessableState
 from app.platform.ids import uuid7
 from app.platform.security import TokenClaims
 from app.platform.storage.object_store import S3ObjectStore, document_key
+
+
+def _validate_profile_rules(
+    *,
+    chunk_rules: dict[str, Any] | None = None,
+    prompt_overrides: dict[str, Any] | None = None,
+    retrieval_rules: dict[str, Any] | None = None,
+) -> None:
+    try:
+        if chunk_rules is not None:
+            ChunkRulesConfig.model_validate(chunk_rules)
+        if prompt_overrides is not None:
+            PromptOverridesConfig.model_validate(prompt_overrides)
+        if retrieval_rules is not None:
+            RetrievalRulesConfig.model_validate(retrieval_rules)
+    except ValidationError as exc:
+        raise AppError(
+            "行业配置字段校验失败",
+            code="validation_error",
+            details={"errors": exc.errors()},
+        ) from exc
 
 # 经 API 中转上传的上限（更大文件走预签名直传）
 DIRECT_UPLOAD_MAX_BYTES = 32 * 1024 * 1024
@@ -55,6 +87,96 @@ class KnowledgeService:
     async def list_profiles(self, tenant_id: uuid.UUID) -> list[IndustryProfileOut]:
         rows = await self._repo.list_profiles(tenant_id)
         return [IndustryProfileOut.model_validate(r) for r in rows]
+
+    async def create_profile(
+        self, claims: TokenClaims, payload: IndustryProfileCreate
+    ) -> IndustryProfileOut:
+        base = await self._repo.get_profile_by_code(claims.tenant_id, payload.base_code)
+        if base is None:
+            raise NotFound("基础行业模板不存在", code="profile_not_found")
+        if await self._repo.tenant_profile_code_exists(claims.tenant_id, payload.code):
+            raise Conflict("本租户已存在相同 code", code="duplicate_profile_code")
+
+        chunk_rules = (
+            copy.deepcopy(payload.chunk_rules)
+            if payload.chunk_rules is not None
+            else copy.deepcopy(base.chunk_rules)
+        )
+        prompt_overrides = (
+            copy.deepcopy(payload.prompt_overrides)
+            if payload.prompt_overrides is not None
+            else copy.deepcopy(base.prompt_overrides)
+        )
+        retrieval_rules = (
+            copy.deepcopy(payload.retrieval_rules)
+            if payload.retrieval_rules is not None
+            else copy.deepcopy(base.retrieval_rules)
+        )
+        parse_rules = (
+            copy.deepcopy(payload.parse_rules)
+            if payload.parse_rules is not None
+            else copy.deepcopy(base.parse_rules)
+        )
+        metadata_schema = (
+            copy.deepcopy(payload.metadata_schema)
+            if payload.metadata_schema is not None
+            else copy.deepcopy(base.metadata_schema)
+        )
+        _validate_profile_rules(
+            chunk_rules=chunk_rules,
+            prompt_overrides=prompt_overrides,
+            retrieval_rules=retrieval_rules,
+        )
+
+        profile = IndustryProfile(
+            id=uuid7(),
+            tenant_id=claims.tenant_id,
+            code=payload.code,
+            name=payload.name or f"{base.name}（自定义）",
+            parse_rules=parse_rules or {},
+            chunk_rules=chunk_rules or {},
+            metadata_schema=metadata_schema or {},
+            prompt_overrides=prompt_overrides or {},
+            retrieval_rules=retrieval_rules or {},
+            is_builtin=False,
+        )
+        await self._repo.add_profile(profile)
+        return IndustryProfileOut.model_validate(profile)
+
+    async def update_profile(
+        self,
+        claims: TokenClaims,
+        profile_id: uuid.UUID,
+        payload: IndustryProfileUpdate,
+    ) -> IndustryProfileOut:
+        profile = await self._repo.get_profile(claims.tenant_id, profile_id)
+        if profile is None:
+            raise NotFound()
+        if profile.is_builtin or profile.tenant_id is None:
+            raise UnprocessableState("内置模板不可修改，请先派生", code="builtin_immutable")
+        if profile.tenant_id != claims.tenant_id:
+            raise NotFound()
+
+        data = payload.model_dump(exclude_unset=True)
+        if "name" in data and data["name"] is not None:
+            profile.name = data["name"]
+        for field in (
+            "chunk_rules",
+            "prompt_overrides",
+            "retrieval_rules",
+            "parse_rules",
+            "metadata_schema",
+        ):
+            if field in data and data[field] is not None:
+                setattr(profile, field, copy.deepcopy(data[field]))
+
+        _validate_profile_rules(
+            chunk_rules=profile.chunk_rules,
+            prompt_overrides=profile.prompt_overrides,
+            retrieval_rules=profile.retrieval_rules,
+        )
+        await self._repo._session.flush()
+        return IndustryProfileOut.model_validate(profile)
 
     async def list_knowledge_bases(self, claims: TokenClaims) -> list[KnowledgeBaseOut]:
         ids = await visible_kb_ids(
@@ -101,6 +223,15 @@ class KnowledgeService:
             kb.description = payload.description
         if payload.visibility is not None:
             kb.visibility = payload.visibility
+        if payload.profile_code is not None:
+            profile = await self._repo.get_profile_by_code(
+                claims.tenant_id, payload.profile_code
+            )
+            if profile is None:
+                raise UnprocessableState(
+                    "行业模板不存在", code="profile_not_found"
+                )
+            kb.profile_id = profile.id
         await self._repo._session.flush()
         return KnowledgeBaseOut.model_validate(kb)
 

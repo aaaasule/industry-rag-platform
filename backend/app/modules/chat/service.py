@@ -34,6 +34,7 @@ from app.modules.chat.schemas import (
 )
 from app.modules.chat.sse import sse_event
 from app.modules.identity.permissions import PERM_READ, visible_kb_ids
+from app.modules.profile.service import resolve_for_kb_ids, resolve_rerank_enabled
 from app.modules.retrieval.base import SearchOptions
 from app.modules.retrieval.expand import load_document_titles
 from app.modules.retrieval.service import RetrievalService
@@ -264,6 +265,12 @@ class ChatService:
             {"message_id": str(asst.id), "conversation_id": str(conv.id)},
         )
 
+        settings = get_settings()
+        effective = await resolve_for_kb_ids(self._session, list(conv.kb_ids))
+        rerank = resolve_rerank_enabled(
+            effective.retrieval_rules, env_default=settings.effective_rerank_default
+        )
+
         t0 = time.perf_counter()
         try:
             search = await self._retrieval.search(
@@ -272,8 +279,8 @@ class ChatService:
                 role=claims.role,
                 query=message,
                 kb_ids=list(conv.kb_ids),
-                top_k=8,
-                options=SearchOptions(rerank=get_settings().effective_rerank_default),
+                top_k=effective.retrieval_rules.top_k,
+                options=SearchOptions(rerank=rerank),
             )
         except AppError as exc:
             asst.content = str(exc.message)
@@ -344,7 +351,11 @@ class ChatService:
 
         llm_msgs = [
             LLMMessage(role=m["role"], content=m["content"])  # type: ignore[arg-type]
-            for m in build_messages(message, search.hits)
+            for m in build_messages(
+                message,
+                search.hits,
+                system_override=effective.prompt_overrides.system,
+            )
         ]
         buf: list[str] = []
         usage = None

@@ -24,9 +24,16 @@ def build_evidence_block(hits: list[SearchHit]) -> str:
     return "\n\n".join(parts)
 
 
-def build_messages(user_text: str, hits: list[SearchHit]) -> list[dict[str, str]]:
+def build_messages(
+    user_text: str,
+    hits: list[SearchHit],
+    *,
+    system_override: str | None = None,
+) -> list[dict[str, str]]:
+    """组装 LLM 消息；`system_override` 非空时替换默认 SYSTEM_PROMPT。"""
+    base = system_override.strip() if system_override and system_override.strip() else SYSTEM_PROMPT
     evidence = build_evidence_block(hits)
-    system = SYSTEM_PROMPT + "\n\n证据：\n" + evidence
+    system = base + "\n\n证据：\n" + evidence
     return [
         {"role": "system", "content": system},
         {"role": "user", "content": user_text},

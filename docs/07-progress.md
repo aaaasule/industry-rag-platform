@@ -6,10 +6,58 @@
 
 | 项 | 值 |
 | --- | --- |
-| 阶段 | **M4 切片：QPS/并发限流**（分支 `feat/m4-rate-limit`） |
-| 下一里程碑 | M5 行业配置与评测 |
-| 代码量 | Redis 滑动窗口 QPS + chat 并发 lease |
+| 阶段 | **M5 切片 C/D：Profile CRUD+UI + evaluate**（分支 `feat/m5-profile-resolve`） |
+| 下一里程碑 | 合并 M5 / 后续增强（表单双视图、CI 硬阻断） |
+| 代码量 | profile POST/PATCH、Admin 行业模板、evaluate.py |
 | 阻塞项 | 无 |
+
+---
+
+## 2026-08-04（M5 · Profile CRUD + UI + evaluate）
+
+### 完成内容
+
+| # | 任务 | 状态 |
+| --- | --- | --- |
+| C-1 | POST/PATCH `/industry-profiles`（admin，内置只读） | ✓ |
+| C-2 | KB `profile_code` 改绑 | ✓ |
+| C-3 | Admin tab「行业模板」JSON 编辑 | ✓ |
+| C-4 | KbDetail 改绑 UI | ✓ |
+| D-1 | `scripts/evaluate.py` + `evals/golden.jsonl` | ✓ |
+
+**决策**：先 C 后 D；派生后编辑；evaluate 不阻断 CI。
+
+---
+
+## 2026-08-04（M5 · prompt + retrieval 接入）
+
+### 完成内容
+
+| # | 任务 | 状态 |
+| --- | --- | --- |
+| B-1 | 规格 / 计划 | ✓ |
+| B-2 | `build_messages(system_override)` | ✓ |
+| B-3 | chat 检索 top_k/rerank + system 走 resolve（首个 KB） | ✓ |
+| B-4 | `/search` 缺省 top_k/rerank 走 resolve | ✓ |
+| B-5 | process_industry 种子 system；单测 | ✓ |
+
+**决策**：多 KB 取 `kb_ids[0]`；`rerank_enabled is None` 回退 env；`top_k=None` 表示未传。
+
+---
+
+## 2026-08-04（M5 · EffectiveProfile resolve）
+
+### 完成内容
+
+| # | 任务 | 状态 |
+| --- | --- | --- |
+| P-1 | 规格 | ✓ |
+| P-2 | `EffectiveProfile` + `resolve(kb_id)` 浅合并 | ✓ |
+| P-3 | 摄取分块改走 resolve | ✓ |
+| P-4 | 单测（合并优先级 / clause_mode） | ✓ |
+| P-5 | `GET /industry-profiles` 返回 `chunk_rules` | ✓ |
+
+**决策**：本切片不含 CRUD/前端/prompt/eval；KB.settings 域浅覆盖 profile。
 
 ---
 

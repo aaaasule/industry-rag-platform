@@ -6,6 +6,11 @@ export interface IndustryProfile {
   name: string;
   is_builtin: boolean;
   tenant_id: string | null;
+  chunk_rules?: Record<string, unknown>;
+  prompt_overrides?: Record<string, unknown>;
+  retrieval_rules?: Record<string, unknown>;
+  parse_rules?: Record<string, unknown>;
+  metadata_schema?: Record<string, unknown>;
 }
 
 export interface KnowledgeBase {
@@ -60,6 +65,18 @@ export function createKnowledgeBase(payload: {
 
 export function getKnowledgeBase(kbId: string): Promise<KnowledgeBase> {
   return api.get(`/knowledge-bases/${kbId}`);
+}
+
+export function updateKnowledgeBase(
+  kbId: string,
+  payload: {
+    name?: string;
+    description?: string;
+    visibility?: string;
+    profile_code?: string;
+  },
+): Promise<KnowledgeBase> {
+  return api.patch(`/knowledge-bases/${kbId}`, payload);
 }
 
 export function listDocuments(kbId: string): Promise<DocumentItem[]> {
