@@ -21,6 +21,7 @@ from app.modules.chat import models as chat_models  # noqa: F401
 from app.modules.identity import models as identity_models  # noqa: F401
 from app.modules.knowledge import models as knowledge_models  # noqa: F401
 from app.modules.modelops import models as modelops_models  # noqa: F401
+from app.modules.modelops import usage_models as modelops_usage_models  # noqa: F401
 from app.platform.config import get_settings
 from app.platform.db import Base
 

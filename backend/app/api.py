@@ -10,6 +10,7 @@ from app.modules.identity.memberships_router import router as memberships_router
 from app.modules.identity.router import router as identity_router
 from app.modules.knowledge.router import router as knowledge_router
 from app.modules.modelops.router import router as modelops_router
+from app.modules.modelops.usage_router import router as usages_router
 from app.modules.retrieval.router import router as retrieval_router
 
 api_router = APIRouter(prefix="/api/v1")
@@ -20,3 +21,4 @@ api_router.include_router(retrieval_router)
 api_router.include_router(chat_router)
 api_router.include_router(audit_router)
 api_router.include_router(modelops_router)
+api_router.include_router(usages_router)

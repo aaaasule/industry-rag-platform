@@ -110,6 +110,7 @@ async def seed() -> None:
 
     await _seed_builtin_profiles()
     await _seed_platform_model_connections()
+    await _seed_model_pricing()
     tenant_ids, user_ids = await _seed_principals()
     for slug, tenant_id in tenant_ids.items():
         rows = [(email, role) for s, email, role in MEMBERSHIPS if s == slug]
@@ -200,6 +201,73 @@ async def _seed_platform_model_connections() -> None:
                     )
                 )
                 logger.info("platform_connection_created", name=name, purposes=purposes)
+            await session.commit()
+    finally:
+        await engine.dispose()
+
+
+async def _seed_model_pricing() -> None:
+    """占位定价（开发用），幂等按 provider+model+effective_from。"""
+    from datetime import UTC, datetime
+    from decimal import Decimal
+
+    from app.modules.modelops.usage_models import ModelPricing
+
+    settings = get_settings()
+    url = settings.database_migration_url or settings.database_url
+    engine = create_async_engine(url, pool_pre_ping=True)
+    maker = async_sessionmaker(engine, expire_on_commit=False, autoflush=False)
+    effective_from = datetime(2026, 1, 1, tzinfo=UTC)
+    rows = [
+        ("fake", settings.llm_model, Decimal("0.001000"), Decimal("0.002000")),
+        ("fake", settings.embedding_model, Decimal("0.000100"), Decimal("0")),
+        ("fake", settings.rerank_model, Decimal("0.000200"), Decimal("0")),
+        (
+            "openai_compatible",
+            settings.llm_model,
+            Decimal("0.150000"),
+            Decimal("0.600000"),
+        ),
+        (
+            "openai_compatible",
+            settings.embedding_model,
+            Decimal("0.020000"),
+            Decimal("0"),
+        ),
+        (
+            "openai_compatible",
+            settings.rerank_model,
+            Decimal("0.010000"),
+            Decimal("0"),
+        ),
+    ]
+    try:
+        async with maker() as session:
+            for provider_type, model, prompt_p, completion_p in rows:
+                exists = (
+                    await session.execute(
+                        select(ModelPricing.id).where(
+                            ModelPricing.provider_type == provider_type,
+                            ModelPricing.model == model,
+                            ModelPricing.effective_from == effective_from,
+                        )
+                    )
+                ).scalar_one_or_none()
+                if exists is not None:
+                    continue
+                session.add(
+                    ModelPricing(
+                        id=uuid7(),
+                        provider_type=provider_type,
+                        model=model,
+                        prompt_price_per_1k=prompt_p,
+                        completion_price_per_1k=completion_p,
+                        currency="USD",
+                        effective_from=effective_from,
+                        effective_to=None,
+                    )
+                )
+                logger.info("model_pricing_seeded", provider=provider_type, model=model)
             await session.commit()
     finally:
         await engine.dispose()
