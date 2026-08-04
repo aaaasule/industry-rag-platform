@@ -80,12 +80,8 @@ def test_general_vs_process_industry_clause_mode_distinguishable() -> None:
     assert general.clause_mode is False
     assert process.clause_mode is True
 
-    general_drafts = chunk_pages(
-        pages, to_ingestion_chunk_rules(general), title="规程"
-    )
-    process_drafts = chunk_pages(
-        pages, to_ingestion_chunk_rules(process), title="规程"
-    )
+    general_drafts = chunk_pages(pages, to_ingestion_chunk_rules(general), title="规程")
+    process_drafts = chunk_pages(pages, to_ingestion_chunk_rules(process), title="规程")
     assert len(process_drafts) > len(general_drafts)
 
 

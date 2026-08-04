@@ -6,10 +6,23 @@
 
 | 项 | 值 |
 | --- | --- |
-| 阶段 | **M5 切片 C/D：Profile CRUD+UI + evaluate**（分支 `feat/m5-profile-resolve`） |
-| 下一里程碑 | 合并 M5 / 后续增强（表单双视图、CI 硬阻断） |
-| 代码量 | profile POST/PATCH、Admin 行业模板、evaluate.py |
-| 阻塞项 | 无 |
+| 阶段 | **M5 已合入 main**（#14）；进行中：Backend CI 修复 |
+| 下一里程碑 | CI 全绿；可选 M5 增强（表单双视图 / evaluate 进 CI） |
+| 代码量 | — |
+| 阻塞项 | Backend CI：此前缺 ruff format + 无 Postgres service |
+
+---
+
+## 2026-08-04（chore · Backend CI）
+
+### 完成内容
+
+| # | 任务 | 状态 |
+| --- | --- | --- |
+| CI-1 | ruff format 未过的 5 个文件 | ✓ |
+| CI-2 | CI 增加 Postgres(pgvector)+Redis、角色初始化与 migrate | ✓ |
+
+**根因**：#14 Backend 在 Ruff format --check 失败（非 Postgres）；且 workflow 历来无 DB service，format 修好后 pytest 仍会挂。
 
 ---
 
