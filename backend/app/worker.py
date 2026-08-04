@@ -38,7 +38,7 @@ celery_app.conf.update(
 
 # 须在 celery_app 配置之后导入；autodiscover(["app.modules"]) 只会找 *.tasks
 import app.modules.ingestion.tasks  # noqa: E402
-import app.modules.modelops.health_tasks  # noqa: E402, F401
+import app.modules.modelops.health_tasks  # noqa: E402
 import app.modules.modelops.stats_tasks  # noqa: E402, F401
 
 celery_app.autodiscover_tasks(["app.modules.ingestion"], related_name="tasks")

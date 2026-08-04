@@ -1,15 +1,15 @@
-import { createBrowserRouter } from 'react-router-dom';
+import { createBrowserRouter, Navigate } from 'react-router-dom';
 
+import { AdminPage } from '@/features/admin/AdminPage';
 import { LoginPage } from '@/features/auth/LoginPage';
 import { ChatPage } from '@/features/chat/ChatPage';
 import { DocumentDetailPage } from '@/features/knowledge/DocumentDetailPage';
 import { KbDetailPage } from '@/features/knowledge/KbDetailPage';
 import { KnowledgePage } from '@/features/knowledge/KnowledgePage';
-import { AppLayout } from './AppLayout';
-import { RequireAuth } from './RequireAuth';
 import { UsageDashboardPage } from '@/features/usages/UsageDashboardPage';
+import { AppLayout } from './AppLayout';
 import { OverviewPage } from './placeholders';
-import { ModelOpsPlaceholder } from './placeholders';
+import { RequireAuth } from './RequireAuth';
 
 export const router = createBrowserRouter([
   { path: '/login', element: <LoginPage /> },
@@ -28,7 +28,8 @@ export const router = createBrowserRouter([
       { path: 'documents/:docId', element: <DocumentDetailPage /> },
       { path: 'chat', element: <ChatPage /> },
       { path: 'usages', element: <UsageDashboardPage /> },
-      { path: 'modelops', element: <ModelOpsPlaceholder /> },
+      { path: 'admin', element: <AdminPage /> },
+      { path: 'modelops', element: <Navigate to="/admin?tab=connections" replace /> },
     ],
   },
 ]);

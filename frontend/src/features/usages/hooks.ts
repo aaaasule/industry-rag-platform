@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 
-import type { ApiError } from '@/lib/http';
+import * as modelopsApi from '@/features/modelops/api';
 import * as usagesApi from './api';
 import type { TopDimension, UsageRange } from './api';
 
@@ -58,9 +58,9 @@ export function useTopBreakdown(range: UsageRange, dimension: TopDimension, enab
 }
 
 export function useModelConnections(enabled: boolean) {
-  return useQuery<usagesApi.ModelConnection[], ApiError>({
-    queryKey: ['model-connections'],
-    queryFn: usagesApi.listModelConnections,
+  return useQuery({
+    queryKey: modelopsApi.CONNECTION_LIST_KEY,
+    queryFn: modelopsApi.listConnections,
     enabled,
     staleTime: 60_000,
   });

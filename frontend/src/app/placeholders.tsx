@@ -26,27 +26,25 @@ export function OverviewPage() {
           <li>· 知识库摄取、混合检索与 SSE 问答可用</li>
           <li>· 前往「问答」选择知识库并发问，右侧查看证据与引用</li>
           {(session.current_tenant.role === 'owner' || session.current_tenant.role === 'admin') && (
-            <li>
-              ·{' '}
-              <Link to="/usages" className="text-brand-700 hover:underline">
-                用量仪表盘
-              </Link>
-              ：查看 Token / 成本与分布
-            </li>
+            <>
+              <li>
+                ·{' '}
+                <Link to="/usages" className="text-brand-700 hover:underline">
+                  用量仪表盘
+                </Link>
+                ：查看 Token / 成本与分布
+              </li>
+              <li>
+                ·{' '}
+                <Link to="/admin" className="text-brand-700 hover:underline">
+                  运营
+                </Link>
+                ：接入点 / 成员 / 审计
+              </li>
+            </>
           )}
         </ul>
       </section>
-    </div>
-  );
-}
-
-export const ModelOpsPlaceholder = () => <Placeholder title="模型接入管理" milestone="M4" />;
-
-function Placeholder({ title, milestone }: { title: string; milestone: string }) {
-  return (
-    <div className="mx-auto max-w-3xl rounded-xl border border-dashed border-slate-300 bg-white p-10 text-center">
-      <h1 className="text-lg font-medium text-slate-900">{title}</h1>
-      <p className="mt-2 text-sm text-slate-500">该功能计划在 {milestone} 交付。</p>
     </div>
   );
 }
