@@ -129,9 +129,7 @@ class ProfileService:
                 prompt_overrides=merge_prompt_overrides(
                     profile_overrides=None, kb_settings=settings
                 ),
-                retrieval_rules=merge_retrieval_rules(
-                    profile_rules=None, kb_settings=settings
-                ),
+                retrieval_rules=merge_retrieval_rules(profile_rules=None, kb_settings=settings),
             )
 
         # parse_rules / metadata_schema：整域替换（KB 有则用 KB，否则用 profile）
@@ -168,9 +166,7 @@ class ProfileService:
         )
 
 
-async def resolve_effective_profile(
-    session: AsyncSession, kb_id: uuid.UUID
-) -> EffectiveProfile:
+async def resolve_effective_profile(session: AsyncSession, kb_id: uuid.UUID) -> EffectiveProfile:
     return await ProfileService(session).resolve(kb_id)
 
 
@@ -181,9 +177,7 @@ def primary_kb_id(kb_ids: list[uuid.UUID] | None) -> uuid.UUID | None:
     return kb_ids[0]
 
 
-def resolve_rerank_enabled(
-    rules: RetrievalRulesConfig, *, env_default: bool
-) -> bool:
+def resolve_rerank_enabled(rules: RetrievalRulesConfig, *, env_default: bool) -> bool:
     """profile.rerank_enabled 优先；None 时回退环境默认。"""
     if rules.rerank_enabled is not None:
         return bool(rules.rerank_enabled)

@@ -69,6 +69,7 @@ def _validate_profile_rules(
             details={"errors": exc.errors()},
         ) from exc
 
+
 # 经 API 中转上传的上限（更大文件走预签名直传）
 DIRECT_UPLOAD_MAX_BYTES = 32 * 1024 * 1024
 
@@ -224,13 +225,9 @@ class KnowledgeService:
         if payload.visibility is not None:
             kb.visibility = payload.visibility
         if payload.profile_code is not None:
-            profile = await self._repo.get_profile_by_code(
-                claims.tenant_id, payload.profile_code
-            )
+            profile = await self._repo.get_profile_by_code(claims.tenant_id, payload.profile_code)
             if profile is None:
-                raise UnprocessableState(
-                    "行业模板不存在", code="profile_not_found"
-                )
+                raise UnprocessableState("行业模板不存在", code="profile_not_found")
             kb.profile_id = profile.id
         await self._repo._session.flush()
         return KnowledgeBaseOut.model_validate(kb)

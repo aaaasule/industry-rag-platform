@@ -58,23 +58,13 @@ def test_primary_kb_id_picks_first() -> None:
 
 
 def test_resolve_rerank_enabled_profile_over_env() -> None:
-    assert resolve_rerank_enabled(
-        RetrievalRulesConfig(rerank_enabled=True), env_default=False
-    )
-    assert not resolve_rerank_enabled(
-        RetrievalRulesConfig(rerank_enabled=False), env_default=True
-    )
-    assert resolve_rerank_enabled(
-        RetrievalRulesConfig(rerank_enabled=None), env_default=True
-    )
+    assert resolve_rerank_enabled(RetrievalRulesConfig(rerank_enabled=True), env_default=False)
+    assert not resolve_rerank_enabled(RetrievalRulesConfig(rerank_enabled=False), env_default=True)
+    assert resolve_rerank_enabled(RetrievalRulesConfig(rerank_enabled=None), env_default=True)
 
 
 def test_process_industry_retrieval_top_k_differs_from_general() -> None:
-    general = merge_retrieval_rules(
-        profile_rules={"top_k": 8}, kb_settings=None
-    )
-    process = merge_retrieval_rules(
-        profile_rules={"top_k": 10}, kb_settings=None
-    )
+    general = merge_retrieval_rules(profile_rules={"top_k": 8}, kb_settings=None)
+    process = merge_retrieval_rules(profile_rules={"top_k": 10}, kb_settings=None)
     assert general.top_k == 8
     assert process.top_k == 10

@@ -56,11 +56,7 @@ async def search(
         rerank = resolve_rerank_enabled(
             effective.retrieval_rules, env_default=settings.effective_rerank_default
         )
-    top_k = (
-        payload.top_k
-        if payload.top_k is not None
-        else effective.retrieval_rules.top_k
-    )
+    top_k = payload.top_k if payload.top_k is not None else effective.retrieval_rules.top_k
     opts = SearchOptions(
         expand_context=int(payload.options.get("expand_context", 1)),
         rerank=rerank,

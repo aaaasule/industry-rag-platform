@@ -27,6 +27,47 @@ jobs:
     defaults:
       run:
         working-directory: backend
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: irp
+          POSTGRES_PASSWORD: irp
+          POSTGRES_DB: irp
+        ports:
+          - 5433:5432
+        options: >-
+          --health-cmd "pg_isready -U irp -d irp"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 20
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6380:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 20
+    env:
+      IRP_ENVIRONMENT: local
+      IRP_LOG_LEVEL: WARNING
+      IRP_LOG_FORMAT: console
+      IRP_DATABASE_URL: postgresql+asyncpg://irp_app:irp_app@127.0.0.1:5433/irp
+      IRP_DATABASE_MIGRATION_URL: postgresql+asyncpg://irp:irp@127.0.0.1:5433/irp
+      IRP_REDIS_URL: redis://127.0.0.1:6380/0
+      IRP_JWT_SECRET: ci-only-change-me-0123456789abcdef
+      IRP_LLM_PROVIDER: fake
+      IRP_EMBEDDING_PROVIDER: fake
+      IRP_RERANK_PROVIDER: fake
+      IRP_EMBEDDING_DIM: "1024"
+      IRP_RETRIEVAL_RERANK_DEFAULT: "false"
+      # 测试不打真实对象存储；占位即可
+      IRP_S3_ENDPOINT: http://127.0.0.1:9000
+      IRP_S3_BUCKET: irp-documents
+      IRP_S3_ACCESS_KEY: minioadmin
+      IRP_S3_SECRET_KEY: minioadmin
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v5
@@ -41,6 +82,16 @@ jobs:
         run: uv run ruff check . && uv run ruff format --check .
       - name: Mypy
         run: uv run mypy app
+      - name: Init Postgres app role
+        env:
+          PGPASSWORD: irp
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq postgresql-client
+          psql -h 127.0.0.1 -p 5433 -U irp -d irp -v ON_ERROR_STOP=1 \
+            -f ../deploy/postgres-init/01-app-role.sql
+      - name: Migrate
+        run: uv run alembic upgrade head
       - name: Pytest
         run: uv run pytest --cov=app --cov-fail-under=70
       - name: Export OpenAPI
