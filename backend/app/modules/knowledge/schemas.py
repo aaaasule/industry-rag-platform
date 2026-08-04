@@ -20,6 +20,9 @@ class KnowledgeBaseUpdate(BaseModel):
     name: str | None = Field(default=None, min_length=1, max_length=200)
     description: str | None = None
     visibility: str | None = Field(default=None, pattern="^(private|tenant)$")
+    profile_code: str | None = Field(
+        default=None, min_length=1, max_length=100, description="改绑行业模板 code"
+    )
 
 
 class KnowledgeBaseOut(BaseModel):
@@ -83,6 +86,28 @@ class DocumentCreated(BaseModel):
     job_id: uuid.UUID | None = None
 
 
+class IndustryProfileCreate(BaseModel):
+    """从 base_code 派生租户自定义模板。"""
+
+    base_code: str = Field(min_length=1, max_length=100)
+    code: str = Field(min_length=1, max_length=100, pattern=r"^[a-z][a-z0-9_]*$")
+    name: str | None = Field(default=None, min_length=1, max_length=200)
+    chunk_rules: dict[str, Any] | None = None
+    prompt_overrides: dict[str, Any] | None = None
+    retrieval_rules: dict[str, Any] | None = None
+    parse_rules: dict[str, Any] | None = None
+    metadata_schema: dict[str, Any] | None = None
+
+
+class IndustryProfileUpdate(BaseModel):
+    name: str | None = Field(default=None, min_length=1, max_length=200)
+    chunk_rules: dict[str, Any] | None = None
+    prompt_overrides: dict[str, Any] | None = None
+    retrieval_rules: dict[str, Any] | None = None
+    parse_rules: dict[str, Any] | None = None
+    metadata_schema: dict[str, Any] | None = None
+
+
 class IndustryProfileOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -91,6 +116,11 @@ class IndustryProfileOut(BaseModel):
     name: str
     is_builtin: bool
     tenant_id: uuid.UUID | None
+    chunk_rules: dict[str, Any] = Field(default_factory=dict)
+    prompt_overrides: dict[str, Any] = Field(default_factory=dict)
+    retrieval_rules: dict[str, Any] = Field(default_factory=dict)
+    parse_rules: dict[str, Any] = Field(default_factory=dict)
+    metadata_schema: dict[str, Any] = Field(default_factory=dict)
 
 
 class PreviewUrlOut(BaseModel):

@@ -41,6 +41,35 @@ class KnowledgeRepository:
             )
         ).scalar_one_or_none()
 
+    async def get_profile(
+        self, tenant_id: uuid.UUID, profile_id: uuid.UUID
+    ) -> IndustryProfile | None:
+        """本租户自定义或全局内置。"""
+        return (
+            await self._session.execute(
+                select(IndustryProfile).where(
+                    IndustryProfile.id == profile_id,
+                    (IndustryProfile.tenant_id.is_(None))
+                    | (IndustryProfile.tenant_id == tenant_id),
+                )
+            )
+        ).scalar_one_or_none()
+
+    async def tenant_profile_code_exists(self, tenant_id: uuid.UUID, code: str) -> bool:
+        row = (
+            await self._session.execute(
+                select(IndustryProfile.id).where(
+                    IndustryProfile.code == code, IndustryProfile.tenant_id == tenant_id
+                )
+            )
+        ).scalar_one_or_none()
+        return row is not None
+
+    async def add_profile(self, profile: IndustryProfile) -> IndustryProfile:
+        self._session.add(profile)
+        await self._session.flush()
+        return profile
+
     async def list_knowledge_bases(
         self, tenant_id: uuid.UUID, *, kb_ids: list[uuid.UUID] | None = None
     ) -> list[KnowledgeBase]:

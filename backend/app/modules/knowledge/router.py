@@ -6,6 +6,7 @@ import uuid
 
 from fastapi import APIRouter, Depends, File, Form, UploadFile
 
+from app.modules.identity.models import ROLE_ADMIN
 from app.modules.knowledge.repository import KnowledgeRepository
 from app.modules.knowledge.schemas import (
     ChunkOut,
@@ -14,7 +15,9 @@ from app.modules.knowledge.schemas import (
     DocumentRegisterRequest,
     GrantOut,
     GrantUpsert,
+    IndustryProfileCreate,
     IndustryProfileOut,
+    IndustryProfileUpdate,
     KnowledgeBaseCreate,
     KnowledgeBaseOut,
     KnowledgeBaseUpdate,
@@ -23,7 +26,7 @@ from app.modules.knowledge.schemas import (
     UploadUrlResponse,
 )
 from app.modules.knowledge.service import KnowledgeService
-from app.platform.deps import ClaimsDep, SettingsDep, TenantSessionDep
+from app.platform.deps import ClaimsDep, SettingsDep, TenantSessionDep, require_role
 
 router = APIRouter(tags=["knowledge"])
 
@@ -40,6 +43,34 @@ async def list_profiles(
     claims: ClaimsDep, service: KnowledgeService = ServiceDep
 ) -> list[IndustryProfileOut]:
     return await service.list_profiles(claims.tenant_id)
+
+
+@router.post(
+    "/industry-profiles",
+    response_model=IndustryProfileOut,
+    status_code=201,
+    dependencies=[Depends(require_role(ROLE_ADMIN))],
+)
+async def create_profile(
+    payload: IndustryProfileCreate,
+    claims: ClaimsDep,
+    service: KnowledgeService = ServiceDep,
+) -> IndustryProfileOut:
+    return await service.create_profile(claims, payload)
+
+
+@router.patch(
+    "/industry-profiles/{profile_id}",
+    response_model=IndustryProfileOut,
+    dependencies=[Depends(require_role(ROLE_ADMIN))],
+)
+async def update_profile(
+    profile_id: uuid.UUID,
+    payload: IndustryProfileUpdate,
+    claims: ClaimsDep,
+    service: KnowledgeService = ServiceDep,
+) -> IndustryProfileOut:
+    return await service.update_profile(claims, profile_id, payload)
 
 
 @router.get("/knowledge-bases", response_model=list[KnowledgeBaseOut])

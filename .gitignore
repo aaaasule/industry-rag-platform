@@ -234,3 +234,4 @@ frontend/dist/
 # 本地 OpenAPI 中间产物可入库（契约基线），但不要提交临时导出
 # frontend/src/types/openapi.json 与 openapi.gen.ts 作为契约基线入库
 artifacts/
+backend/evals/golden.local.jsonl

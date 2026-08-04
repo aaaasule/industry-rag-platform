@@ -30,6 +30,18 @@ export function useKnowledgeBase(kbId: string) {
   });
 }
 
+export function useUpdateKnowledgeBase(kbId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: { profile_code?: string; name?: string }) =>
+      kbApi.updateKnowledgeBase(kbId, payload),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['knowledge-bases', kbId] });
+      void qc.invalidateQueries({ queryKey: KB_LIST_KEY });
+    },
+  });
+}
+
 export function useDocuments(kbId: string) {
   return useQuery({
     queryKey: ['documents', kbId],

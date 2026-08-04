@@ -2,19 +2,23 @@ import { Link, useSearchParams } from 'react-router-dom';
 
 import { useSession } from '@/features/auth/hooks';
 import { ConnectionsPanel } from '@/features/modelops/ConnectionsPanel';
+import { ProfilesPanel } from '@/features/profiles/ProfilesPanel';
 import { AuditPanel } from './AuditPanel';
 import { MembersPanel } from './MembersPanel';
 
-type TabId = 'connections' | 'members' | 'audit';
+type TabId = 'connections' | 'members' | 'audit' | 'profiles';
 
 const TABS: { id: TabId; label: string }[] = [
   { id: 'connections', label: '接入点' },
+  { id: 'profiles', label: '行业模板' },
   { id: 'members', label: '成员' },
   { id: 'audit', label: '审计' },
 ];
 
 function parseTab(raw: string | null): TabId {
-  if (raw === 'members' || raw === 'audit' || raw === 'connections') return raw;
+  if (raw === 'members' || raw === 'audit' || raw === 'connections' || raw === 'profiles') {
+    return raw;
+  }
   return 'connections';
 }
 
@@ -50,7 +54,7 @@ export function AdminPage() {
       <header>
         <h1 className="text-xl font-semibold text-slate-900">运营</h1>
         <p className="mt-1 text-sm text-slate-500">
-          租户 {session.current_tenant.name} · 接入点 / 成员 / 审计
+          租户 {session.current_tenant.name} · 接入点 / 行业模板 / 成员 / 审计
         </p>
       </header>
 
@@ -73,6 +77,7 @@ export function AdminPage() {
       </div>
 
       {tab === 'connections' ? <ConnectionsPanel enabled={canView} /> : null}
+      {tab === 'profiles' ? <ProfilesPanel enabled={canView} /> : null}
       {tab === 'members' ? <MembersPanel enabled={canView} /> : null}
       {tab === 'audit' ? <AuditPanel enabled={canView} /> : null}
     </div>
