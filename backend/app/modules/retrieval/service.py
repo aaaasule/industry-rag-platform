@@ -213,9 +213,7 @@ class RetrievalService:
             resolve_usage_route,
         )
 
-        conn_id, provider_type, model = await resolve_usage_route(
-            self._session, tenant_id, purpose
-        )
+        conn_id, provider_type, model = await resolve_usage_route(self._session, tenant_id, purpose)
         prompt_tokens = sum(estimate_tokens(t) for t in texts)
         await UsageRecorder.record(
             tenant_id=tenant_id,
