@@ -25,6 +25,7 @@ from app.platform.deps import (
     ResolvedLLMDep,
     ResolvedRerankDep,
     TenantSessionDep,
+    require_token_quota,
 )
 
 router = APIRouter(tags=["chat"])
@@ -85,7 +86,7 @@ async def upsert_feedback(
     return await service.upsert_feedback(claims, message_id, payload)
 
 
-@router.post("/chat/completions")
+@router.post("/chat/completions", dependencies=[Depends(require_token_quota)])
 async def chat_completions(
     payload: ChatCompletionRequest,
     claims: ClaimsDep,

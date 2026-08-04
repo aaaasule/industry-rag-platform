@@ -87,6 +87,13 @@ def require_role(minimum: str) -> Callable[[TokenClaims], Awaitable[TokenClaims]
     return _guard
 
 
+async def require_token_quota(claims: ClaimsDep, session: TenantSessionDep) -> None:
+    """月度 Token 配额门禁。挂到 chat/search：dependencies=[Depends(require_token_quota)]"""
+    from app.modules.modelops.quota import QuotaService
+
+    await QuotaService(session).check_monthly_tokens(claims.tenant_id)
+
+
 def current_tenant_id(claims: ClaimsDep) -> uuid.UUID:
     return claims.tenant_id
 

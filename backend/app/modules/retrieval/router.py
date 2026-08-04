@@ -20,6 +20,7 @@ from app.platform.deps import (
     ResolvedRerankDep,
     SettingsDep,
     TenantSessionDep,
+    require_token_quota,
 )
 
 router = APIRouter(tags=["retrieval"])
@@ -34,7 +35,7 @@ def _service(
 ServiceDep = Depends(_service)
 
 
-@router.post("/search", response_model=SearchResponse)
+@router.post("/search", response_model=SearchResponse, dependencies=[Depends(require_token_quota)])
 async def search(
     payload: SearchRequest,
     claims: ClaimsDep,
