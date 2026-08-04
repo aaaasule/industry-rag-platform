@@ -2,10 +2,18 @@ import { NavLink, Outlet } from 'react-router-dom';
 
 import { useLogout, useSession, useSwitchTenant } from '@/features/auth/hooks';
 
-const NAV_ITEMS = [
+type NavItem = {
+  to: string;
+  label: string;
+  end?: boolean;
+  roles?: ReadonlyArray<'owner' | 'admin' | 'member'>;
+};
+
+const NAV_ITEMS: NavItem[] = [
   { to: '/', label: '概览', end: true },
   { to: '/knowledge', label: '知识库' },
   { to: '/chat', label: '问答' },
+  { to: '/usages', label: '用量', roles: ['owner', 'admin'] },
   { to: '/modelops', label: '模型接入' },
 ];
 
@@ -13,6 +21,10 @@ export function AppLayout() {
   const { session } = useSession();
   const switchTenant = useSwitchTenant();
   const logout = useLogout();
+  const role = session?.current_tenant.role;
+  const navItems = NAV_ITEMS.filter(
+    (item) => item.roles == null || (role != null && item.roles.includes(role)),
+  );
 
   return (
     <div className="flex h-full flex-col">
@@ -20,7 +32,7 @@ export function AppLayout() {
         <span className="text-sm font-semibold text-slate-900">工业知识库平台</span>
 
         <nav className="flex items-center gap-1">
-          {NAV_ITEMS.map((item) => (
+          {navItems.map((item) => (
             <NavLink
               key={item.to}
               to={item.to}

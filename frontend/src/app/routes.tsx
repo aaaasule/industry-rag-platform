@@ -7,6 +7,7 @@ import { KbDetailPage } from '@/features/knowledge/KbDetailPage';
 import { KnowledgePage } from '@/features/knowledge/KnowledgePage';
 import { AppLayout } from './AppLayout';
 import { RequireAuth } from './RequireAuth';
+import { UsageDashboardPage } from '@/features/usages/UsageDashboardPage';
 import { OverviewPage } from './placeholders';
 import { ModelOpsPlaceholder } from './placeholders';
 
@@ -26,6 +27,7 @@ export const router = createBrowserRouter([
       { path: 'knowledge/:kbId/documents/:docId', element: <DocumentDetailPage /> },
       { path: 'documents/:docId', element: <DocumentDetailPage /> },
       { path: 'chat', element: <ChatPage /> },
+      { path: 'usages', element: <UsageDashboardPage /> },
       { path: 'modelops', element: <ModelOpsPlaceholder /> },
     ],
   },

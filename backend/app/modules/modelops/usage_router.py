@@ -65,7 +65,7 @@ async def usage_breakdown(
     claims: ClaimsDep,
     from_time: datetime = Query(alias="from"),
     to_time: datetime = Query(alias="to"),
-    dimension: Literal["model", "purpose", "connection"] = "model",
+    dimension: Literal["model", "purpose", "connection", "user", "knowledge_base"] = "model",
     metric: Literal["cost", "call_count", "prompt_tokens"] = "cost",
     top: int = Query(default=10, ge=1, le=50),
     service: UsageQueryService = ServiceDep,

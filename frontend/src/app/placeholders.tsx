@@ -3,6 +3,8 @@
  * 这样骨架本身就是一份可执行的进度表。
  */
 
+import { Link } from 'react-router-dom';
+
 import { useSession } from '@/features/auth/hooks';
 
 export function OverviewPage() {
@@ -19,11 +21,19 @@ export function OverviewPage() {
       </div>
 
       <section className="rounded-xl border border-slate-200 bg-white p-5">
-        <h2 className="text-sm font-medium text-slate-900">M2 检索与问答已接入</h2>
+        <h2 className="text-sm font-medium text-slate-900">平台能力</h2>
         <ul className="mt-3 space-y-1.5 text-sm text-slate-600">
-          <li>· 知识库摄取（M1）与混合检索 / SSE 问答（M2）可用</li>
-          <li>· 前往「问答」页选择知识库并发问，右侧查看证据</li>
-          <li>· 下一步 M3：引用高亮与反馈</li>
+          <li>· 知识库摄取、混合检索与 SSE 问答可用</li>
+          <li>· 前往「问答」选择知识库并发问，右侧查看证据与引用</li>
+          {(session.current_tenant.role === 'owner' || session.current_tenant.role === 'admin') && (
+            <li>
+              ·{' '}
+              <Link to="/usages" className="text-brand-700 hover:underline">
+                用量仪表盘
+              </Link>
+              ：查看 Token / 成本与分布
+            </li>
+          )}
         </ul>
       </section>
     </div>

@@ -28,6 +28,7 @@ class SeriesPoint(BaseModel):
     cost: float = 0
     call_count: int = 0
     success_rate: float = 1.0
+    latency_p95_ms: int | None = None
 
 
 class SeriesGroup(BaseModel):

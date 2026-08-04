@@ -6,10 +6,25 @@
 
 | 项 | 值 |
 | --- | --- |
-| 阶段 | **M4 切片：配额 429**（分支 `feat/m4-quota-429`；health 已合入 main） |
-| 下一里程碑 | 用量仪表盘前端 / 运营管理 UI |
-| 代码量 | `QuotaService` / `quota_exceeded` / chat+search 门禁 |
+| 阶段 | **M4 切片：用量仪表盘**（分支 `feat/m4-usage-dashboard`） |
+| 下一里程碑 | 运营管理 UI（接入点 / 成员 / 审计） |
+| 代码量 | `/usages` 七图 + series latency / user·kb breakdown |
 | 阻塞项 | 无 |
+
+---
+
+## 2026-08-04（M4 · 用量仪表盘）
+
+### 完成内容
+
+| # | 任务 | 状态 |
+| --- | --- | --- |
+| D-1 | 规格 / 计划 | ✓ |
+| D-2 | series `latency_p95_ms`；breakdown `user`/`knowledge_base` | ✓ |
+| D-3 | OpenAPI 同步 + `features/usages` | ✓ |
+| D-4 | 七图仪表盘 + admin 导航 | ✓ |
+
+**决策**：客户演示级；user/kb 走明细聚合；熔断标注不做；运营 UI 下一刀。
 
 ---
 
