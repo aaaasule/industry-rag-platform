@@ -12,7 +12,8 @@ import redis
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.modules.identity.models import Tenant
+from app.modules.identity.models import Tenant, User
+from app.modules.knowledge.models import KnowledgeBase
 from app.modules.modelops.usage_models import LlmUsage, LlmUsageHourly
 from app.modules.modelops.usage_recorder import HOURLIES_UNTIL_KEY
 from app.modules.modelops.usage_schemas import (
@@ -27,6 +28,8 @@ from app.modules.modelops.usage_schemas import (
 from app.platform.config import get_settings
 from app.platform.errors import AppError
 from app.platform.security import TokenClaims
+
+BreakdownDimension = Literal["model", "purpose", "connection", "user", "knowledge_base"]
 
 
 class UsageQueryService:
@@ -113,6 +116,7 @@ class UsageQueryService:
                     "cost": 0.0,
                     "call_count": 0,
                     "success_count": 0,
+                    "latency_p95_ms": None,
                 }
             )
         )
@@ -134,6 +138,12 @@ class UsageQueryService:
             cell["cost"] += dec_to_float(r.cost)
             cell["call_count"] += int(r.call_count)
             cell["success_count"] += int(r.success_count)
+            # 日/小时桶内多行 hourlies：取 max(p95) 作为近似（非精确合并分位数）
+            if r.latency_p95_ms is not None:
+                prev = cell["latency_p95_ms"]
+                cell["latency_p95_ms"] = (
+                    int(r.latency_p95_ms) if prev is None else max(int(prev), int(r.latency_p95_ms))
+                )
 
         series: list[SeriesGroup] = []
         for g, points_map in sorted(buckets.items()):
@@ -149,6 +159,7 @@ class UsageQueryService:
                         cost=round(c["cost"], 6),
                         call_count=c["call_count"],
                         success_rate=round(rate, 4),
+                        latency_p95_ms=c["latency_p95_ms"],
                     )
                 )
             series.append(SeriesGroup(group={group_by: g}, points=points))
@@ -166,28 +177,20 @@ class UsageQueryService:
         *,
         from_time: datetime,
         to_time: datetime,
-        dimension: Literal["model", "purpose", "connection"] = "model",
+        dimension: BreakdownDimension = "model",
         metric: Literal["cost", "call_count", "prompt_tokens"] = "cost",
         top: int = 10,
     ) -> UsageBreakdownOut:
-        rows = await self._hourlies(
-            claims.tenant_id, from_time.astimezone(UTC), to_time.astimezone(UTC)
-        )
-        totals: dict[str, dict[str, float]] = defaultdict(lambda: {"value": 0.0, "call_count": 0})
-        for r in rows:
-            if dimension == "model":
-                key = r.model
-            elif dimension == "purpose":
-                key = r.purpose
-            else:
-                key = str(r.connection_id)
-            if metric == "cost":
-                totals[key]["value"] += dec_to_float(r.cost)
-            elif metric == "call_count":
-                totals[key]["value"] += float(r.call_count)
-            else:
-                totals[key]["value"] += float(r.prompt_tokens)
-            totals[key]["call_count"] += float(r.call_count)
+        start = from_time.astimezone(UTC)
+        end = to_time.astimezone(UTC)
+        if dimension in ("user", "knowledge_base"):
+            totals, labels = await self._breakdown_from_usages(
+                claims.tenant_id, start, end, dimension=dimension, metric=metric
+            )
+        else:
+            totals, labels = await self._breakdown_from_hourlies(
+                claims.tenant_id, start, end, dimension=dimension, metric=metric
+            )
 
         ranked = sorted(totals.items(), key=lambda x: x[1]["value"], reverse=True)
         top_items = ranked[:top]
@@ -196,7 +199,7 @@ class UsageQueryService:
         items = [
             BreakdownItem(
                 key=k,
-                label=k,
+                label=labels.get(k, k),
                 value=round(v["value"], 6),
                 share=round(v["value"] / total_val, 4) if total_val else 0.0,
                 call_count=int(v["call_count"]),
@@ -213,6 +216,105 @@ class UsageQueryService:
             total=round(total_val, 6),
             stale_until=_stale_until(),
         )
+
+    async def _breakdown_from_hourlies(
+        self,
+        tenant_id: uuid.UUID,
+        start: datetime,
+        end: datetime,
+        *,
+        dimension: Literal["model", "purpose", "connection"],
+        metric: Literal["cost", "call_count", "prompt_tokens"],
+    ) -> tuple[dict[str, dict[str, float]], dict[str, str]]:
+        rows = await self._hourlies(tenant_id, start, end)
+        totals: dict[str, dict[str, float]] = defaultdict(lambda: {"value": 0.0, "call_count": 0})
+        for r in rows:
+            if dimension == "model":
+                key = r.model
+            elif dimension == "purpose":
+                key = r.purpose
+            else:
+                key = str(r.connection_id)
+            if metric == "cost":
+                totals[key]["value"] += dec_to_float(r.cost)
+            elif metric == "call_count":
+                totals[key]["value"] += float(r.call_count)
+            else:
+                totals[key]["value"] += float(r.prompt_tokens)
+            totals[key]["call_count"] += float(r.call_count)
+        return totals, {k: k for k in totals}
+
+    async def _breakdown_from_usages(
+        self,
+        tenant_id: uuid.UUID,
+        start: datetime,
+        end: datetime,
+        *,
+        dimension: Literal["user", "knowledge_base"],
+        metric: Literal["cost", "call_count", "prompt_tokens"],
+    ) -> tuple[dict[str, dict[str, float]], dict[str, str]]:
+        """Top 用户/KB：明细表短时窗聚合（hourlies 无这两维）。"""
+        stmt = select(LlmUsage).where(
+            LlmUsage.tenant_id == tenant_id,
+            LlmUsage.created_at >= start,
+            LlmUsage.created_at < end,
+        )
+        usages = list((await self._session.execute(stmt)).scalars().all())
+        totals: dict[str, dict[str, float]] = defaultdict(lambda: {"value": 0.0, "call_count": 0})
+        for u in usages:
+            raw_id = u.user_id if dimension == "user" else u.kb_id
+            key = "unknown" if raw_id is None else str(raw_id)
+            if metric == "cost":
+                totals[key]["value"] += dec_to_float(u.cost)
+            elif metric == "call_count":
+                totals[key]["value"] += 1.0
+            else:
+                totals[key]["value"] += float(u.prompt_tokens)
+            totals[key]["call_count"] += 1.0
+
+        labels = await self._resolve_breakdown_labels(tenant_id, dimension, list(totals.keys()))
+        return totals, labels
+
+    async def _resolve_breakdown_labels(
+        self,
+        tenant_id: uuid.UUID,
+        dimension: Literal["user", "knowledge_base"],
+        keys: list[str],
+    ) -> dict[str, str]:
+        labels = {k: k for k in keys}
+        labels["unknown"] = "未归因"
+        ids: list[uuid.UUID] = []
+        for k in keys:
+            if k == "unknown":
+                continue
+            try:
+                ids.append(uuid.UUID(k))
+            except ValueError:
+                continue
+        if not ids:
+            return labels
+        if dimension == "user":
+            rows = list(
+                (await self._session.execute(select(User).where(User.id.in_(ids)))).scalars().all()
+            )
+            for u in rows:
+                labels[str(u.id)] = u.display_name or u.email
+        else:
+            rows = list(
+                (
+                    await self._session.execute(
+                        select(KnowledgeBase).where(
+                            KnowledgeBase.tenant_id == tenant_id,
+                            KnowledgeBase.id.in_(ids),
+                        )
+                    )
+                )
+                .scalars()
+                .all()
+            )
+            for kb in rows:
+                labels[str(kb.id)] = kb.name
+        return labels
 
     async def _hourlies(
         self, tenant_id: uuid.UUID, start: datetime, end: datetime

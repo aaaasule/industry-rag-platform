@@ -142,7 +142,12 @@ async def test_record_flush_aggregate_and_api(
         },
     )
     assert series.status_code == 200, series.text
-    assert series.json()["series"]
+    series_body = series.json()
+    assert series_body["series"]
+    # hourlies 聚合后应带回 latency_p95_ms（可为 int）
+    first_points = series_body["series"][0]["points"]
+    assert first_points
+    assert "latency_p95_ms" in first_points[0]
 
     breakdown = await client.get(
         "/api/v1/usages/breakdown",
@@ -156,6 +161,20 @@ async def test_record_flush_aggregate_and_api(
     )
     assert breakdown.status_code == 200, breakdown.text
     assert breakdown.json()["total"] >= 1
+
+    by_user = await client.get(
+        "/api/v1/usages/breakdown",
+        headers=auth_headers,
+        params={
+            "from": (now - timedelta(days=1)).isoformat(),
+            "to": (now + timedelta(hours=1)).isoformat(),
+            "dimension": "user",
+            "metric": "cost",
+        },
+    )
+    assert by_user.status_code == 200, by_user.text
+    assert by_user.json()["total"] >= 0
+    assert by_user.json()["items"] or by_user.json()["total"] == 0
 
 
 async def test_member_cannot_query_usages(client: AsyncClient, fixture_data: Fixture) -> None:
