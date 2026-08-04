@@ -183,7 +183,7 @@ class UsageQueryService:
     ) -> UsageBreakdownOut:
         start = from_time.astimezone(UTC)
         end = to_time.astimezone(UTC)
-        if dimension in ("user", "knowledge_base"):
+        if dimension == "user" or dimension == "knowledge_base":
             totals, labels = await self._breakdown_from_usages(
                 claims.tenant_id, start, end, dimension=dimension, metric=metric
             )
@@ -294,13 +294,13 @@ class UsageQueryService:
         if not ids:
             return labels
         if dimension == "user":
-            rows = list(
+            users = list(
                 (await self._session.execute(select(User).where(User.id.in_(ids)))).scalars().all()
             )
-            for u in rows:
+            for u in users:
                 labels[str(u.id)] = u.display_name or u.email
         else:
-            rows = list(
+            kbs = list(
                 (
                     await self._session.execute(
                         select(KnowledgeBase).where(
@@ -312,7 +312,7 @@ class UsageQueryService:
                 .scalars()
                 .all()
             )
-            for kb in rows:
+            for kb in kbs:
                 labels[str(kb.id)] = kb.name
         return labels
 
@@ -380,7 +380,7 @@ def _stale_until() -> datetime | None:
     try:
         client = redis.from_url(get_settings().redis_url, decode_responses=True)
         raw = client.get(HOURLIES_UNTIL_KEY)
-        if raw:
+        if isinstance(raw, str) and raw:
             return datetime.fromisoformat(raw)
     except Exception:
         return None
