@@ -14,7 +14,7 @@ const NAV_ITEMS: NavItem[] = [
   { to: '/knowledge', label: '知识库' },
   { to: '/chat', label: '问答' },
   { to: '/usages', label: '用量', roles: ['owner', 'admin'] },
-  { to: '/modelops', label: '模型接入' },
+  { to: '/admin', label: '运营', roles: ['owner', 'admin'] },
 ];
 
 export function AppLayout() {
