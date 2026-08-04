@@ -6,10 +6,26 @@
 
 | 项 | 值 |
 | --- | --- |
-| 阶段 | **M4 切片：health 故障转移**（分支 `feat/m4-health-failover`） |
-| 下一里程碑 | 配额 429 / 用量仪表盘前端；运营管理 UI |
-| 代码量 | `probe` / Celery 探测 / resolve 跳过 `down` |
+| 阶段 | **M4 切片：配额 429**（分支 `feat/m4-quota-429`；health 已合入 main） |
+| 下一里程碑 | 用量仪表盘前端 / 运营管理 UI |
+| 代码量 | `QuotaService` / `quota_exceeded` / chat+search 门禁 |
 | 阻塞项 | 无 |
+
+---
+
+## 2026-08-04（M4 · 配额 429）
+
+### 完成内容
+
+| # | 任务 | 状态 |
+| --- | --- | --- |
+| Q-1 | 规格 / 计划 | ✓ |
+| Q-2 | `QuotaExceeded` + `Retry-After` | ✓ |
+| Q-3 | `QuotaService`（hourlies + Redis 5min） | ✓ |
+| Q-4 | chat / search 挂载 `require_token_quota` | ✓ |
+| Q-5 | 集成测试 | ✓ |
+
+**决策**：仅 `monthly_tokens`；`limit≤0` 不限额；错误码 `quota_exceeded`。
 
 ---
 

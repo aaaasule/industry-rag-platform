@@ -82,6 +82,22 @@ class RateLimited(AppError):
     message = "请求过于频繁，请稍后重试"
 
 
+class QuotaExceeded(AppError):
+    status_code = status.HTTP_429_TOO_MANY_REQUESTS
+    code = "quota_exceeded"
+    message = "本月 Token 额度已用完"
+
+    def __init__(
+        self,
+        message: str | None = None,
+        *,
+        details: dict[str, Any] | None = None,
+        retry_after_seconds: int = 0,
+    ) -> None:
+        super().__init__(message, details=details)
+        self.retry_after_seconds = max(0, int(retry_after_seconds))
+
+
 class ProviderUnavailable(AppError):
     status_code = status.HTTP_503_SERVICE_UNAVAILABLE
     code = "provider_unavailable"
@@ -102,9 +118,14 @@ def _payload(code: str, message: str, details: dict[str, Any]) -> dict[str, Any]
 def register_exception_handlers(app: FastAPI) -> None:
     @app.exception_handler(AppError)
     async def _app_error(_: Request, exc: AppError) -> JSONResponse:
+        headers: dict[str, str] = {}
+        retry_after = getattr(exc, "retry_after_seconds", None)
+        if retry_after is not None and int(retry_after) > 0:
+            headers["Retry-After"] = str(int(retry_after))
         return JSONResponse(
             status_code=exc.status_code,
             content=_payload(exc.code, exc.message, exc.details),
+            headers=headers,
         )
 
     @app.exception_handler(RequestValidationError)
