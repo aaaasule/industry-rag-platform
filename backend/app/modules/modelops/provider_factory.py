@@ -7,14 +7,7 @@ from typing import Any, Literal
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.modules.modelops.models import (
-    HEALTH_DOWN,
-    PURPOSE_CHAT,
-    PURPOSE_EMBEDDING,
-    PURPOSE_RERANK,
-    PURPOSE_TITLE,
-    ModelConnection,
-)
+from app.modules.modelops.models import HEALTH_DOWN, ModelConnection
 from app.modules.modelops.repository import ModelConnectionRepository
 from app.modules.modelops.schemas import RouteHit, RoutesOut
 from app.platform.config import Settings, get_settings
@@ -59,28 +52,29 @@ class ProviderFactory:
         return row, source
 
     async def get_llm(self, tenant_id: uuid.UUID) -> LLMProvider:
-        conn, _ = await self.resolve_connection(PURPOSE_CHAT, tenant_id)
+        conn, _ = await self.resolve_connection("chat", tenant_id)
         if conn is None:
             # title 可回退 chat；此处 chat 直接 env
             return build_llm_provider(self._settings)
         return self._cached(conn, "llm", build_llm_from_connection)
 
     async def get_embedding(self, tenant_id: uuid.UUID) -> EmbeddingProvider:
-        conn, _ = await self.resolve_connection(PURPOSE_EMBEDDING, tenant_id)
+        conn, _ = await self.resolve_connection("embedding", tenant_id)
         if conn is None:
             return build_embedding_provider(self._settings)
         return self._cached(conn, "embedding", build_embedding_from_connection)
 
     async def get_rerank(self, tenant_id: uuid.UUID) -> RerankProvider:
-        conn, _ = await self.resolve_connection(PURPOSE_RERANK, tenant_id)
+        conn, _ = await self.resolve_connection("rerank", tenant_id)
         if conn is None:
             return build_rerank_provider(self._settings)
         return self._cached(conn, "rerank", build_rerank_from_connection)
 
     async def routes(self, tenant_id: uuid.UUID) -> RoutesOut:
         items: list[RouteHit] = []
-        for purpose in (PURPOSE_CHAT, PURPOSE_EMBEDDING, PURPOSE_RERANK, PURPOSE_TITLE):
-            conn, source = await self.resolve_connection(purpose, tenant_id)  # type: ignore[arg-type]
+        purposes: tuple[Purpose, ...] = ("chat", "embedding", "rerank", "title")
+        for purpose in purposes:
+            conn, source = await self.resolve_connection(purpose, tenant_id)
             if conn is None:
                 items.append(self._env_route(purpose))
             else:
@@ -99,14 +93,14 @@ class ProviderFactory:
 
     def _env_route(self, purpose: str) -> RouteHit:
         s = self._settings
-        if purpose == PURPOSE_EMBEDDING:
+        if purpose == "embedding":
             return RouteHit(
                 purpose=purpose,
                 source="env",
                 provider_type=s.embedding_provider,
                 model=s.embedding_model,
             )
-        if purpose == PURPOSE_RERANK:
+        if purpose == "rerank":
             return RouteHit(
                 purpose=purpose,
                 source="env",

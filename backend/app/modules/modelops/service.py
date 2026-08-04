@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import uuid
+from collections.abc import Sequence
 from datetime import UTC, datetime
 
 from app.modules.audit.service import AuditService
@@ -212,7 +213,7 @@ class ModelOpsService:
         return row
 
     @staticmethod
-    def _validate_purposes(purposes: list[str]) -> None:
+    def _validate_purposes(purposes: Sequence[str]) -> None:
         bad = [p for p in purposes if p not in PURPOSES]
         if bad:
             raise AppError(f"无效用途: {bad}", code="validation_error")

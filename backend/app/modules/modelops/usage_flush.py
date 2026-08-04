@@ -40,7 +40,8 @@ async def flush_usage_buffer(batch_size: int = FLUSH_BATCH) -> int:
         item = client.rpop(USAGE_BUFFER_KEY)
         if item is None:
             break
-        raw_items.append(item)
+        # decode_responses=True 时应为 str；显式规范化满足类型检查
+        raw_items.append(item if isinstance(item, str) else str(item))
     if not raw_items:
         return 0
 

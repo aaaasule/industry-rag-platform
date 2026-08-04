@@ -38,7 +38,7 @@ class ModelConnectionRepository:
             select(ModelConnection)
             .where(
                 ModelConnection.enabled.is_(True),
-                ModelConnection.purposes.any(purpose),
+                ModelConnection.purposes.contains([purpose]),
                 or_(
                     ModelConnection.tenant_id == tenant_id,
                     ModelConnection.tenant_id.is_(None),
