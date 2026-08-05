@@ -73,6 +73,19 @@ async def update_profile(
     return await service.update_profile(claims, profile_id, payload)
 
 
+@router.delete(
+    "/industry-profiles/{profile_id}",
+    status_code=204,
+    dependencies=[Depends(require_role(ROLE_ADMIN))],
+)
+async def delete_profile(
+    profile_id: uuid.UUID,
+    claims: ClaimsDep,
+    service: KnowledgeService = ServiceDep,
+) -> None:
+    await service.delete_profile(claims, profile_id)
+
+
 @router.get("/knowledge-bases", response_model=list[KnowledgeBaseOut])
 async def list_knowledge_bases(
     claims: ClaimsDep, service: KnowledgeService = ServiceDep

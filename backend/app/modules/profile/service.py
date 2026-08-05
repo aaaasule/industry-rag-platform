@@ -121,6 +121,10 @@ class ProfileService:
         kb, profile = row
         settings = _as_dict(kb.settings)
 
+        # 已软删的 profile 视为缺失，回退到无 profile（防御性；正常路径删除前会拦 in_use）
+        if profile is not None and profile.deleted_at is not None:
+            profile = None
+
         if profile is None:
             return EffectiveProfile(
                 chunk_rules=merge_chunk_rules(profile_rules=None, kb_settings=settings),
