@@ -6,10 +6,65 @@
 
 | 项 | 值 |
 | --- | --- |
-| 阶段 | **M5 缺口收口**（分支 `feat/m5-gaps-debt`） |
-| 下一里程碑 | PR 合并 / M6 规划 |
-| 代码量 | metadata 校验、Profile 软删、jieba 词典、CI 检索评测硬门槛 |
-| 阻塞项 | 无 |
+| 阶段 | **M5 完成**（`main` @ `#19`） |
+| 下一里程碑 | **真实行业语料 E2E 验收** → 再定 M6 |
+| 已落地 | metadata 校验、Profile 软删、jieba 词典、CI 检索评测硬门槛、工作台 UI |
+| 阻塞项 | 无（产品开放问题见下文，不挡验收） |
+
+---
+
+## 下一步：真实行业语料 E2E 验收清单
+
+CI 合成语料只能防回归；上线前需用**真实文档 + 真实问题**跑通一遍。建议按序勾选。
+
+### A. 环境与账号
+
+- [ ] `docker compose up` / 本地 Postgres+Redis+API+Worker 可用
+- [ ] 租户账号可登录控制台；Provider（embedding / chat）连接探测通过
+- [ ] 选好目标行业 Profile（或新建自定义 Profile：chunk / hybrid / dictionary）
+
+### B. 知识库与摄取
+
+- [ ] 新建 KB，绑定该 Profile
+- [ ] 上传 ≥3 份真实文档（PDF/DOCX/Markdown 等平台已支持格式）
+- [ ] 文档状态全部变为 `ready`（失败则记录错误码与日志）
+- [ ] 若 Profile 配了 `metadata_schema`：合法 metadata 可注册；未知字段 / 类型错误 → 422 `metadata_invalid`
+- [ ] 若配了 `parse_rules.dictionary`：专业词在分块/检索侧可按预期切出（抽 1–2 个词人工核对）
+
+### C. 检索与对话
+
+- [ ] Search：用业务口吻提问，Top-K 命中相关 chunk；引用/来源可点开
+- [ ] Chat：答案有依据、不胡编；无检索结果时行为可接受
+- [ ] 空库 / 空结果：EmptyState 与 toast 提示清晰
+
+### D. Profile 与权限边角
+
+- [ ] 自定义 Profile 可编辑；软删除后列表不可见；有 KB 引用时 409 `profile_in_use`
+- [ ] 内置模板不可删
+- [ ] 非管理员无法改连接 / 删 Profile（按现有 RBAC）
+
+### E. 离线评测（真实 golden）
+
+- [ ] 整理 ≥10 条真实问答 → `evals/golden.<行业>.jsonl`（含 `expected_doc_ids` 或等价标签）
+- [ ] `make eval` / `scripts/evaluate.py` 对本地 API 跑通；记录 Recall@10、MRR
+- [ ] 指标不达标时：先调 Profile（词典、chunk、hybrid 权重），再考虑新能力（勿先上图谱/Agent）
+
+### F. 验收结论（写入本节下方「实测记录」）
+
+- [ ] 通过 / 有条件通过 / 不通过
+- [ ] 主要问题列表（按严重度）
+- [ ] 是否启动 M6，以及 M6 仅包含哪些项
+
+### 产品开放问题（验收前后可并行回答）
+
+1. 首发目标行业与语料来源？
+2. 部署安全级别（内网 / 专有云 / 公有云）？
+3. 是否需要 SSO？
+4. 知识库是否跨租户复用？
+
+### 实测记录
+
+（验收时追加日期、语料概况、指标与结论。）
 
 ---
 
@@ -27,7 +82,8 @@
 | E-2 | `seed_eval_ci.py` + `golden.ci.jsonl`（固定 UUID 幂等 seed） | ✓ |
 | E-3 | CI `eval` job + Makefile `eval-ci`（Recall@10=1.0、MRR=1.0 硬失败） | ✓ |
 
-**决策**：Profile 软删不回物理删；内置模板不可删；CI 评测与 backend job 并行、自带 Postgres/Redis；OpenAPI 同步 industry-profiles CRUD。
+**决策**：Profile 软删不回物理删；内置模板不可删；CI 评测与 backend job 并行、自带 Postgres/Redis；OpenAPI 同步 industry-profiles CRUD。  
+**合并**：PR [#19](https://github.com/aaaasule/industry-rag-platform/pull/19) squash → `main`。
 
 ---
 
