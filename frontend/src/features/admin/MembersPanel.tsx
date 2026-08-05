@@ -1,5 +1,8 @@
 import { useState, type FormEvent } from 'react';
 
+import { EmptyState } from '@/components/EmptyState';
+import { Skeleton } from '@/components/Skeleton';
+import { useToast } from '@/components/toast/useToast';
 import { useSession } from '@/features/auth/hooks';
 import { ApiError } from '@/lib/http';
 import type { MemberRole } from './api';
@@ -8,6 +11,7 @@ import { useAddMember, useMemberships, useRemoveMember, useUpdateMemberRole } fr
 const ROLES: MemberRole[] = ['member', 'admin', 'owner'];
 
 export function MembersPanel({ enabled }: { enabled: boolean }) {
+  const toast = useToast();
   const { session } = useSession();
   const myRole = session?.current_tenant.role;
   const myUserId = session?.user.id;
@@ -30,8 +34,11 @@ export function MembersPanel({ enabled }: { enabled: boolean }) {
       await addM.mutateAsync({ email: email.trim(), role });
       setEmail('');
       setRole('member');
+      toast.success(`已添加成员 ${email.trim()}`);
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : '添加失败');
+      const msg = err instanceof ApiError ? err.message : '添加失败';
+      setError(msg);
+      toast.error(msg);
     }
   }
 
@@ -39,8 +46,11 @@ export function MembersPanel({ enabled }: { enabled: boolean }) {
     setError(null);
     try {
       await roleM.mutateAsync({ userId, role: next });
+      toast.success(`角色已更新为 ${roleLabel(next)}`);
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : '角色更新失败');
+      const msg = err instanceof ApiError ? err.message : '角色更新失败';
+      setError(msg);
+      toast.error(msg);
     }
   }
 
@@ -49,8 +59,11 @@ export function MembersPanel({ enabled }: { enabled: boolean }) {
     setError(null);
     try {
       await removeM.mutateAsync(userId);
+      toast.success(`已移除「${name}」`);
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : '移除失败');
+      const msg = err instanceof ApiError ? err.message : '移除失败';
+      setError(msg);
+      toast.error(msg);
     }
   }
 
@@ -120,13 +133,17 @@ export function MembersPanel({ enabled }: { enabled: boolean }) {
       </form>
 
       {listQ.isLoading ? (
-        <p className="text-sm text-ink-faint">加载中…</p>
+        <div className="panel space-y-3 p-4">
+          <Skeleton className="h-4 w-40" />
+          <Skeleton className="h-4 w-full" />
+          <Skeleton className="h-4 w-3/4" />
+        </div>
       ) : items.length === 0 ? (
-        <p className="panel border-dashed p-8 text-center text-sm text-ink-muted">
-          暂无成员
-        </p>
+        <div className="panel border-dashed">
+          <EmptyState title="暂无成员" description="通过上方表单按邮箱邀请成员加入租户" />
+        </div>
       ) : (
-        <div className="overflow-auto panel">
+        <div className="table-scroll panel">
           <table className="w-full text-left text-sm">
             <thead className="border-b border-line text-xs text-ink-muted">
               <tr>

@@ -2,9 +2,13 @@ import { useState } from 'react';
 import type { FormEvent } from 'react';
 import { Link } from 'react-router-dom';
 
+import { EmptyState } from '@/components/EmptyState';
+import { Skeleton } from '@/components/Skeleton';
+import { useToast } from '@/components/toast/useToast';
 import { useCreateKnowledgeBase, useKnowledgeBases, useProfiles } from './hooks';
 
 export function KnowledgePage() {
+  const toast = useToast();
   const { data: bases = [], isLoading } = useKnowledgeBases();
   const { data: profiles = [] } = useProfiles();
   const createKb = useCreateKnowledgeBase();
@@ -16,15 +20,21 @@ export function KnowledgePage() {
     e.preventDefault();
     setError(null);
     try {
-      await createKb.mutateAsync({ name: name.trim(), profile_code: profileCode });
+      const created = await createKb.mutateAsync({
+        name: name.trim(),
+        profile_code: profileCode,
+      });
       setName('');
+      toast.success(`已创建知识库「${created.name}」`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : '创建失败');
+      const msg = err instanceof Error ? err.message : '创建失败';
+      setError(msg);
+      toast.error(msg);
     }
   }
 
   return (
-    <div className="mx-auto max-w-4xl space-y-8">
+    <div className="page-shell space-y-6">
       <header>
         <h1 className="text-xl font-semibold tracking-tight text-ink">知识库</h1>
         <p className="mt-1 text-sm text-ink-muted">上传文档、跟踪摄取进度，为问答准备语料。</p>
@@ -68,12 +78,19 @@ export function KnowledgePage() {
         {error && <p className="w-full text-sm text-danger">{error}</p>}
       </form>
 
-      <section className="space-y-2">
-        {isLoading && <p className="text-sm text-ink-muted">加载中…</p>}
+      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+        {isLoading &&
+          Array.from({ length: 3 }, (_, i) => (
+            <div key={i} className="panel space-y-3 p-4">
+              <Skeleton className="h-4 w-1/2" />
+              <Skeleton className="h-3 w-3/4" />
+              <Skeleton className="h-3 w-16" />
+            </div>
+          ))}
         {!isLoading && bases.length === 0 && (
-          <p className="panel border-dashed p-10 text-center text-sm text-ink-muted">
-            还没有知识库，先创建一个。
-          </p>
+          <div className="panel border-dashed sm:col-span-2 xl:col-span-3">
+            <EmptyState title="还没有知识库" description="使用上方表单创建第一个知识库，再上传文档" />
+          </div>
         )}
         {bases.map((kb) => (
           <Link
@@ -82,10 +99,10 @@ export function KnowledgePage() {
             className="panel block p-4 transition-colors duration-150 hover:border-brand-500 hover:bg-brand-50/30"
           >
             <div className="flex items-start justify-between gap-4">
-              <div>
-                <h2 className="font-medium text-ink">{kb.name}</h2>
+              <div className="min-w-0">
+                <h2 className="truncate font-medium text-ink">{kb.name}</h2>
                 {kb.description && (
-                  <p className="mt-1 text-sm text-ink-muted">{kb.description}</p>
+                  <p className="mt-1 line-clamp-2 text-sm text-ink-muted">{kb.description}</p>
                 )}
               </div>
               <div className="shrink-0 text-right text-xs tabular-nums text-ink-faint">

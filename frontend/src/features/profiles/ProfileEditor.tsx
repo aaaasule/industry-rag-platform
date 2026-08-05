@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react';
 
+import { useToast } from '@/components/toast/useToast';
 import { ApiError } from '@/lib/http';
 import type { IndustryProfile } from './api';
 import {
@@ -27,6 +28,7 @@ export function ProfileEditor({
   onClose: () => void;
   onSaved?: () => void;
 }) {
+  const toast = useToast();
   const updateM = useUpdateProfile();
   const [tab, setTab] = useState<Tab>('form');
   const [draft, setDraft] = useState<ProfileDraft>(() => draftFromProfile(profile));
@@ -72,7 +74,9 @@ export function ProfileEditor({
       onSaved?.();
       onClose();
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : '保存失败');
+      const msg = err instanceof ApiError ? err.message : '保存失败';
+      setError(msg);
+      toast.error(msg);
     }
   }
 

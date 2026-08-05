@@ -1,5 +1,8 @@
 import { useState, type FormEvent, type ReactNode } from 'react';
 
+import { EmptyState } from '@/components/EmptyState';
+import { HealthStatusBadge, StatusBadge } from '@/components/StatusBadge';
+import { useToast } from '@/components/toast/useToast';
 import { ApiError } from '@/lib/http';
 import type { ModelConnection, Purpose } from './api';
 import {
@@ -28,6 +31,7 @@ const emptyForm = {
 };
 
 export function ConnectionsPanel({ enabled }: { enabled: boolean }) {
+  const toast = useToast();
   const listQ = useConnections(enabled);
   const routesQ = useRoutes(enabled);
   const createM = useCreateConnection();
@@ -69,8 +73,11 @@ export function ConnectionsPanel({ enabled }: { enabled: boolean }) {
       });
       setForm(emptyForm);
       setShowCreate(false);
+      toast.success('接入点已创建');
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : '创建失败');
+      const msg = err instanceof ApiError ? err.message : '创建失败';
+      setError(msg);
+      toast.error(msg);
     }
   }
 
@@ -91,8 +98,11 @@ export function ConnectionsPanel({ enabled }: { enabled: boolean }) {
       });
       setEditId(null);
       setEditDraft(null);
+      toast.success('接入点已更新');
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : '更新失败');
+      const msg = err instanceof ApiError ? err.message : '更新失败';
+      setError(msg);
+      toast.error(msg);
     }
   }
 
@@ -103,8 +113,11 @@ export function ConnectionsPanel({ enabled }: { enabled: boolean }) {
     try {
       await credM.mutateAsync({ id, apiKey: key });
       setCredDraft((prev) => ({ ...prev, [id]: '' }));
+      toast.success('凭证已更新');
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : '凭证更新失败');
+      const msg = err instanceof ApiError ? err.message : '凭证更新失败';
+      setError(msg);
+      toast.error(msg);
     }
   }
 
@@ -112,17 +125,16 @@ export function ConnectionsPanel({ enabled }: { enabled: boolean }) {
     setTestMsg((prev) => ({ ...prev, [id]: '探测中…' }));
     try {
       const r = await testM.mutateAsync(id);
-      setTestMsg((prev) => ({
-        ...prev,
-        [id]: r.ok
-          ? `成功 · ${r.latency_ms != null ? `${Math.round(r.latency_ms)}ms` : ''}`
-          : `失败 · ${r.error_message ?? r.error_code ?? 'unknown'}`,
-      }));
+      const msg = r.ok
+        ? `探测成功${r.latency_ms != null ? ` · ${Math.round(r.latency_ms)}ms` : ''}`
+        : `探测失败 · ${r.error_message ?? r.error_code ?? 'unknown'}`;
+      setTestMsg((prev) => ({ ...prev, [id]: msg }));
+      if (r.ok) toast.success(msg);
+      else toast.error(msg);
     } catch (err) {
-      setTestMsg((prev) => ({
-        ...prev,
-        [id]: err instanceof ApiError ? err.message : '探测请求失败',
-      }));
+      const msg = err instanceof ApiError ? err.message : '探测请求失败';
+      setTestMsg((prev) => ({ ...prev, [id]: msg }));
+      toast.error(msg);
     }
   }
 
@@ -131,8 +143,11 @@ export function ConnectionsPanel({ enabled }: { enabled: boolean }) {
     setError(null);
     try {
       await deleteM.mutateAsync(c.id);
+      toast.success(`已删除「${c.name}」`);
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : '删除失败');
+      const msg = err instanceof ApiError ? err.message : '删除失败';
+      setError(msg);
+      toast.error(msg);
     }
   }
 
@@ -252,9 +267,17 @@ export function ConnectionsPanel({ enabled }: { enabled: boolean }) {
       {listQ.isLoading ? (
         <p className="text-sm text-ink-faint">加载中…</p>
       ) : rows.length === 0 ? (
-        <p className="panel border-dashed p-8 text-center text-sm text-ink-muted">
-          暂无接入点
-        </p>
+        <div className="panel border-dashed">
+          <EmptyState
+            title="暂无接入点"
+            description="点击右上角「新建接入点」配置模型服务"
+            action={
+              <button type="button" className="btn-primary" onClick={() => setShowCreate(true)}>
+                新建接入点
+              </button>
+            }
+          />
+        </div>
       ) : (
         <ul className="space-y-3">
           {rows.map((c) => {
@@ -263,21 +286,20 @@ export function ConnectionsPanel({ enabled }: { enabled: boolean }) {
             return (
               <li key={c.id} className="panel p-4">
                 <div className="flex flex-wrap items-start justify-between gap-3">
-                  <div>
+                  <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
-                      <h3 className="text-sm font-medium text-ink">{c.name}</h3>
-                      <HealthBadge health={c.health} />
-                      <ScopeBadge scope={c.scope} />
-                      {!c.enabled ? (
-                        <span className="rounded bg-canvas px-1.5 py-0.5 text-xs text-ink-muted">
-                          已停用
-                        </span>
-                      ) : null}
+                      <h3 className="text-sm font-semibold text-ink">{c.name}</h3>
+                      <HealthStatusBadge health={c.health} />
+                      <StatusBadge
+                        label={c.scope === 'platform' ? '平台' : '租户'}
+                        tone="neutral"
+                      />
+                      {!c.enabled ? <StatusBadge label="已停用" tone="neutral" /> : null}
                     </div>
-                    <p className="mt-1 text-xs text-ink-muted">
+                    <p className="mt-1.5 font-mono text-xs text-ink-muted">
                       {c.provider_type} · {c.model} · priority {c.priority}
                     </p>
-                    <p className="mt-0.5 text-xs text-ink-faint">
+                    <p className="mt-1 text-xs text-ink-faint">
                       用途：{c.purposes.join(', ')} · 凭证 {c.credential_masked}
                     </p>
                     {testMsg[c.id] ? (
@@ -486,34 +508,6 @@ function PurposePicker({
         })}
       </div>
     </div>
-  );
-}
-
-function HealthBadge({ health }: { health: string }) {
-  const tone =
-    health === 'healthy'
-      ? 'bg-ok/10 text-ok'
-      : health === 'down'
-        ? 'bg-danger/10 text-danger'
-        : health === 'degraded'
-          ? 'bg-warn/10 text-warn'
-          : 'bg-canvas text-ink-muted';
-  const label =
-    health === 'healthy'
-      ? '正常'
-      : health === 'down'
-        ? '故障'
-        : health === 'degraded'
-          ? '降级'
-          : '未知';
-  return <span className={`rounded px-1.5 py-0.5 text-xs font-medium ${tone}`}>{label}</span>;
-}
-
-function ScopeBadge({ scope }: { scope: string }) {
-  return (
-    <span className="rounded bg-canvas px-1.5 py-0.5 text-xs text-ink-muted">
-      {scope === 'platform' ? '平台' : '租户'}
-    </span>
   );
 }
 

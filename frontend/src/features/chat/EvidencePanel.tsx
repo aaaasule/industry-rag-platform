@@ -1,3 +1,5 @@
+import { EmptyState } from '@/components/EmptyState';
+
 import type { Citation } from './api';
 
 interface Props {
@@ -15,9 +17,15 @@ export function EvidencePanel({
 }: Props) {
   if (citations.length === 0) {
     return (
-      <aside className="flex h-full flex-col panel border-dashed p-4">
-        <h2 className="text-sm font-medium text-ink">证据</h2>
-        <p className="mt-3 text-sm text-ink-muted">回答生成后，引用片段会显示在这里。</p>
+      <aside className="flex h-full flex-col overflow-hidden panel">
+        <div className="border-b border-line px-4 py-3">
+          <h2 className="text-sm font-medium text-ink">证据</h2>
+        </div>
+        <EmptyState
+          className="flex-1"
+          title="暂无引用片段"
+          description="回答生成后，可核验的证据会显示在这里"
+        />
       </aside>
     );
   }
@@ -40,10 +48,10 @@ export function EvidencePanel({
                 type="button"
                 onClick={() => onSelect(c.index_no)}
                 className={[
-                  'w-full rounded-lg border px-3 py-2 text-left transition',
+                  'w-full rounded-md border px-3 py-2 text-left transition-colors duration-150',
                   active
-                    ? 'border-brand-300 bg-brand-50'
-                    : 'border-line bg-surface hover:border-line',
+                    ? 'border-brand-500 bg-brand-50'
+                    : 'border-line bg-surface hover:border-brand-500/40',
                   unused ? 'opacity-45' : '',
                 ].join(' ')}
               >

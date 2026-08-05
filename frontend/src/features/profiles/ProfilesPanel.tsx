@@ -1,11 +1,13 @@
 import { useState, type FormEvent } from 'react';
 
+import { useToast } from '@/components/toast/useToast';
 import { ApiError } from '@/lib/http';
 import type { IndustryProfile } from './api';
 import { ProfileEditor } from './ProfileEditor';
 import { useCreateProfile, useProfiles } from './hooks';
 
 export function ProfilesPanel({ enabled }: { enabled: boolean }) {
+  const toast = useToast();
   const listQ = useProfiles(enabled);
   const createM = useCreateProfile();
 
@@ -32,8 +34,11 @@ export function ProfilesPanel({ enabled }: { enabled: boolean }) {
       setDeriveFrom(null);
       setNewCode('');
       setNewName('');
+      toast.success(`已派生模板 ${body.code}`);
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : '派生失败');
+      const msg = err instanceof ApiError ? err.message : '派生失败';
+      setError(msg);
+      toast.error(msg);
     }
   }
 
@@ -45,7 +50,7 @@ export function ProfilesPanel({ enabled }: { enabled: boolean }) {
       {error ? <p className="text-sm text-danger">{error}</p> : null}
       {listQ.isLoading ? <p className="text-sm text-ink-muted">加载中…</p> : null}
 
-      <div className="panel overflow-hidden">
+      <div className="table-scroll panel">
         <table className="w-full text-left text-sm">
           <thead className="border-b border-line bg-canvas text-xs uppercase tracking-wider text-ink-faint">
             <tr>
@@ -98,8 +103,8 @@ export function ProfilesPanel({ enabled }: { enabled: boolean }) {
             ))}
             {!listQ.isLoading && rows.length === 0 ? (
               <tr>
-                <td colSpan={4} className="px-4 py-6 text-ink-muted">
-                  暂无模板（请先 seed）
+                <td colSpan={4} className="px-4 py-8 text-center text-sm text-ink-muted">
+                  暂无模板，请先完成 seed 初始化
                 </td>
               </tr>
             ) : null}
@@ -144,7 +149,10 @@ export function ProfilesPanel({ enabled }: { enabled: boolean }) {
           key={edit.id}
           profile={edit}
           onClose={() => setEdit(null)}
-          onSaved={() => setEdit(null)}
+          onSaved={() => {
+            toast.success('模板已保存');
+            setEdit(null);
+          }}
         />
       ) : null}
     </div>

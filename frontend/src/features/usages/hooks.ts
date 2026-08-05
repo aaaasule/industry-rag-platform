@@ -4,10 +4,14 @@ import * as modelopsApi from '@/features/modelops/api';
 import * as usagesApi from './api';
 import type { TopDimension, UsageRange } from './api';
 
-export function useUsageSummary(timezone: string, enabled: boolean) {
+export function useUsageSummary(
+  timezone: string,
+  enabled: boolean,
+  period: 'day' | 'week' | 'month' = 'month',
+) {
   return useQuery({
-    queryKey: ['usages', 'summary', timezone],
-    queryFn: () => usagesApi.fetchUsageSummary({ period: 'month', timezone }),
+    queryKey: ['usages', 'summary', timezone, period],
+    queryFn: () => usagesApi.fetchUsageSummary({ period, timezone }),
     enabled,
     staleTime: 60_000,
   });

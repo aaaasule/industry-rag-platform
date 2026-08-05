@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 
+import { CardSkeleton } from '@/components/Skeleton';
 import { useSession } from '@/features/auth/hooks';
 import { ApiError } from '@/lib/http';
 import {
@@ -97,7 +98,7 @@ export function UsageDashboardPage() {
       : null;
 
   return (
-    <div className="mx-auto max-w-7xl space-y-5">
+    <div className="page-shell-wide space-y-5">
       <header className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="text-xl font-semibold tracking-tight text-ink">用量仪表盘</h1>
@@ -106,17 +107,17 @@ export function UsageDashboardPage() {
             {stale ? ` · ${stale}` : ''}
           </p>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-center gap-1.5 rounded-md border border-line bg-surface p-1">
           {PRESETS.map((p) => (
             <button
               key={p.id}
               type="button"
               onClick={() => setPreset(p.id)}
               className={[
-                'rounded-md px-3 py-1.5 text-sm transition',
+                'rounded px-3 py-1.5 text-sm transition-colors duration-150',
                 preset === p.id
-                  ? 'bg-brand-50 font-medium text-brand-700'
-                  : 'border border-line bg-surface text-ink-muted hover:bg-canvas',
+                  ? 'bg-brand-500 font-semibold text-white'
+                  : 'text-ink-muted hover:bg-canvas hover:text-ink',
               ].join(' ')}
             >
               {p.label}
@@ -126,10 +127,10 @@ export function UsageDashboardPage() {
             type="button"
             onClick={() => setPreset('custom')}
             className={[
-              'rounded-md px-3 py-1.5 text-sm transition',
+              'rounded px-3 py-1.5 text-sm transition-colors duration-150',
               preset === 'custom'
-                ? 'bg-brand-50 font-medium text-brand-700'
-                : 'border border-line bg-surface text-ink-muted hover:bg-canvas',
+                ? 'bg-brand-500 font-semibold text-white'
+                : 'text-ink-muted hover:bg-canvas hover:text-ink',
             ].join(' ')}
           >
             自定义
@@ -166,32 +167,39 @@ export function UsageDashboardPage() {
       )}
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <SummaryCard
-          label="本月 Token"
-          value={summary ? summary.total_tokens.toLocaleString('zh-CN') : '—'}
-          delta={formatPct(summary?.compare_previous?.total_tokens)}
-          loading={summaryQ.isLoading}
-        />
-        <SummaryCard
-          label="本月成本 (USD)"
-          value={summary ? summary.total_cost.toFixed(2) : '—'}
-          delta={formatPct(summary?.compare_previous?.total_cost)}
-          loading={summaryQ.isLoading}
-        />
-        <SummaryCard
-          label="调用次数"
-          value={summary ? summary.call_count.toLocaleString('zh-CN') : '—'}
-          loading={summaryQ.isLoading}
-        />
-        <SummaryCard
-          label="成功率"
-          value={summary ? `${(summary.success_rate * 100).toFixed(2)}%` : '—'}
-          sub={quotaHint}
-          loading={summaryQ.isLoading}
-        />
+        {summaryQ.isLoading ? (
+          <>
+            <CardSkeleton />
+            <CardSkeleton />
+            <CardSkeleton />
+            <CardSkeleton />
+          </>
+        ) : (
+          <>
+            <SummaryCard
+              label="本月 Token"
+              value={summary ? summary.total_tokens.toLocaleString('zh-CN') : '—'}
+              delta={formatPct(summary?.compare_previous?.total_tokens)}
+            />
+            <SummaryCard
+              label="本月成本 (USD)"
+              value={summary ? summary.total_cost.toFixed(2) : '—'}
+              delta={formatPct(summary?.compare_previous?.total_cost)}
+            />
+            <SummaryCard
+              label="调用次数"
+              value={summary ? summary.call_count.toLocaleString('zh-CN') : '—'}
+            />
+            <SummaryCard
+              label="成功率"
+              value={summary ? `${(summary.success_rate * 100).toFixed(2)}%` : '—'}
+              sub={quotaHint}
+            />
+          </>
+        )}
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="grid gap-4 lg:grid-cols-2 2xl:grid-cols-3">
         <TokenTrendChart
           groups={seriesPurposeQ.data?.series ?? []}
           loading={seriesPurposeQ.isLoading}
@@ -263,32 +271,29 @@ function SummaryCard({
   value,
   delta,
   sub,
-  loading,
 }: {
   label: string;
   value: string;
   delta?: string;
   sub?: string | null;
-  loading?: boolean;
 }) {
+  const deltaTone =
+    !delta || delta === '—' || delta === '0.0%' || delta === '+0.0%'
+      ? 'text-ink-faint'
+      : delta.startsWith('+')
+        ? 'text-ok'
+        : delta.startsWith('-')
+          ? 'text-danger'
+          : 'text-ink-muted';
+
   return (
     <div className="panel p-4">
       <p className="text-xs font-medium uppercase tracking-wide text-ink-faint">{label}</p>
-      {loading ? (
-        <p className="mt-2 text-sm text-ink-faint">加载中…</p>
-      ) : (
-        <>
-          <p className="mt-1 text-2xl font-semibold tabular-nums text-ink">{value}</p>
-          {delta && delta !== '—' ? (
-            <p
-              className={`mt-1 text-xs ${delta.startsWith('+') ? 'text-ok' : 'text-ink-muted'}`}
-            >
-              环比 {delta}
-            </p>
-          ) : null}
-          {sub ? <p className="mt-1 text-xs text-ink-muted">{sub}</p> : null}
-        </>
-      )}
+      <p className="mt-1 text-2xl font-semibold tabular-nums text-ink">{value}</p>
+      {delta && delta !== '—' ? (
+        <p className={`mt-1 text-xs ${deltaTone}`}>环比 {delta}</p>
+      ) : null}
+      {sub ? <p className="mt-1 text-xs text-ink-muted">{sub}</p> : null}
     </div>
   );
 }

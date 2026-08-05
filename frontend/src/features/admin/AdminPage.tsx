@@ -50,7 +50,7 @@ export function AdminPage() {
   }
 
   return (
-    <div className="mx-auto max-w-5xl space-y-5">
+    <div className="page-shell space-y-5">
       <header>
         <h1 className="text-xl font-semibold tracking-tight text-ink">运营</h1>
         <p className="mt-1 text-sm text-ink-muted">

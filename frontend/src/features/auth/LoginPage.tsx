@@ -1,6 +1,8 @@
 import { useState, type FormEvent } from 'react';
 import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 
+import { BrandMark } from '@/components/BrandMark';
+
 import { useLogin, useSession } from './hooks';
 
 export function LoginPage() {
@@ -27,22 +29,39 @@ export function LoginPage() {
     <div className="flex min-h-full flex-col md:flex-row">
       <aside className="app-enter relative flex flex-col justify-between border-b border-line bg-surface px-8 py-10 md:w-[42%] md:border-b-0 md:border-r md:px-12 md:py-16">
         <div>
-          <p className="text-xs font-medium uppercase tracking-[0.14em] text-brand-700">
-            Industry RAG
-          </p>
-          <h1 className="mt-4 text-3xl font-semibold tracking-tight text-ink md:text-4xl">
+          <div className="flex items-center gap-3">
+            <BrandMark size={36} />
+            <p className="text-xs font-medium uppercase tracking-[0.14em] text-brand-700">
+              Industry RAG
+            </p>
+          </div>
+          <h1 className="mt-5 text-3xl font-semibold tracking-tight text-ink md:text-4xl">
             工业知识库平台
           </h1>
           <p className="mt-4 max-w-sm text-sm leading-relaxed text-ink-muted">
             面向制造与流程工业的文档检索与问答。登录后管理知识库、配置行业模板并开展引用式问答。
           </p>
+          <ul className="mt-8 space-y-2 text-sm text-ink-muted">
+            <li className="flex gap-2">
+              <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-brand-500" />
+              混合检索与可核验证据引用
+            </li>
+            <li className="flex gap-2">
+              <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-brand-500" />
+              行业模板驱动分块与提示词
+            </li>
+            <li className="flex gap-2">
+              <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-brand-500" />
+              多租户隔离与用量可观测
+            </li>
+          </ul>
         </div>
         <p className="mt-10 hidden text-xs text-ink-faint md:block">
           控制台 · 证据可追溯 · 多租户隔离
         </p>
       </aside>
 
-      <div className="app-enter flex flex-1 items-center justify-center px-6 py-12 [animation-delay:60ms] md:px-12">
+      <div className="workbench app-enter flex flex-1 items-center justify-center px-6 py-12 [animation-delay:60ms] md:px-12">
         <div className="w-full max-w-sm">
           <header className="mb-6">
             <h2 className="text-lg font-semibold text-ink">登录</h2>
@@ -104,7 +123,9 @@ export function LoginPage() {
 
 export function FullscreenHint({ text }: { text: string }) {
   return (
-    <div className="flex min-h-full items-center justify-center text-sm text-ink-muted">{text}</div>
+    <div className="workbench flex min-h-full items-center justify-center text-sm text-ink-muted">
+      {text}
+    </div>
   );
 }
 

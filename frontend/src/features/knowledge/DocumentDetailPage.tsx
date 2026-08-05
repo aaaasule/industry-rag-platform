@@ -78,7 +78,7 @@ export function DocumentDetailPage() {
   const isPdf = Boolean(doc?.mime_type?.includes('pdf'));
 
   return (
-    <div className="mx-auto flex h-[calc(100vh-5.5rem)] max-w-6xl flex-col gap-3">
+    <div className="page-fill flex-col gap-3">
       <div>
         <Link
           to={kbId ? `/knowledge/${kbId}` : '/knowledge'}

@@ -1,15 +1,20 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
+import { EmptyState } from '@/components/EmptyState';
+import { Skeleton } from '@/components/Skeleton';
+import { useToast } from '@/components/toast/useToast';
 import { AUDIT_ACTIONS } from './api';
 import { useAuditLogs, useMemberships } from './hooks';
 
 const PAGE_SIZE = 20;
 
 export function AuditPanel({ enabled }: { enabled: boolean }) {
+  const toast = useToast();
   const [action, setAction] = useState('');
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
   const [page, setPage] = useState(0);
+  const toastedError = useRef<string | null>(null);
 
   const membersQ = useMemberships(enabled);
   const nameById = useMemo(() => {
@@ -32,6 +37,17 @@ export function AuditPanel({ enabled }: { enabled: boolean }) {
   const items = logsQ.data?.items ?? [];
   const total = logsQ.data?.total ?? 0;
   const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE));
+
+  useEffect(() => {
+    if (!logsQ.isError) {
+      toastedError.current = null;
+      return;
+    }
+    const msg = logsQ.error instanceof Error ? logsQ.error.message : '加载审计失败';
+    if (toastedError.current === msg) return;
+    toastedError.current = msg;
+    toast.error(msg);
+  }, [logsQ.error, logsQ.isError, toast]);
 
   return (
     <div className="space-y-5">
@@ -85,13 +101,18 @@ export function AuditPanel({ enabled }: { enabled: boolean }) {
       </div>
 
       {logsQ.isLoading ? (
-        <p className="text-sm text-ink-faint">加载中…</p>
+        <div className="panel space-y-3 p-4">
+          <Skeleton className="h-4 w-full" />
+          <Skeleton className="h-4 w-5/6" />
+          <Skeleton className="h-4 w-2/3" />
+          <Skeleton className="h-4 w-4/5" />
+        </div>
       ) : items.length === 0 ? (
-        <p className="panel border-dashed p-8 text-center text-sm text-ink-muted">
-          暂无审计记录
-        </p>
+        <div className="panel border-dashed">
+          <EmptyState title="暂无审计记录" description="调整筛选条件，或等待产生管理操作后再查看" />
+        </div>
       ) : (
-        <div className="overflow-auto panel">
+        <div className="table-scroll panel">
           <table className="w-full text-left text-sm">
             <thead className="border-b border-line text-xs text-ink-muted">
               <tr>
