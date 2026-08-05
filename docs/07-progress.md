@@ -6,10 +6,28 @@
 
 | 项 | 值 |
 | --- | --- |
-| 阶段 | **视觉 P1–P3 + 行业模板双视图**（分支 `feat/ui-visual-system-p1`） |
-| 下一里程碑 | commit / PR |
-| 代码量 | 视觉系统 + ProfileEditor 表单/JSON |
+| 阶段 | **M5 缺口收口**（分支 `feat/m5-gaps-debt`） |
+| 下一里程碑 | PR 合并 / M6 规划 |
+| 代码量 | metadata 校验、Profile 软删、jieba 词典、CI 检索评测硬门槛 |
 | 阻塞项 | 无 |
+
+---
+
+## 2026-08-05（M5 · 缺口与工程债收尾）
+
+### 完成内容
+
+| # | 任务 | 状态 |
+| --- | --- | --- |
+| M-1 | `validate_document_metadata` + `register_document` 接入 EffectiveProfile.metadata_schema | ✓ |
+| M-2 | Profile 软删（`deleted_at` 迁移、DELETE API、409 `profile_in_use`）+ 前端删除入口 | ✓ |
+| M-3 | `parse_rules.dictionary` → jieba userdict；摄取与检索 query 分词共用 | ✓ |
+| M-4 | discrete 种子模板补充 industry 词典 | ✓ |
+| E-1 | `evaluate.py` 支持 `--min-recall` / `--min-mrr`；无标签样本 exit 2 | ✓ |
+| E-2 | `seed_eval_ci.py` + `golden.ci.jsonl`（固定 UUID 幂等 seed） | ✓ |
+| E-3 | CI `eval` job + Makefile `eval-ci`（Recall@10=1.0、MRR=1.0 硬失败） | ✓ |
+
+**决策**：Profile 软删不回物理删；内置模板不可删；CI 评测与 backend job 并行、自带 Postgres/Redis；OpenAPI 同步 industry-profiles CRUD。
 
 ---
 
