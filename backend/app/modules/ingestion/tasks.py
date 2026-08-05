@@ -224,159 +224,164 @@ async def _embed_document(document_id: uuid.UUID, tenant_id: uuid.UUID, job_id: 
 
     async with session_scope(tenant_id=tenant_id) as session:
         from app.modules.modelops.provider_factory import ProviderFactory
+        from app.platform.llm.factory import aclose_provider
 
-        embedding = await ProviderFactory(session, settings).get_embedding(tenant_id)
-
-        job = await session.get(IngestionJob, job_id)
-        doc = await session.get(Document, document_id)
-        if job is None or doc is None:
-            raise _MissingRow()
-
-        job.status = JOB_RUNNING
-        job.started_at = datetime.now(UTC)
-        job.attempt += 1
-        doc.status = DOC_EMBEDDING
-        await session.flush()
-
+        # Celery 每次 asyncio.run 新建 loop；禁止跨任务复用 httpx.AsyncClient
+        embedding = await ProviderFactory(session, settings).get_embedding(tenant_id, cache=False)
         try:
-            pages = list(
-                (
-                    await session.execute(
-                        select(DocumentPage)
-                        .where(DocumentPage.document_id == document_id)
-                        .order_by(DocumentPage.page_no)
-                    )
-                )
-                .scalars()
-                .all()
-            )
-            page_dicts = [
-                {
-                    "page_no": p.page_no,
-                    "width": p.width,
-                    "height": p.height,
-                    "blocks": p.blocks,
-                    "plain_text": p.plain_text,
-                }
-                for p in pages
-            ]
+            job = await session.get(IngestionJob, job_id)
+            doc = await session.get(Document, document_id)
+            if job is None or doc is None:
+                raise _MissingRow()
 
-            kb = await session.get(KnowledgeBase, doc.kb_id)
-            effective = await resolve_effective_profile(session, doc.kb_id)
-            rules = to_ingestion_chunk_rules(effective.chunk_rules)
-
-            drafts = chunk_pages(page_dicts, rules, title=doc.title)
-            await session.execute(delete(Chunk).where(Chunk.document_id == document_id))
-
-            texts = [d.content for d in drafts]
-            vectors: list[list[float]] = []
-            batch_size = settings.embedding_batch_size
-            from app.modules.modelops.usage_recorder import (
-                UsageRecorder,
-                estimate_tokens,
-                resolve_usage_route,
-            )
-
-            conn_id, provider_type, model = await resolve_usage_route(
-                session, tenant_id, "embedding"
-            )
-            for i in range(0, len(texts), batch_size):
-                batch = texts[i : i + batch_size]
-                if not batch:
-                    continue
-                emb_t0 = time.perf_counter()
-                try:
-                    vectors.extend(await embedding.embed(batch, input_type="document"))
-                    latency_ms = int((time.perf_counter() - emb_t0) * 1000)
-                    await UsageRecorder.record(
-                        tenant_id=tenant_id,
-                        connection_id=conn_id,
-                        kb_id=doc.kb_id,
-                        purpose="embedding",
-                        provider_type=provider_type,
-                        model=model,
-                        prompt_tokens=sum(estimate_tokens(t) for t in batch),
-                        completion_tokens=0,
-                        latency_ms=latency_ms,
-                        success=True,
-                    )
-                except Exception:
-                    latency_ms = int((time.perf_counter() - emb_t0) * 1000)
-                    await UsageRecorder.record(
-                        tenant_id=tenant_id,
-                        connection_id=conn_id,
-                        kb_id=doc.kb_id,
-                        purpose="embedding",
-                        provider_type=provider_type,
-                        model=model,
-                        prompt_tokens=sum(estimate_tokens(t) for t in batch),
-                        completion_tokens=0,
-                        latency_ms=latency_ms,
-                        success=False,
-                        error_code="embed_failed",
-                    )
-                    raise
-
-            if len(vectors) != len(drafts):
-                raise RuntimeError(
-                    f"embedding count mismatch: drafts={len(drafts)} vectors={len(vectors)}"
-                )
-
-            for seq, (draft, vec) in enumerate(zip(drafts, vectors, strict=True)):
-                if len(vec) != settings.embedding_dim:
-                    raise RuntimeError(
-                        f"embedding dim mismatch: got {len(vec)}, expect {settings.embedding_dim}"
-                    )
-                tsv_text = build_tsv(draft.content)
-                tsv_value = (
-                    await session.execute(select(func.to_tsvector("simple", tsv_text)))
-                ).scalar_one()
-                session.add(
-                    Chunk(
-                        id=uuid7(),
-                        tenant_id=tenant_id,
-                        kb_id=doc.kb_id,
-                        document_id=document_id,
-                        seq=seq,
-                        content=draft.content,
-                        raw_content=draft.raw_content,
-                        heading_path=draft.heading_path,
-                        chunk_type=draft.chunk_type,
-                        page_start=draft.page_start,
-                        page_end=draft.page_end,
-                        bboxes=draft.bboxes,
-                        token_count=draft.token_count,
-                        embedding=vec,
-                        tsv=tsv_value,
-                        meta=draft.metadata,
-                    )
-                )
-
-            if kb:
-                other = (
-                    await session.execute(
-                        select(func.count())
-                        .select_from(Chunk)
-                        .where(Chunk.kb_id == kb.id, Chunk.document_id != document_id)
-                    )
-                ).scalar_one()
-                kb.chunk_count = int(other) + len(drafts)
-
-            doc.status = DOC_READY
-            doc.error_code = None
-            doc.error_detail = None
-            job.status = JOB_SUCCEEDED
-            job.progress = 1.0
-            job.finished_at = datetime.now(UTC)
+            job.status = JOB_RUNNING
+            job.started_at = datetime.now(UTC)
+            job.attempt += 1
+            doc.status = DOC_EMBEDDING
             await session.flush()
-            return "ready"
-        except Exception as exc:
-            logger.exception("embed_failed", document_id=str(document_id))
-            doc.status = DOC_FAILED
-            doc.error_code = "embed_failed"
-            doc.error_detail = str(exc)[:2000]
-            job.status = JOB_FAILED
-            job.error_code = "embed_failed"
-            job.error_detail = str(exc)[:2000]
-            job.finished_at = datetime.now(UTC)
-            return "failed"
+
+            try:
+                pages = list(
+                    (
+                        await session.execute(
+                            select(DocumentPage)
+                            .where(DocumentPage.document_id == document_id)
+                            .order_by(DocumentPage.page_no)
+                        )
+                    )
+                    .scalars()
+                    .all()
+                )
+                page_dicts = [
+                    {
+                        "page_no": p.page_no,
+                        "width": p.width,
+                        "height": p.height,
+                        "blocks": p.blocks,
+                        "plain_text": p.plain_text,
+                    }
+                    for p in pages
+                ]
+
+                kb = await session.get(KnowledgeBase, doc.kb_id)
+                effective = await resolve_effective_profile(session, doc.kb_id)
+                rules = to_ingestion_chunk_rules(effective.chunk_rules)
+
+                drafts = chunk_pages(page_dicts, rules, title=doc.title)
+                await session.execute(delete(Chunk).where(Chunk.document_id == document_id))
+
+                texts = [d.content for d in drafts]
+                vectors: list[list[float]] = []
+                batch_size = settings.embedding_batch_size
+                from app.modules.modelops.usage_recorder import (
+                    UsageRecorder,
+                    estimate_tokens,
+                    resolve_usage_route,
+                )
+
+                conn_id, provider_type, model = await resolve_usage_route(
+                    session, tenant_id, "embedding"
+                )
+                for i in range(0, len(texts), batch_size):
+                    batch = texts[i : i + batch_size]
+                    if not batch:
+                        continue
+                    emb_t0 = time.perf_counter()
+                    try:
+                        vectors.extend(await embedding.embed(batch, input_type="document"))
+                        latency_ms = int((time.perf_counter() - emb_t0) * 1000)
+                        await UsageRecorder.record(
+                            tenant_id=tenant_id,
+                            connection_id=conn_id,
+                            kb_id=doc.kb_id,
+                            purpose="embedding",
+                            provider_type=provider_type,
+                            model=model,
+                            prompt_tokens=sum(estimate_tokens(t) for t in batch),
+                            completion_tokens=0,
+                            latency_ms=latency_ms,
+                            success=True,
+                        )
+                    except Exception:
+                        latency_ms = int((time.perf_counter() - emb_t0) * 1000)
+                        await UsageRecorder.record(
+                            tenant_id=tenant_id,
+                            connection_id=conn_id,
+                            kb_id=doc.kb_id,
+                            purpose="embedding",
+                            provider_type=provider_type,
+                            model=model,
+                            prompt_tokens=sum(estimate_tokens(t) for t in batch),
+                            completion_tokens=0,
+                            latency_ms=latency_ms,
+                            success=False,
+                            error_code="embed_failed",
+                        )
+                        raise
+
+                if len(vectors) != len(drafts):
+                    raise RuntimeError(
+                        f"embedding count mismatch: drafts={len(drafts)} vectors={len(vectors)}"
+                    )
+
+                for seq, (draft, vec) in enumerate(zip(drafts, vectors, strict=True)):
+                    if len(vec) != settings.embedding_dim:
+                        raise RuntimeError(
+                            f"embedding dim mismatch: got {len(vec)}, "
+                            f"expect {settings.embedding_dim}"
+                        )
+                    tsv_text = build_tsv(draft.content)
+                    tsv_value = (
+                        await session.execute(select(func.to_tsvector("simple", tsv_text)))
+                    ).scalar_one()
+                    session.add(
+                        Chunk(
+                            id=uuid7(),
+                            tenant_id=tenant_id,
+                            kb_id=doc.kb_id,
+                            document_id=document_id,
+                            seq=seq,
+                            content=draft.content,
+                            raw_content=draft.raw_content,
+                            heading_path=draft.heading_path,
+                            chunk_type=draft.chunk_type,
+                            page_start=draft.page_start,
+                            page_end=draft.page_end,
+                            bboxes=draft.bboxes,
+                            token_count=draft.token_count,
+                            embedding=vec,
+                            tsv=tsv_value,
+                            meta=draft.metadata,
+                        )
+                    )
+
+                if kb:
+                    other = (
+                        await session.execute(
+                            select(func.count())
+                            .select_from(Chunk)
+                            .where(Chunk.kb_id == kb.id, Chunk.document_id != document_id)
+                        )
+                    ).scalar_one()
+                    kb.chunk_count = int(other) + len(drafts)
+
+                doc.status = DOC_READY
+                doc.error_code = None
+                doc.error_detail = None
+                job.status = JOB_SUCCEEDED
+                job.progress = 1.0
+                job.finished_at = datetime.now(UTC)
+                await session.flush()
+                return "ready"
+            except Exception as exc:
+                logger.exception("embed_failed", document_id=str(document_id))
+                doc.status = DOC_FAILED
+                doc.error_code = "embed_failed"
+                doc.error_detail = str(exc)[:2000]
+                job.status = JOB_FAILED
+                job.error_code = "embed_failed"
+                job.error_detail = str(exc)[:2000]
+                job.finished_at = datetime.now(UTC)
+                return "failed"
+        finally:
+            await aclose_provider(embedding)
