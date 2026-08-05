@@ -4,12 +4,13 @@ import { useToast } from '@/components/toast/useToast';
 import { ApiError } from '@/lib/http';
 import type { IndustryProfile } from './api';
 import { ProfileEditor } from './ProfileEditor';
-import { useCreateProfile, useProfiles } from './hooks';
+import { useCreateProfile, useDeleteProfile, useProfiles } from './hooks';
 
 export function ProfilesPanel({ enabled }: { enabled: boolean }) {
   const toast = useToast();
   const listQ = useProfiles(enabled);
   const createM = useCreateProfile();
+  const deleteM = useDeleteProfile();
 
   const [deriveFrom, setDeriveFrom] = useState<IndustryProfile | null>(null);
   const [newCode, setNewCode] = useState('');
@@ -18,6 +19,25 @@ export function ProfilesPanel({ enabled }: { enabled: boolean }) {
   const [error, setError] = useState<string | null>(null);
 
   const rows = listQ.data ?? [];
+
+  async function onDelete(p: IndustryProfile) {
+    if (!window.confirm(`确认删除模板「${p.name}」（${p.code}）？`)) return;
+    setError(null);
+    try {
+      await deleteM.mutateAsync(p.id);
+      if (edit?.id === p.id) setEdit(null);
+      toast.success(`已删除模板 ${p.code}`);
+    } catch (err) {
+      const msg =
+        err instanceof ApiError && err.code === 'profile_in_use'
+          ? '仍有知识库绑定'
+          : err instanceof ApiError
+            ? err.message
+            : '删除失败';
+      setError(msg);
+      toast.error(msg);
+    }
+  }
 
   async function onDerive(e: FormEvent) {
     e.preventDefault();
@@ -86,17 +106,26 @@ export function ProfilesPanel({ enabled }: { enabled: boolean }) {
                     派生
                   </button>
                   {!p.is_builtin ? (
-                    <button
-                      type="button"
-                      className="text-brand-700 hover:underline"
-                      onClick={() => {
-                        setDeriveFrom(null);
-                        setEdit(p);
-                        setError(null);
-                      }}
-                    >
-                      编辑
-                    </button>
+                    <>
+                      <button
+                        type="button"
+                        className="mr-3 text-brand-700 hover:underline"
+                        onClick={() => {
+                          setDeriveFrom(null);
+                          setEdit(p);
+                          setError(null);
+                        }}
+                      >
+                        编辑
+                      </button>
+                      <button
+                        type="button"
+                        className="text-danger hover:underline"
+                        onClick={() => void onDelete(p)}
+                      >
+                        删除
+                      </button>
+                    </>
                   ) : null}
                 </td>
               </tr>

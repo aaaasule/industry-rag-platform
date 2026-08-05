@@ -46,3 +46,7 @@ export function createProfile(body: IndustryProfileCreate): Promise<IndustryProf
 export function updateProfile(id: string, body: IndustryProfileUpdate): Promise<IndustryProfile> {
   return api.patch(`/industry-profiles/${id}`, body);
 }
+
+export function deleteProfile(id: string): Promise<void> {
+  return api.delete(`/industry-profiles/${id}`);
+}
