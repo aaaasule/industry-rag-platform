@@ -342,6 +342,12 @@ class KnowledgeService:
         if dup is not None:
             raise Conflict("同知识库已存在相同文件", code="duplicate_document")
 
+        from app.modules.knowledge.metadata_validate import validate_document_metadata
+        from app.modules.profile.service import resolve_effective_profile
+
+        effective = await resolve_effective_profile(self._repo._session, kb.id)
+        validate_document_metadata(payload.metadata or {}, effective.metadata_schema)
+
         doc = Document(
             id=payload.document_id,
             tenant_id=claims.tenant_id,
