@@ -35,11 +35,11 @@ export function AuditPanel({ enabled }: { enabled: boolean }) {
 
   return (
     <div className="space-y-5">
-      <p className="text-sm text-slate-500">
+      <p className="text-sm text-ink-muted">
         审计记录按时间倒序。`to` 为开区间（不含终点）。操作者名称来自成员列表映射。
       </p>
 
-      <div className="flex flex-wrap items-end gap-3 rounded-xl border border-slate-200 bg-white p-4">
+      <div className="flex flex-wrap items-end gap-3 panel p-4">
         <label className="block text-sm">
           <span className="field-label">Action</span>
           <select
@@ -85,15 +85,15 @@ export function AuditPanel({ enabled }: { enabled: boolean }) {
       </div>
 
       {logsQ.isLoading ? (
-        <p className="text-sm text-slate-400">加载中…</p>
+        <p className="text-sm text-ink-faint">加载中…</p>
       ) : items.length === 0 ? (
-        <p className="rounded-xl border border-dashed border-slate-300 bg-white p-8 text-center text-sm text-slate-500">
+        <p className="panel border-dashed p-8 text-center text-sm text-ink-muted">
           暂无审计记录
         </p>
       ) : (
-        <div className="overflow-auto rounded-xl border border-slate-200 bg-white">
+        <div className="overflow-auto panel">
           <table className="w-full text-left text-sm">
-            <thead className="border-b border-slate-100 text-xs text-slate-500">
+            <thead className="border-b border-line text-xs text-ink-muted">
               <tr>
                 <th className="px-4 py-3 font-medium">时间</th>
                 <th className="px-4 py-3 font-medium">操作者</th>
@@ -102,25 +102,25 @@ export function AuditPanel({ enabled }: { enabled: boolean }) {
                 <th className="px-4 py-3 font-medium">IP</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
+            <tbody className="divide-y divide-line">
               {items.map((row) => (
                 <tr key={row.id}>
-                  <td className="whitespace-nowrap px-4 py-3 text-slate-600">
+                  <td className="whitespace-nowrap px-4 py-3 text-ink-muted">
                     {new Date(row.created_at).toLocaleString('zh-CN')}
                   </td>
                   <td className="px-4 py-3">
                     {row.actor_id ? (nameById.get(row.actor_id) ?? shortId(row.actor_id)) : '系统'}
                   </td>
-                  <td className="px-4 py-3 font-mono text-xs text-slate-800">{row.action}</td>
-                  <td className="px-4 py-3 text-slate-600">
+                  <td className="px-4 py-3 font-mono text-xs text-ink">{row.action}</td>
+                  <td className="px-4 py-3 text-ink-muted">
                     {row.target_type}
                     {row.target_id ? (
-                      <span className="ml-1 font-mono text-xs text-slate-400">
+                      <span className="ml-1 font-mono text-xs text-ink-faint">
                         {shortId(row.target_id)}
                       </span>
                     ) : null}
                   </td>
-                  <td className="px-4 py-3 text-slate-500">{row.ip ?? '—'}</td>
+                  <td className="px-4 py-3 text-ink-muted">{row.ip ?? '—'}</td>
                 </tr>
               ))}
             </tbody>
@@ -128,14 +128,14 @@ export function AuditPanel({ enabled }: { enabled: boolean }) {
         </div>
       )}
 
-      <div className="flex items-center justify-between text-sm text-slate-600">
+      <div className="flex items-center justify-between text-sm text-ink-muted">
         <span>
           共 {total} 条 · 第 {page + 1}/{pageCount} 页
         </span>
         <div className="flex gap-2">
           <button
             type="button"
-            className="rounded-md border border-slate-200 px-3 py-1.5 disabled:opacity-40"
+            className="rounded-md border border-line px-3 py-1.5 disabled:opacity-40"
             disabled={page <= 0}
             onClick={() => setPage((p) => Math.max(0, p - 1))}
           >
@@ -143,7 +143,7 @@ export function AuditPanel({ enabled }: { enabled: boolean }) {
           </button>
           <button
             type="button"
-            className="rounded-md border border-slate-200 px-3 py-1.5 disabled:opacity-40"
+            className="rounded-md border border-line px-3 py-1.5 disabled:opacity-40"
             disabled={(page + 1) * PAGE_SIZE >= total}
             onClick={() => setPage((p) => p + 1)}
           >

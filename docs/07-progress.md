@@ -6,10 +6,28 @@
 
 | 项 | 值 |
 | --- | --- |
-| 阶段 | **M5 已合入 main**（#14）；进行中：Backend CI 修复 |
-| 下一里程碑 | CI 全绿；可选 M5 增强（表单双视图 / evaluate 进 CI） |
-| 代码量 | — |
-| 阻塞项 | Backend CI：此前缺 ruff format + 无 Postgres service |
+| 阶段 | **视觉 P1–P3 + 行业模板双视图**（分支 `feat/ui-visual-system-p1`） |
+| 下一里程碑 | commit / PR |
+| 代码量 | 视觉系统 + ProfileEditor 表单/JSON |
+| 阻塞项 | 无 |
+
+---
+
+## 2026-08-05（前端 · 工业控制台视觉 P1–P3）
+
+### 完成内容
+
+| # | 任务 | 状态 |
+| --- | --- | --- |
+| V-1 | 规格 / 计划 | ✓ |
+| V-2 | CSS tokens + Tailwind brand→铁青 + 字体 | ✓ |
+| V-3 | AppLayout 顶栏 / Login 左右分栏 | ✓ |
+| V-4 | Overview 轻工作台快捷入口 | ✓ |
+| V-5 | Knowledge 列表 / 详情 / 文档页样式对齐 | ✓ |
+| V-6 | Admin / Profiles / Connections / Usages / Chat 表面 | ✓ |
+| V-7 | 行业模板表单 + JSON 双视图（Tab 双向合并） | ✓ |
+
+**决策**：整站视觉升级、IA 不动；工业控制台气质；分 P1/P2/P3；双视图常用字段 + 未知键保留。
 
 ---
 

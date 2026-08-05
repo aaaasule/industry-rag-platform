@@ -55,22 +55,24 @@ export function KbDetailPage() {
   return (
     <div className="mx-auto max-w-4xl space-y-6">
       <div>
-        <Link to="/knowledge" className="text-sm text-slate-500 hover:text-slate-800">
+        <Link to="/knowledge" className="text-sm text-ink-muted transition-colors hover:text-ink">
           ← 知识库
         </Link>
-        <h1 className="mt-2 text-xl font-semibold text-slate-900">{kb?.name ?? '知识库'}</h1>
-        <p className="mt-1 text-sm text-slate-500">
+        <h1 className="mt-2 text-xl font-semibold tracking-tight text-ink">
+          {kb?.name ?? '知识库'}
+        </h1>
+        <p className="mt-1 text-sm text-ink-muted">
           {kb ? `${kb.doc_count} 文档 · ${kb.chunk_count} 分块` : '加载中…'}
         </p>
       </div>
 
-      <section className="flex flex-wrap items-end gap-3 rounded-xl border border-slate-200 bg-white p-4">
-        <label className="block text-xs text-slate-500">
+      <section className="panel flex flex-wrap items-end gap-3 p-4">
+        <label className="block text-xs text-ink-muted">
           行业模板
           <select
             value={profileCode}
             onChange={(e) => setProfileCode(e.target.value)}
-            className="mt-1 block min-w-[220px] rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-800"
+            className="field-input mt-1 min-w-[220px]"
           >
             <option value="">未绑定</option>
             {profiles.map((p) => (
@@ -92,7 +94,7 @@ export function KbDetailPage() {
                 setMessage(err instanceof ApiError ? err.message : '改绑失败'),
               );
           }}
-          className="rounded-lg bg-brand-600 px-3 py-2 text-sm text-white hover:bg-brand-700 disabled:opacity-50"
+          className="btn-primary"
         >
           保存绑定
         </button>
@@ -116,14 +118,15 @@ export function KbDetailPage() {
         }}
         onClick={() => inputRef.current?.click()}
         className={[
-          'cursor-pointer rounded-xl border-2 border-dashed p-10 text-center transition',
+          'cursor-pointer border-2 border-dashed p-10 text-center transition-colors duration-150',
           dragOver
-            ? 'border-brand-400 bg-brand-50'
-            : 'border-slate-300 bg-white hover:border-brand-300',
+            ? 'border-brand-500 bg-brand-50'
+            : 'border-line bg-surface hover:border-brand-500',
         ].join(' ')}
+        style={{ borderRadius: 'var(--radius-md)' }}
       >
-        <p className="text-sm font-medium text-slate-800">拖拽 PDF 到此处，或点击选择文件</p>
-        <p className="mt-1 text-xs text-slate-500">经 API 中转上传，单文件建议不超过 32MB</p>
+        <p className="text-sm font-medium text-ink">拖拽 PDF 到此处，或点击选择文件</p>
+        <p className="mt-1 text-xs text-ink-faint">经 API 中转上传，单文件建议不超过 32MB</p>
         <input
           ref={inputRef}
           type="file"
@@ -137,12 +140,12 @@ export function KbDetailPage() {
         />
       </div>
 
-      {message && <p className="text-sm text-slate-600">{message}</p>}
+      {message && <p className="text-sm text-ink-muted">{message}</p>}
       {upload.isPending && <p className="text-sm text-brand-700">上传中…</p>}
 
-      <section className="overflow-hidden rounded-xl border border-slate-200 bg-white">
+      <section className="panel overflow-hidden">
         <table className="w-full text-left text-sm">
-          <thead className="border-b border-slate-100 bg-slate-50 text-xs uppercase text-slate-500">
+          <thead className="border-b border-line bg-canvas/80 text-xs uppercase tracking-wider text-ink-faint">
             <tr>
               <th className="px-4 py-3 font-medium">标题</th>
               <th className="px-4 py-3 font-medium">状态</th>
@@ -153,29 +156,32 @@ export function KbDetailPage() {
           <tbody>
             {isLoading && (
               <tr>
-                <td colSpan={4} className="px-4 py-6 text-slate-500">
+                <td colSpan={4} className="px-4 py-6 text-ink-muted">
                   加载中…
                 </td>
               </tr>
             )}
             {!isLoading && docs.length === 0 && (
               <tr>
-                <td colSpan={4} className="px-4 py-6 text-slate-500">
+                <td colSpan={4} className="px-4 py-6 text-ink-muted">
                   暂无文档
                 </td>
               </tr>
             )}
             {docs.map((doc) => (
-              <tr key={doc.id} className="border-b border-slate-50 last:border-0">
+              <tr
+                key={doc.id}
+                className="border-b border-line/60 transition-colors last:border-0 hover:bg-brand-50/40"
+              >
                 <td className="px-4 py-3">
                   <Link
                     to={`/knowledge/${kbId}/documents/${doc.id}`}
-                    className="font-medium text-slate-900 hover:text-brand-700 hover:underline"
+                    className="font-medium text-ink hover:text-brand-700 hover:underline"
                   >
                     {doc.title}
                   </Link>
                   {doc.status === 'failed' && doc.error_detail && (
-                    <div className="mt-1 max-w-md truncate text-xs text-red-600">
+                    <div className="mt-1 max-w-md truncate text-xs text-danger">
                       {doc.error_detail}
                     </div>
                   )}
@@ -183,7 +189,7 @@ export function KbDetailPage() {
                 <td className="px-4 py-3">
                   <StatusBadge status={doc.status} />
                 </td>
-                <td className="px-4 py-3 text-slate-600">{doc.page_count ?? '—'}</td>
+                <td className="px-4 py-3 tabular-nums text-ink-muted">{doc.page_count ?? '—'}</td>
                 <td className="px-4 py-3">
                   <div className="flex gap-2">
                     {doc.status === 'failed' && (
@@ -198,7 +204,7 @@ export function KbDetailPage() {
                     )}
                     <button
                       type="button"
-                      className="text-xs text-slate-500 hover:text-red-600"
+                      className="text-xs text-ink-faint hover:text-danger"
                       disabled={remove.isPending}
                       onClick={() => {
                         if (confirm(`删除「${doc.title}」？`)) void remove.mutateAsync(doc.id);
@@ -220,16 +226,16 @@ export function KbDetailPage() {
 function StatusBadge({ status }: { status: string }) {
   const tone =
     {
-      ready: 'bg-emerald-50 text-emerald-700',
-      failed: 'bg-red-50 text-red-700',
-      pending: 'bg-slate-100 text-slate-600',
-      parsing: 'bg-amber-50 text-amber-700',
-      chunking: 'bg-amber-50 text-amber-700',
-      embedding: 'bg-amber-50 text-amber-700',
-    }[status] ?? 'bg-slate-100 text-slate-600';
+      ready: 'bg-ok/10 text-ok',
+      failed: 'bg-danger/10 text-danger',
+      pending: 'bg-canvas text-ink-muted',
+      parsing: 'bg-warn/10 text-warn',
+      chunking: 'bg-warn/10 text-warn',
+      embedding: 'bg-warn/10 text-warn',
+    }[status] ?? 'bg-canvas text-ink-muted';
 
   return (
-    <span className={`inline-flex rounded-md px-2 py-0.5 text-xs font-medium ${tone}`}>
+    <span className={`inline-flex rounded px-2 py-0.5 text-xs font-medium ${tone}`}>
       {statusLabel(status)}
     </span>
   );

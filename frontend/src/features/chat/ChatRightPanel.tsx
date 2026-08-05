@@ -56,8 +56,8 @@ export function ChatRightPanel({
     .filter((x): x is PdfBBox => x !== null);
 
   return (
-    <aside className="flex h-full flex-col overflow-hidden rounded-xl border border-slate-200 bg-white">
-      <div className="flex items-center justify-between gap-2 border-b border-slate-100 px-3 py-2">
+    <aside className="flex h-full flex-col overflow-hidden panel">
+      <div className="flex items-center justify-between gap-2 border-b border-line px-3 py-2">
         <button
           type="button"
           className="text-xs text-brand-700 hover:underline"
@@ -65,13 +65,13 @@ export function ChatRightPanel({
         >
           ← 返回证据
         </button>
-        <div className="min-w-0 flex-1 truncate text-right text-xs text-slate-500">
+        <div className="min-w-0 flex-1 truncate text-right text-xs text-ink-muted">
           [{active.index_no}] {active.document_title || '文档'} · p.{active.page_start}
         </div>
       </div>
-      <div className="border-b border-slate-50 px-3 py-1.5 text-right">
+      <div className="border-b border-line px-3 py-1.5 text-right">
         <Link
-          className="text-xs text-slate-500 hover:text-brand-700"
+          className="text-xs text-ink-muted hover:text-brand-700"
           to={`/documents/${active.document_id}?page=${active.page_start}${
             active.chunk_id ? `&chunk=${active.chunk_id}` : ''
           }`}
@@ -80,8 +80,8 @@ export function ChatRightPanel({
         </Link>
       </div>
       <div className="min-h-0 flex-1">
-        {isLoading && <p className="p-4 text-sm text-slate-500">加载预览…</p>}
-        {error && <p className="p-4 text-sm text-red-600">预览失败</p>}
+        {isLoading && <p className="p-4 text-sm text-ink-muted">加载预览…</p>}
+        {error && <p className="p-4 text-sm text-danger">预览失败</p>}
         {preview?.url && (
           <PdfHighlightViewer
             url={preview.url}
