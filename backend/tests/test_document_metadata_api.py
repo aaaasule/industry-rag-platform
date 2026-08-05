@@ -39,9 +39,7 @@ async def _setup_kb_with_metadata_schema(
     return kb.json()["id"], code
 
 
-def _register_payload(
-    tenant_id: uuid.UUID, *, metadata: dict | None = None
-) -> dict:
+def _register_payload(tenant_id: uuid.UUID, *, metadata: dict | None = None) -> dict:
     document_id = uuid7()
     return {
         "document_id": str(document_id),
