@@ -2,33 +2,17 @@ import { useState, type FormEvent } from 'react';
 
 import { ApiError } from '@/lib/http';
 import type { IndustryProfile } from './api';
-import { useCreateProfile, useProfiles, useUpdateProfile } from './hooks';
-
-function rulesJson(p: IndustryProfile): string {
-  return JSON.stringify(
-    {
-      chunk_rules: p.chunk_rules ?? {},
-      prompt_overrides: p.prompt_overrides ?? {},
-      retrieval_rules: p.retrieval_rules ?? {},
-      parse_rules: p.parse_rules ?? {},
-      metadata_schema: p.metadata_schema ?? {},
-    },
-    null,
-    2,
-  );
-}
+import { ProfileEditor } from './ProfileEditor';
+import { useCreateProfile, useProfiles } from './hooks';
 
 export function ProfilesPanel({ enabled }: { enabled: boolean }) {
   const listQ = useProfiles(enabled);
   const createM = useCreateProfile();
-  const updateM = useUpdateProfile();
 
   const [deriveFrom, setDeriveFrom] = useState<IndustryProfile | null>(null);
   const [newCode, setNewCode] = useState('');
   const [newName, setNewName] = useState('');
   const [edit, setEdit] = useState<IndustryProfile | null>(null);
-  const [editName, setEditName] = useState('');
-  const [editJson, setEditJson] = useState('');
   const [error, setError] = useState<string | null>(null);
 
   const rows = listQ.data ?? [];
@@ -53,53 +37,17 @@ export function ProfilesPanel({ enabled }: { enabled: boolean }) {
     }
   }
 
-  function openEdit(p: IndustryProfile) {
-    setEdit(p);
-    setEditName(p.name);
-    setEditJson(rulesJson(p));
-    setError(null);
-  }
-
-  async function onSaveEdit(e: FormEvent) {
-    e.preventDefault();
-    if (!edit) return;
-    setError(null);
-    let parsed: Record<string, unknown>;
-    try {
-      parsed = JSON.parse(editJson) as Record<string, unknown>;
-    } catch {
-      setError('JSON 无法解析');
-      return;
-    }
-    try {
-      await updateM.mutateAsync({
-        id: edit.id,
-        body: {
-          name: editName.trim() || edit.name,
-          chunk_rules: (parsed.chunk_rules as Record<string, unknown>) ?? {},
-          prompt_overrides: (parsed.prompt_overrides as Record<string, unknown>) ?? {},
-          retrieval_rules: (parsed.retrieval_rules as Record<string, unknown>) ?? {},
-          parse_rules: (parsed.parse_rules as Record<string, unknown>) ?? {},
-          metadata_schema: (parsed.metadata_schema as Record<string, unknown>) ?? {},
-        },
-      });
-      setEdit(null);
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : '保存失败');
-    }
-  }
-
   return (
     <div className="space-y-4">
-      <p className="text-sm text-slate-500">
-        内置模板只读；派生后可编辑 chunk / prompt / retrieval 等 JSON 规则。
+      <p className="text-sm text-ink-muted">
+        内置模板只读；派生后可用表单或 JSON 编辑常用规则（chunk / retrieval / system prompt）。
       </p>
-      {error ? <p className="text-sm text-red-600">{error}</p> : null}
-      {listQ.isLoading ? <p className="text-sm text-slate-500">加载中…</p> : null}
+      {error ? <p className="text-sm text-danger">{error}</p> : null}
+      {listQ.isLoading ? <p className="text-sm text-ink-muted">加载中…</p> : null}
 
-      <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
+      <div className="panel overflow-hidden">
         <table className="w-full text-left text-sm">
-          <thead className="border-b border-slate-100 bg-slate-50 text-xs uppercase text-slate-500">
+          <thead className="border-b border-line bg-canvas text-xs uppercase tracking-wider text-ink-faint">
             <tr>
               <th className="px-4 py-3 font-medium">code</th>
               <th className="px-4 py-3 font-medium">名称</th>
@@ -109,10 +57,13 @@ export function ProfilesPanel({ enabled }: { enabled: boolean }) {
           </thead>
           <tbody>
             {rows.map((p) => (
-              <tr key={p.id} className="border-b border-slate-50 last:border-0">
-                <td className="px-4 py-3 font-mono text-xs text-slate-800">{p.code}</td>
-                <td className="px-4 py-3 text-slate-800">{p.name}</td>
-                <td className="px-4 py-3 text-slate-500">
+              <tr
+                key={p.id}
+                className="border-b border-line/60 transition-colors last:border-0 hover:bg-brand-50/40"
+              >
+                <td className="px-4 py-3 font-mono text-xs text-ink">{p.code}</td>
+                <td className="px-4 py-3 text-ink">{p.name}</td>
+                <td className="px-4 py-3 text-ink-muted">
                   {p.is_builtin ? '内置' : '自定义'}
                 </td>
                 <td className="px-4 py-3">
@@ -120,6 +71,7 @@ export function ProfilesPanel({ enabled }: { enabled: boolean }) {
                     type="button"
                     className="mr-3 text-brand-700 hover:underline"
                     onClick={() => {
+                      setEdit(null);
                       setDeriveFrom(p);
                       setNewCode(`${p.code}_custom`);
                       setNewName(`${p.name}（自定义）`);
@@ -132,7 +84,11 @@ export function ProfilesPanel({ enabled }: { enabled: boolean }) {
                     <button
                       type="button"
                       className="text-brand-700 hover:underline"
-                      onClick={() => openEdit(p)}
+                      onClick={() => {
+                        setDeriveFrom(null);
+                        setEdit(p);
+                        setError(null);
+                      }}
                     >
                       编辑
                     </button>
@@ -142,7 +98,7 @@ export function ProfilesPanel({ enabled }: { enabled: boolean }) {
             ))}
             {!listQ.isLoading && rows.length === 0 ? (
               <tr>
-                <td colSpan={4} className="px-4 py-6 text-slate-500">
+                <td colSpan={4} className="px-4 py-6 text-ink-muted">
                   暂无模板（请先 seed）
                 </td>
               </tr>
@@ -152,44 +108,31 @@ export function ProfilesPanel({ enabled }: { enabled: boolean }) {
       </div>
 
       {deriveFrom ? (
-        <form
-          onSubmit={(e) => void onDerive(e)}
-          className="space-y-3 rounded-xl border border-slate-200 bg-white p-4"
-        >
-          <h2 className="text-sm font-medium text-slate-900">
-            从 {deriveFrom.code} 派生
-          </h2>
-          <label className="block text-xs text-slate-500">
+        <form onSubmit={(e) => void onDerive(e)} className="panel space-y-3 p-4">
+          <h2 className="text-sm font-medium text-ink">从 {deriveFrom.code} 派生</h2>
+          <label className="block text-xs text-ink-muted">
             新 code
             <input
               required
               pattern="^[a-z][a-z0-9_]*$"
               value={newCode}
               onChange={(e) => setNewCode(e.target.value)}
-              className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 font-mono text-sm"
+              className="field-input mt-1 font-mono"
             />
           </label>
-          <label className="block text-xs text-slate-500">
+          <label className="block text-xs text-ink-muted">
             名称
             <input
               value={newName}
               onChange={(e) => setNewName(e.target.value)}
-              className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
+              className="field-input mt-1"
             />
           </label>
           <div className="flex gap-2">
-            <button
-              type="submit"
-              disabled={createM.isPending}
-              className="rounded-lg bg-brand-600 px-3 py-1.5 text-sm text-white hover:bg-brand-700 disabled:opacity-50"
-            >
+            <button type="submit" disabled={createM.isPending} className="btn-primary">
               创建
             </button>
-            <button
-              type="button"
-              className="rounded-lg px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-50"
-              onClick={() => setDeriveFrom(null)}
-            >
+            <button type="button" className="btn-ghost" onClick={() => setDeriveFrom(null)}>
               取消
             </button>
           </div>
@@ -197,45 +140,12 @@ export function ProfilesPanel({ enabled }: { enabled: boolean }) {
       ) : null}
 
       {edit ? (
-        <form
-          onSubmit={(e) => void onSaveEdit(e)}
-          className="space-y-3 rounded-xl border border-slate-200 bg-white p-4"
-        >
-          <h2 className="text-sm font-medium text-slate-900">编辑 {edit.code}</h2>
-          <label className="block text-xs text-slate-500">
-            名称
-            <input
-              value={editName}
-              onChange={(e) => setEditName(e.target.value)}
-              className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
-            />
-          </label>
-          <label className="block text-xs text-slate-500">
-            规则 JSON
-            <textarea
-              value={editJson}
-              onChange={(e) => setEditJson(e.target.value)}
-              rows={16}
-              className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 font-mono text-xs"
-            />
-          </label>
-          <div className="flex gap-2">
-            <button
-              type="submit"
-              disabled={updateM.isPending}
-              className="rounded-lg bg-brand-600 px-3 py-1.5 text-sm text-white hover:bg-brand-700 disabled:opacity-50"
-            >
-              保存
-            </button>
-            <button
-              type="button"
-              className="rounded-lg px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-50"
-              onClick={() => setEdit(null)}
-            >
-              取消
-            </button>
-          </div>
-        </form>
+        <ProfileEditor
+          key={edit.id}
+          profile={edit}
+          onClose={() => setEdit(null)}
+          onSaved={() => setEdit(null)}
+        />
       ) : null}
     </div>
   );

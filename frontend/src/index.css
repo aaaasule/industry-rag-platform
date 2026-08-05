@@ -2,6 +2,23 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  --bg-canvas: #f2f1ed;
+  --bg-surface: #fffefb;
+  --ink: #1a1f24;
+  --ink-muted: #5c6570;
+  --line: #d5d8dc;
+  --accent: #2f6f7e;
+  --accent-hover: #275a66;
+  --accent-soft: #e4f0f2;
+  --ok: #3d6b4f;
+  --warn: #b8792a;
+  --danger: #a33b2b;
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --grid-line: rgba(26, 31, 36, 0.045);
+}
+
 @layer base {
   html,
   body,
@@ -10,24 +27,68 @@
   }
 
   body {
-    @apply bg-slate-50 text-slate-900 antialiased;
+    @apply font-sans text-ink antialiased;
+    background-color: var(--bg-canvas);
+    background-image:
+      linear-gradient(var(--grid-line) 1px, transparent 1px),
+      linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
+    background-size: 24px 24px;
+  }
+
+  ::selection {
+    background: var(--accent-soft);
+    color: var(--ink);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
   }
 }
 
 @layer components {
   .field-label {
-    @apply mb-1.5 block text-sm font-medium text-slate-700;
+    @apply mb-1.5 block text-sm font-medium text-ink;
   }
 
   .field-input {
-    @apply w-full rounded-md border border-slate-300 px-3 py-2 text-sm outline-none
-      transition focus:border-brand-500 focus:ring-2 focus:ring-brand-100
-      disabled:bg-slate-100 disabled:text-slate-500;
+    @apply w-full border border-line bg-surface px-3 py-2 text-sm text-ink outline-none
+      transition-colors duration-150 placeholder:text-ink-faint
+      focus:border-brand-500 focus:ring-2 focus:ring-brand-50
+      disabled:bg-canvas disabled:text-ink-muted;
+    border-radius: var(--radius-md);
   }
 
   .btn-primary {
-    @apply inline-flex items-center justify-center rounded-md bg-brand-600 px-4 py-2
-      text-sm font-medium text-white transition hover:bg-brand-700
-      disabled:cursor-not-allowed disabled:bg-slate-300;
+    @apply inline-flex items-center justify-center px-4 py-2 text-sm font-medium text-white
+      transition-colors duration-150
+      disabled:cursor-not-allowed disabled:bg-line disabled:text-ink-muted;
+    background-color: var(--accent);
+    border-radius: var(--radius-md);
+  }
+
+  .btn-primary:hover:not(:disabled) {
+    background-color: var(--accent-hover);
+  }
+
+  .btn-ghost {
+    @apply inline-flex items-center justify-center px-3 py-1.5 text-sm text-ink-muted
+      transition-colors duration-150 hover:bg-brand-50 hover:text-ink;
+    border-radius: var(--radius-sm);
+  }
+
+  .panel {
+    @apply border border-line bg-surface shadow-panel;
+    border-radius: var(--radius-md);
+  }
+
+  .app-enter {
+    @apply animate-fade-up;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .app-enter {
+      animation: none;
+    }
   }
 }

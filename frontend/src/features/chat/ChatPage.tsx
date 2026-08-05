@@ -223,9 +223,9 @@ export function ChatPage() {
 
   return (
     <div className="mx-auto flex h-[calc(100vh-5.5rem)] max-w-6xl gap-4">
-      <aside className="flex w-56 shrink-0 flex-col overflow-hidden rounded-xl border border-slate-200 bg-white">
-        <div className="flex items-center justify-between border-b border-slate-100 px-3 py-2">
-          <span className="text-sm font-medium text-slate-900">会话</span>
+      <aside className="flex w-56 shrink-0 flex-col overflow-hidden panel">
+        <div className="flex items-center justify-between border-b border-line px-3 py-2">
+          <span className="text-sm font-medium text-ink">会话</span>
           <button
             type="button"
             className="text-xs text-brand-700 hover:underline"
@@ -243,15 +243,15 @@ export function ChatPage() {
                 className={[
                   'min-w-0 flex-1 truncate rounded-md px-2 py-1.5 text-left text-sm',
                   conversationId === c.id
-                    ? 'bg-brand-50 font-medium text-brand-800'
-                    : 'text-slate-700 hover:bg-slate-50',
+                    ? 'bg-brand-50 font-medium text-brand-700'
+                    : 'text-ink hover:bg-canvas',
                 ].join(' ')}
               >
                 {c.title || '未命名'}
               </button>
               <button
                 type="button"
-                className="hidden shrink-0 px-1 text-xs text-slate-400 group-hover:inline hover:text-red-600"
+                className="hidden shrink-0 px-1 text-xs text-ink-faint group-hover:inline hover:text-danger"
                 onClick={() => {
                   void deleteConv.mutateAsync(c.id).then(() => {
                     if (conversationId === c.id) startNewChat();
@@ -263,16 +263,16 @@ export function ChatPage() {
             </li>
           ))}
           {conversations.length === 0 && (
-            <li className="px-2 py-4 text-center text-xs text-slate-400">暂无历史会话</li>
+            <li className="px-2 py-4 text-center text-xs text-ink-faint">暂无历史会话</li>
           )}
         </ul>
       </aside>
 
-      <section className="flex min-w-0 flex-1 flex-col overflow-hidden rounded-xl border border-slate-200 bg-white">
-        <div className="border-b border-slate-100 px-4 py-3">
-          <h1 className="text-sm font-semibold text-slate-900">问答</h1>
+      <section className="flex min-w-0 flex-1 flex-col overflow-hidden panel">
+        <div className="border-b border-line px-4 py-3">
+          <h1 className="text-sm font-semibold text-ink">问答</h1>
           <div className="mt-2 flex flex-wrap gap-2">
-            {kbLoading && <span className="text-xs text-slate-400">加载知识库…</span>}
+            {kbLoading && <span className="text-xs text-ink-faint">加载知识库…</span>}
             {bases.map((kb) => {
               const on = selectedKbIds.includes(kb.id);
               return (
@@ -282,10 +282,10 @@ export function ChatPage() {
                   disabled={Boolean(conversationId) || streaming}
                   onClick={() => toggleKb(kb.id)}
                   className={[
-                    'rounded-full border px-2.5 py-0.5 text-xs transition',
+                    'rounded border px-2.5 py-0.5 text-xs transition-colors duration-150',
                     on
-                      ? 'border-brand-300 bg-brand-50 text-brand-800'
-                      : 'border-slate-200 text-slate-500',
+                      ? 'border-brand-500 bg-brand-50 text-brand-700'
+                      : 'border-line text-ink-muted',
                     conversationId ? 'opacity-60' : '',
                   ].join(' ')}
                   title={conversationId ? '会话已绑定知识库' : undefined}
@@ -296,14 +296,14 @@ export function ChatPage() {
               );
             })}
             {!kbLoading && bases.length === 0 && (
-              <span className="text-xs text-amber-600">请先在知识库页创建并上传文档</span>
+              <span className="text-xs text-warn">请先在知识库页创建并上传文档</span>
             )}
           </div>
         </div>
 
         <div className="flex-1 space-y-4 overflow-auto px-4 py-4">
           {displayMessages.length === 0 && (
-            <p className="py-12 text-center text-sm text-slate-400">
+            <p className="py-12 text-center text-sm text-ink-faint">
               选择知识库后提问，例如：「HYD-2201 保养周期是多久？」
             </p>
           )}
@@ -314,8 +314,8 @@ export function ChatPage() {
             >
               <div
                 className={[
-                  'max-w-[85%] rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed',
-                  m.role === 'user' ? 'bg-brand-600 text-white' : 'bg-slate-100 text-slate-800',
+                  'max-w-[85%] rounded px-3.5 py-2.5 text-sm leading-relaxed',
+                  m.role === 'user' ? 'bg-brand-600 text-white' : 'border border-line bg-surface text-ink',
                 ].join(' ')}
               >
                 <MessageBody
@@ -325,7 +325,7 @@ export function ChatPage() {
                   onCitationClick={openCitation}
                 />
                 {m.role === 'assistant' && m.status === 'streaming' && (
-                  <span className="ml-1 inline-block h-3 w-1 animate-pulse bg-slate-400 align-middle" />
+                  <span className="ml-1 inline-block h-3 w-1 animate-pulse bg-ink-faint align-middle" />
                 )}
                 {m.role === 'assistant' && m.status === 'completed' && (
                   <MessageFeedback
@@ -342,7 +342,7 @@ export function ChatPage() {
 
         <form
           onSubmit={(e) => void onSubmit(e)}
-          className="flex items-end gap-2 border-t border-slate-100 p-3"
+          className="flex items-end gap-2 border-t border-line p-3"
         >
           <textarea
             className="field-input min-h-[44px] flex-1 resize-none"
@@ -366,7 +366,7 @@ export function ChatPage() {
             {streaming ? '生成中…' : '发送'}
           </button>
         </form>
-        {error && <p className="px-3 pb-3 text-sm text-red-600">{error}</p>}
+        {error && <p className="px-3 pb-3 text-sm text-danger">{error}</p>}
       </section>
 
       <div className="hidden w-80 shrink-0 lg:block">
@@ -431,7 +431,7 @@ function MessageBody({
               'mx-0.5 inline-flex h-5 min-w-5 items-center justify-center rounded px-1 text-xs font-medium',
               active
                 ? 'bg-brand-600 text-white'
-                : 'bg-white/80 text-brand-700 ring-1 ring-brand-200',
+                : 'bg-surface/80 text-brand-700 ring-1 ring-brand-200',
             ].join(' ')}
           >
             {n}

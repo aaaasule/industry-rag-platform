@@ -25,15 +25,12 @@ export function KnowledgePage() {
 
   return (
     <div className="mx-auto max-w-4xl space-y-8">
-      <div>
-        <h1 className="text-xl font-semibold text-slate-900">知识库</h1>
-        <p className="mt-1 text-sm text-slate-500">上传文档、跟踪摄取进度，为问答准备语料。</p>
-      </div>
+      <header>
+        <h1 className="text-xl font-semibold tracking-tight text-ink">知识库</h1>
+        <p className="mt-1 text-sm text-ink-muted">上传文档、跟踪摄取进度，为问答准备语料。</p>
+      </header>
 
-      <form
-        onSubmit={(e) => void onCreate(e)}
-        className="flex flex-wrap items-end gap-3 rounded-xl border border-slate-200 bg-white p-4"
-      >
+      <form onSubmit={(e) => void onCreate(e)} className="panel flex flex-wrap items-end gap-3 p-4">
         <div className="min-w-[200px] flex-1">
           <label className="field-label" htmlFor="kb-name">
             名称
@@ -68,13 +65,13 @@ export function KnowledgePage() {
         <button type="submit" className="btn-primary" disabled={createKb.isPending || !name.trim()}>
           {createKb.isPending ? '创建中…' : '新建知识库'}
         </button>
-        {error && <p className="w-full text-sm text-red-600">{error}</p>}
+        {error && <p className="w-full text-sm text-danger">{error}</p>}
       </form>
 
-      <section className="space-y-3">
-        {isLoading && <p className="text-sm text-slate-500">加载中…</p>}
+      <section className="space-y-2">
+        {isLoading && <p className="text-sm text-ink-muted">加载中…</p>}
         {!isLoading && bases.length === 0 && (
-          <p className="rounded-xl border border-dashed border-slate-300 bg-white p-8 text-center text-sm text-slate-500">
+          <p className="panel border-dashed p-10 text-center text-sm text-ink-muted">
             还没有知识库，先创建一个。
           </p>
         )}
@@ -82,16 +79,16 @@ export function KnowledgePage() {
           <Link
             key={kb.id}
             to={`/knowledge/${kb.id}`}
-            className="block rounded-xl border border-slate-200 bg-white p-4 transition hover:border-brand-300 hover:shadow-sm"
+            className="panel block p-4 transition-colors duration-150 hover:border-brand-500 hover:bg-brand-50/30"
           >
             <div className="flex items-start justify-between gap-4">
               <div>
-                <h2 className="font-medium text-slate-900">{kb.name}</h2>
+                <h2 className="font-medium text-ink">{kb.name}</h2>
                 {kb.description && (
-                  <p className="mt-1 text-sm text-slate-500">{kb.description}</p>
+                  <p className="mt-1 text-sm text-ink-muted">{kb.description}</p>
                 )}
               </div>
-              <div className="shrink-0 text-right text-xs text-slate-500">
+              <div className="shrink-0 text-right text-xs tabular-nums text-ink-faint">
                 <div>{kb.doc_count} 文档</div>
                 <div>{kb.chunk_count} 分块</div>
               </div>

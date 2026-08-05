@@ -42,14 +42,14 @@ export function MessageFeedback({ messageId, initial, disabled }: Props) {
   }
 
   return (
-    <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-slate-500">
+    <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-ink-muted">
       <button
         type="button"
         disabled={disabled || busy}
         onClick={() => void submit('up')}
         className={[
-          'rounded px-1.5 py-0.5 hover:bg-white/70',
-          rating === 'up' ? 'bg-white text-emerald-700 ring-1 ring-emerald-200' : '',
+          'rounded px-1.5 py-0.5 hover:bg-surface/70',
+          rating === 'up' ? 'bg-surface text-ok ring-1 ring-emerald-200' : '',
         ].join(' ')}
         title="有用"
       >
@@ -60,15 +60,15 @@ export function MessageFeedback({ messageId, initial, disabled }: Props) {
         disabled={disabled || busy}
         onClick={() => setPicking((v) => !v)}
         className={[
-          'rounded px-1.5 py-0.5 hover:bg-white/70',
-          rating === 'down' ? 'bg-white text-red-700 ring-1 ring-red-200' : '',
+          'rounded px-1.5 py-0.5 hover:bg-surface/70',
+          rating === 'down' ? 'bg-surface text-danger ring-1 ring-danger/30' : '',
         ].join(' ')}
         title="没用"
       >
         👎
       </button>
       {rating === 'down' && reason && !picking && (
-        <span className="text-slate-400">
+        <span className="text-ink-faint">
           {REASONS.find((r) => r.value === reason)?.label ?? reason}
         </span>
       )}
@@ -78,7 +78,7 @@ export function MessageFeedback({ messageId, initial, disabled }: Props) {
             <button
               key={r.value}
               type="button"
-              className="rounded border border-slate-200 bg-white px-2 py-0.5 hover:border-brand-300"
+              className="rounded border border-line bg-surface px-2 py-0.5 hover:border-brand-300"
               onClick={() => void submit('down', r.value)}
             >
               {r.label}
@@ -86,7 +86,7 @@ export function MessageFeedback({ messageId, initial, disabled }: Props) {
           ))}
         </span>
       )}
-      {error && <span className="text-red-600">{error}</span>}
+      {error && <span className="text-danger">{error}</span>}
     </div>
   );
 }

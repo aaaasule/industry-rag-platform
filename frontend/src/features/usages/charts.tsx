@@ -36,16 +36,16 @@ function ChartShell({
   children: ReactNode;
 }) {
   return (
-    <section className="flex min-h-[280px] flex-col rounded-xl border border-slate-200 bg-white p-4">
+    <section className="flex min-h-[280px] flex-col panel p-4">
       <div className="mb-3 flex items-start justify-between gap-2">
-        <h3 className="text-sm font-medium text-slate-900">{title}</h3>
-        {hint ? <span className="text-xs text-slate-400">{hint}</span> : null}
+        <h3 className="text-sm font-medium text-ink">{title}</h3>
+        {hint ? <span className="text-xs text-ink-faint">{hint}</span> : null}
       </div>
       <div className="min-h-0 flex-1">
         {loading ? (
-          <p className="flex h-full items-center justify-center text-sm text-slate-400">加载中…</p>
+          <p className="flex h-full items-center justify-center text-sm text-ink-faint">加载中…</p>
         ) : empty ? (
-          <p className="flex h-full items-center justify-center text-sm text-slate-400">暂无数据</p>
+          <p className="flex h-full items-center justify-center text-sm text-ink-faint">暂无数据</p>
         ) : (
           children
         )}
@@ -308,7 +308,7 @@ export function ConnectionHealthPanel({
     <ChartShell title="接入点健康与延迟" loading={loading ?? false} empty={!rows.length}>
       <div className="overflow-auto">
         <table className="w-full text-left text-sm">
-          <thead className="text-xs text-slate-500">
+          <thead className="text-xs text-ink-muted">
             <tr>
               <th className="pb-2 font-medium">名称</th>
               <th className="pb-2 font-medium">模型</th>
@@ -316,15 +316,15 @@ export function ConnectionHealthPanel({
               <th className="pb-2 font-medium">P95 (ms)</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-100">
+          <tbody className="divide-y divide-line">
             {rows.map((c) => (
               <tr key={c.id}>
-                <td className="py-2 pr-2 text-slate-800">{c.name}</td>
-                <td className="py-2 pr-2 text-slate-600">{c.model}</td>
+                <td className="py-2 pr-2 text-ink">{c.name}</td>
+                <td className="py-2 pr-2 text-ink-muted">{c.model}</td>
                 <td className="py-2 pr-2">
                   <HealthBadge health={c.health} />
                 </td>
-                <td className="py-2 text-slate-700">
+                <td className="py-2 text-ink">
                   {latestLatency.get(c.id) != null ? latestLatency.get(c.id) : '—'}
                 </td>
               </tr>
@@ -363,10 +363,10 @@ function mergeConnectionLatency(groups: SeriesGroup[]) {
 function HealthBadge({ health }: { health: string }) {
   const tone =
     health === 'healthy'
-      ? 'bg-emerald-50 text-emerald-700'
+      ? 'bg-ok/10 text-ok'
       : health === 'down'
-        ? 'bg-rose-50 text-rose-700'
-        : 'bg-slate-100 text-slate-600';
+        ? 'bg-danger/10 text-danger'
+        : 'bg-canvas text-ink-muted';
   const label = health === 'healthy' ? '正常' : health === 'down' ? '故障' : health || '未知';
   return <span className={`rounded px-1.5 py-0.5 text-xs font-medium ${tone}`}>{label}</span>;
 }

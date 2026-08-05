@@ -153,7 +153,7 @@ export function ConnectionsPanel({ enabled }: { enabled: boolean }) {
   return (
     <div className="space-y-5">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="text-sm text-slate-500">
+        <p className="text-sm text-ink-muted">
           管理租户模型接入点。平台接入点只读；凭证只写不回显。priority 越小越优先。
         </p>
         <button type="button" className="btn-primary" onClick={() => setShowCreate((v) => !v)}>
@@ -162,7 +162,7 @@ export function ConnectionsPanel({ enabled }: { enabled: boolean }) {
       </div>
 
       {error ? (
-        <p className="rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">
+        <p className="rounded-md border border-danger/30 bg-danger/5 px-3 py-2 text-sm text-danger">
           {error}
         </p>
       ) : null}
@@ -170,9 +170,9 @@ export function ConnectionsPanel({ enabled }: { enabled: boolean }) {
       {showCreate ? (
         <form
           onSubmit={(e) => void onCreate(e)}
-          className="space-y-3 rounded-xl border border-slate-200 bg-white p-4"
+          className="space-y-3 panel p-4"
         >
-          <h3 className="text-sm font-medium text-slate-900">新建接入点</h3>
+          <h3 className="text-sm font-medium text-ink">新建接入点</h3>
           <div className="grid gap-3 sm:grid-cols-2">
             <Field label="名称">
               <input
@@ -235,7 +235,7 @@ export function ConnectionsPanel({ enabled }: { enabled: boolean }) {
             value={form.purposes}
             onChange={(purposes) => setForm({ ...form, purposes })}
           />
-          <label className="flex items-center gap-2 text-sm text-slate-700">
+          <label className="flex items-center gap-2 text-sm text-ink">
             <input
               type="checkbox"
               checked={form.enabled}
@@ -250,9 +250,9 @@ export function ConnectionsPanel({ enabled }: { enabled: boolean }) {
       ) : null}
 
       {listQ.isLoading ? (
-        <p className="text-sm text-slate-400">加载中…</p>
+        <p className="text-sm text-ink-faint">加载中…</p>
       ) : rows.length === 0 ? (
-        <p className="rounded-xl border border-dashed border-slate-300 bg-white p-8 text-center text-sm text-slate-500">
+        <p className="panel border-dashed p-8 text-center text-sm text-ink-muted">
           暂无接入点
         </p>
       ) : (
@@ -261,33 +261,33 @@ export function ConnectionsPanel({ enabled }: { enabled: boolean }) {
             const readonly = c.scope === 'platform';
             const editing = editId === c.id && editDraft;
             return (
-              <li key={c.id} className="rounded-xl border border-slate-200 bg-white p-4">
+              <li key={c.id} className="panel p-4">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
                     <div className="flex flex-wrap items-center gap-2">
-                      <h3 className="text-sm font-medium text-slate-900">{c.name}</h3>
+                      <h3 className="text-sm font-medium text-ink">{c.name}</h3>
                       <HealthBadge health={c.health} />
                       <ScopeBadge scope={c.scope} />
                       {!c.enabled ? (
-                        <span className="rounded bg-slate-100 px-1.5 py-0.5 text-xs text-slate-500">
+                        <span className="rounded bg-canvas px-1.5 py-0.5 text-xs text-ink-muted">
                           已停用
                         </span>
                       ) : null}
                     </div>
-                    <p className="mt-1 text-xs text-slate-500">
+                    <p className="mt-1 text-xs text-ink-muted">
                       {c.provider_type} · {c.model} · priority {c.priority}
                     </p>
-                    <p className="mt-0.5 text-xs text-slate-400">
+                    <p className="mt-0.5 text-xs text-ink-faint">
                       用途：{c.purposes.join(', ')} · 凭证 {c.credential_masked}
                     </p>
                     {testMsg[c.id] ? (
-                      <p className="mt-1 text-xs text-slate-600">{testMsg[c.id]}</p>
+                      <p className="mt-1 text-xs text-ink-muted">{testMsg[c.id]}</p>
                     ) : null}
                   </div>
                   <div className="flex flex-wrap gap-2">
                     <button
                       type="button"
-                      className="rounded-md border border-slate-200 px-2.5 py-1 text-xs text-slate-700 hover:bg-slate-50"
+                      className="rounded-md border border-line px-2.5 py-1 text-xs text-ink hover:bg-canvas"
                       onClick={() => void onTest(c.id)}
                       disabled={testM.isPending}
                     >
@@ -297,14 +297,14 @@ export function ConnectionsPanel({ enabled }: { enabled: boolean }) {
                       <>
                         <button
                           type="button"
-                          className="rounded-md border border-slate-200 px-2.5 py-1 text-xs text-slate-700 hover:bg-slate-50"
+                          className="rounded-md border border-line px-2.5 py-1 text-xs text-ink hover:bg-canvas"
                           onClick={() => startEdit(c)}
                         >
                           编辑
                         </button>
                         <button
                           type="button"
-                          className="rounded-md border border-rose-200 px-2.5 py-1 text-xs text-rose-700 hover:bg-rose-50"
+                          className="rounded-md border border-danger/30 px-2.5 py-1 text-xs text-danger hover:bg-danger/5"
                           onClick={() => void onDelete(c)}
                         >
                           删除
@@ -315,7 +315,7 @@ export function ConnectionsPanel({ enabled }: { enabled: boolean }) {
                 </div>
 
                 {editing ? (
-                  <div className="mt-4 space-y-3 border-t border-slate-100 pt-4">
+                  <div className="mt-4 space-y-3 border-t border-line pt-4">
                     <div className="grid gap-3 sm:grid-cols-2">
                       <Field label="名称">
                         <input
@@ -372,7 +372,7 @@ export function ConnectionsPanel({ enabled }: { enabled: boolean }) {
                       </button>
                       <button
                         type="button"
-                        className="rounded-md border border-slate-200 px-3 py-2 text-sm"
+                        className="rounded-md border border-line px-3 py-2 text-sm"
                         onClick={() => {
                           setEditId(null);
                           setEditDraft(null);
@@ -381,7 +381,7 @@ export function ConnectionsPanel({ enabled }: { enabled: boolean }) {
                         取消
                       </button>
                     </div>
-                    <div className="flex flex-wrap items-end gap-2 border-t border-slate-100 pt-3">
+                    <div className="flex flex-wrap items-end gap-2 border-t border-line pt-3">
                       <Field label="更新 API Key（只写）">
                         <input
                           type="password"
@@ -396,7 +396,7 @@ export function ConnectionsPanel({ enabled }: { enabled: boolean }) {
                       </Field>
                       <button
                         type="button"
-                        className="rounded-md bg-slate-800 px-3 py-2 text-sm text-white"
+                        className="rounded-md bg-ink px-3 py-2 text-sm text-white"
                         onClick={() => void onSaveCred(c.id)}
                         disabled={credM.isPending}
                       >
@@ -411,13 +411,13 @@ export function ConnectionsPanel({ enabled }: { enabled: boolean }) {
         </ul>
       )}
 
-      <section className="rounded-xl border border-slate-200 bg-white p-4">
-        <h3 className="text-sm font-medium text-slate-900">用途路由（当前命中）</h3>
+      <section className="panel p-4">
+        <h3 className="text-sm font-medium text-ink">用途路由（当前命中）</h3>
         {routesQ.isLoading ? (
-          <p className="mt-3 text-sm text-slate-400">加载中…</p>
+          <p className="mt-3 text-sm text-ink-faint">加载中…</p>
         ) : (
           <table className="mt-3 w-full text-left text-sm">
-            <thead className="text-xs text-slate-500">
+            <thead className="text-xs text-ink-muted">
               <tr>
                 <th className="pb-2 font-medium">用途</th>
                 <th className="pb-2 font-medium">来源</th>
@@ -425,15 +425,15 @@ export function ConnectionsPanel({ enabled }: { enabled: boolean }) {
                 <th className="pb-2 font-medium">模型</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
+            <tbody className="divide-y divide-line">
               {(routesQ.data?.items ?? []).map((r) => (
                 <tr key={r.purpose}>
                   <td className="py-2 pr-2">{r.purpose}</td>
                   <td className="py-2 pr-2">
                     <SourceBadge source={r.source} />
                   </td>
-                  <td className="py-2 pr-2 text-slate-700">{r.name ?? '—'}</td>
-                  <td className="py-2 text-slate-600">{r.model}</td>
+                  <td className="py-2 pr-2 text-ink">{r.name ?? '—'}</td>
+                  <td className="py-2 text-ink-muted">{r.model}</td>
                 </tr>
               ))}
             </tbody>
@@ -467,7 +467,7 @@ function PurposePicker({
         {PURPOSES.map((p) => {
           const checked = value.includes(p);
           return (
-            <label key={p} className="flex items-center gap-1.5 text-sm text-slate-700">
+            <label key={p} className="flex items-center gap-1.5 text-sm text-ink">
               <input
                 type="checkbox"
                 checked={checked}
@@ -492,12 +492,12 @@ function PurposePicker({
 function HealthBadge({ health }: { health: string }) {
   const tone =
     health === 'healthy'
-      ? 'bg-emerald-50 text-emerald-700'
+      ? 'bg-ok/10 text-ok'
       : health === 'down'
-        ? 'bg-rose-50 text-rose-700'
+        ? 'bg-danger/10 text-danger'
         : health === 'degraded'
-          ? 'bg-amber-50 text-amber-700'
-          : 'bg-slate-100 text-slate-600';
+          ? 'bg-warn/10 text-warn'
+          : 'bg-canvas text-ink-muted';
   const label =
     health === 'healthy'
       ? '正常'
@@ -511,7 +511,7 @@ function HealthBadge({ health }: { health: string }) {
 
 function ScopeBadge({ scope }: { scope: string }) {
   return (
-    <span className="rounded bg-slate-100 px-1.5 py-0.5 text-xs text-slate-600">
+    <span className="rounded bg-canvas px-1.5 py-0.5 text-xs text-ink-muted">
       {scope === 'platform' ? '平台' : '租户'}
     </span>
   );
@@ -519,5 +519,5 @@ function ScopeBadge({ scope }: { scope: string }) {
 
 function SourceBadge({ source }: { source: string }) {
   const label = source === 'env' ? '环境变量' : source === 'platform' ? '平台' : '租户';
-  return <span className="text-slate-700">{label}</span>;
+  return <span className="text-ink">{label}</span>;
 }
