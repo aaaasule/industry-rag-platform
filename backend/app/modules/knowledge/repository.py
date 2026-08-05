@@ -67,7 +67,9 @@ class KnowledgeRepository:
         row = (
             await self._session.execute(
                 select(IndustryProfile.id).where(
-                    IndustryProfile.code == code, IndustryProfile.tenant_id == tenant_id
+                    IndustryProfile.code == code,
+                    IndustryProfile.tenant_id == tenant_id,
+                    IndustryProfile.deleted_at.is_(None),
                 )
             )
         ).scalar_one_or_none()

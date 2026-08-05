@@ -170,6 +170,36 @@ async def test_cannot_delete_builtin(client: AsyncClient, auth_headers: dict[str
     assert resp.json()["error"]["code"] == "builtin_immutable"
 
 
+async def test_reuse_profile_code_after_soft_delete(
+    client: AsyncClient, auth_headers: dict[str, str]
+) -> None:
+    await _ensure_builtin_general()
+    code = f"reuse_{uuid.uuid4().hex[:8]}"
+
+    derived = await client.post(
+        "/api/v1/industry-profiles",
+        headers=auth_headers,
+        json={"base_code": "general", "code": code, "name": "首次模板"},
+    )
+    assert derived.status_code == 201, derived.text
+    profile_id = derived.json()["id"]
+
+    deleted = await client.delete(
+        f"/api/v1/industry-profiles/{profile_id}", headers=auth_headers
+    )
+    assert deleted.status_code == 204, deleted.text
+
+    recreated = await client.post(
+        "/api/v1/industry-profiles",
+        headers=auth_headers,
+        json={"base_code": "general", "code": code, "name": "复用同 code"},
+    )
+    assert recreated.status_code == 201, recreated.text
+    assert recreated.json()["code"] == code
+    assert recreated.json()["id"] != profile_id
+    assert recreated.json()["name"] == "复用同 code"
+
+
 async def test_cannot_delete_profile_in_use(
     client: AsyncClient, auth_headers: dict[str, str]
 ) -> None:
