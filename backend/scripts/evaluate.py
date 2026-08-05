@@ -94,7 +94,9 @@ def main() -> int:
                     row.get("expected_document_ids") or row.get("expected_document_titles")
                 )
                 if not has_label:
-                    details.append({"query": query, "skipped": True, "reason": "no expected labels"})
+                    details.append(
+                        {"query": query, "skipped": True, "reason": "no expected labels"}
+                    )
                     continue
                 hit = 1.0 if rank is not None else 0.0
                 rr = 1.0 / rank if rank is not None else 0.0

@@ -196,7 +196,9 @@ async def _ensure_kb_doc_chunk(
         else:
             logger.info("kb_exists", kb_id=str(KB_ID))
 
-        doc = (await session.execute(select(Document).where(Document.id == DOC_ID))).scalar_one_or_none()
+        doc = (
+            await session.execute(select(Document).where(Document.id == DOC_ID))
+        ).scalar_one_or_none()
         if doc is None:
             doc = Document(
                 id=DOC_ID,
