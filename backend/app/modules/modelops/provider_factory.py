@@ -51,23 +51,31 @@ class ProviderFactory:
         )
         return row, source
 
-    async def get_llm(self, tenant_id: uuid.UUID) -> LLMProvider:
+    async def get_llm(self, tenant_id: uuid.UUID, *, cache: bool = True) -> LLMProvider:
         conn, _ = await self.resolve_connection("chat", tenant_id)
         if conn is None:
             # title 可回退 chat；此处 chat 直接 env
-            return build_llm_provider(self._settings)
+            return build_llm_provider(self._settings, shared_client=cache)
+        if not cache:
+            return build_llm_from_connection(conn, settings=self._settings, shared_client=False)
         return self._cached(conn, "llm", build_llm_from_connection)
 
-    async def get_embedding(self, tenant_id: uuid.UUID) -> EmbeddingProvider:
+    async def get_embedding(self, tenant_id: uuid.UUID, *, cache: bool = True) -> EmbeddingProvider:
         conn, _ = await self.resolve_connection("embedding", tenant_id)
         if conn is None:
-            return build_embedding_provider(self._settings)
+            return build_embedding_provider(self._settings, shared_client=cache)
+        if not cache:
+            return build_embedding_from_connection(
+                conn, settings=self._settings, shared_client=False
+            )
         return self._cached(conn, "embedding", build_embedding_from_connection)
 
-    async def get_rerank(self, tenant_id: uuid.UUID) -> RerankProvider:
+    async def get_rerank(self, tenant_id: uuid.UUID, *, cache: bool = True) -> RerankProvider:
         conn, _ = await self.resolve_connection("rerank", tenant_id)
         if conn is None:
-            return build_rerank_provider(self._settings)
+            return build_rerank_provider(self._settings, shared_client=cache)
+        if not cache:
+            return build_rerank_from_connection(conn, settings=self._settings, shared_client=False)
         return self._cached(conn, "rerank", build_rerank_from_connection)
 
     async def routes(self, tenant_id: uuid.UUID) -> RoutesOut:
