@@ -179,6 +179,20 @@ class KnowledgeService:
         await self._repo._session.flush()
         return IndustryProfileOut.model_validate(profile)
 
+    async def delete_profile(self, claims: TokenClaims, profile_id: uuid.UUID) -> None:
+        row = await self._repo.get_profile(claims.tenant_id, profile_id)
+        if row is None or row.deleted_at is not None:
+            raise NotFound("行业模板不存在")
+        if row.is_builtin or row.tenant_id is None:
+            raise UnprocessableState("内置模板不可删除", code="builtin_immutable")
+        if row.tenant_id != claims.tenant_id:
+            raise NotFound("行业模板不存在")
+        in_use = await self._repo.count_kbs_with_profile(profile_id)
+        if in_use:
+            raise Conflict("仍有知识库绑定该模板", code="profile_in_use")
+        row.deleted_at = datetime.now(UTC)
+        await self._repo._session.flush()
+
     async def list_knowledge_bases(self, claims: TokenClaims) -> list[KnowledgeBaseOut]:
         ids = await visible_kb_ids(
             self._repo._session,
@@ -341,6 +355,12 @@ class KnowledgeService:
         dup = await self._repo.find_by_checksum(kb_id, payload.checksum)
         if dup is not None:
             raise Conflict("同知识库已存在相同文件", code="duplicate_document")
+
+        from app.modules.knowledge.metadata_validate import validate_document_metadata
+        from app.modules.profile.service import resolve_effective_profile
+
+        effective = await resolve_effective_profile(self._repo._session, kb.id)
+        validate_document_metadata(payload.metadata or {}, effective.metadata_schema)
 
         doc = Document(
             id=payload.document_id,

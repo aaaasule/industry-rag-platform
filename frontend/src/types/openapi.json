@@ -422,6 +422,147 @@
             "HTTPBearer": []
           }
         ]
+      },
+      "post": {
+        "tags": [
+          "knowledge"
+        ],
+        "summary": "Create Profile",
+        "operationId": "create_profile_api_v1_industry_profiles_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IndustryProfileCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IndustryProfileOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/industry-profiles/{profile_id}": {
+      "patch": {
+        "tags": [
+          "knowledge"
+        ],
+        "summary": "Update Profile",
+        "operationId": "update_profile_api_v1_industry_profiles__profile_id__patch",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "profile_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Profile Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IndustryProfileUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IndustryProfileOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "knowledge"
+        ],
+        "summary": "Delete Profile",
+        "operationId": "delete_profile_api_v1_industry_profiles__profile_id__delete",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "profile_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Profile Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/api/v1/knowledge-bases": {
@@ -3101,6 +3242,103 @@
         "type": "object",
         "title": "HitScores"
       },
+      "IndustryProfileCreate": {
+        "properties": {
+          "base_code": {
+            "type": "string",
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Base Code"
+          },
+          "code": {
+            "type": "string",
+            "maxLength": 100,
+            "minLength": 1,
+            "pattern": "^[a-z][a-z0-9_]*$",
+            "title": "Code"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 200,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "chunk_rules": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Chunk Rules"
+          },
+          "prompt_overrides": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Prompt Overrides"
+          },
+          "retrieval_rules": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Retrieval Rules"
+          },
+          "parse_rules": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parse Rules"
+          },
+          "metadata_schema": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Metadata Schema"
+          }
+        },
+        "type": "object",
+        "required": [
+          "base_code",
+          "code"
+        ],
+        "title": "IndustryProfileCreate",
+        "description": "从 base_code 派生租户自定义模板。"
+      },
       "IndustryProfileOut": {
         "properties": {
           "id": {
@@ -3131,6 +3369,31 @@
               }
             ],
             "title": "Tenant Id"
+          },
+          "chunk_rules": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Chunk Rules"
+          },
+          "prompt_overrides": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Prompt Overrides"
+          },
+          "retrieval_rules": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Retrieval Rules"
+          },
+          "parse_rules": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Parse Rules"
+          },
+          "metadata_schema": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Metadata Schema"
           }
         },
         "type": "object",
@@ -3142,6 +3405,85 @@
           "tenant_id"
         ],
         "title": "IndustryProfileOut"
+      },
+      "IndustryProfileUpdate": {
+        "properties": {
+          "name": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 200,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "chunk_rules": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Chunk Rules"
+          },
+          "prompt_overrides": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Prompt Overrides"
+          },
+          "retrieval_rules": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Retrieval Rules"
+          },
+          "parse_rules": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parse Rules"
+          },
+          "metadata_schema": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Metadata Schema"
+          }
+        },
+        "type": "object",
+        "title": "IndustryProfileUpdate"
       },
       "KnowledgeBaseCreate": {
         "properties": {
@@ -3300,6 +3642,20 @@
               }
             ],
             "title": "Visibility"
+          },
+          "profile_code": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 100,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Profile Code",
+            "description": "改绑行业模板 code"
           }
         },
         "type": "object",
@@ -3985,11 +4341,17 @@
             "title": "Kb Ids"
           },
           "top_k": {
-            "type": "integer",
-            "maximum": 50.0,
-            "minimum": 1.0,
-            "title": "Top K",
-            "default": 8
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 50.0,
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Top K"
           },
           "options": {
             "additionalProperties": true,

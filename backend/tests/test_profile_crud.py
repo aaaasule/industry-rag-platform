@@ -124,3 +124,95 @@ async def test_derive_patch_and_rebind_kb(
         assert effective.code == code
         assert effective.retrieval_rules.top_k == 15
         assert effective.prompt_overrides.system == "自定义助手"
+
+
+async def test_delete_custom_profile(client: AsyncClient, auth_headers: dict[str, str]) -> None:
+    await _ensure_builtin_general()
+
+    derived = await client.post(
+        "/api/v1/industry-profiles",
+        headers=auth_headers,
+        json={
+            "base_code": "general",
+            "code": f"del_{uuid.uuid4().hex[:8]}",
+            "name": "待删除模板",
+        },
+    )
+    assert derived.status_code == 201, derived.text
+    profile_id = derived.json()["id"]
+
+    deleted = await client.delete(f"/api/v1/industry-profiles/{profile_id}", headers=auth_headers)
+    assert deleted.status_code == 204, deleted.text
+
+    listed = await client.get("/api/v1/industry-profiles", headers=auth_headers)
+    assert listed.status_code == 200
+    assert all(p["id"] != profile_id for p in listed.json())
+
+    again = await client.delete(f"/api/v1/industry-profiles/{profile_id}", headers=auth_headers)
+    assert again.status_code == 404
+
+
+async def test_cannot_delete_builtin(client: AsyncClient, auth_headers: dict[str, str]) -> None:
+    await _ensure_builtin_general()
+
+    listed = await client.get("/api/v1/industry-profiles", headers=auth_headers)
+    assert listed.status_code == 200
+    builtin = next(p for p in listed.json() if p["code"] == "general" and p["is_builtin"])
+
+    resp = await client.delete(f"/api/v1/industry-profiles/{builtin['id']}", headers=auth_headers)
+    assert resp.status_code == 422
+    assert resp.json()["error"]["code"] == "builtin_immutable"
+
+
+async def test_reuse_profile_code_after_soft_delete(
+    client: AsyncClient, auth_headers: dict[str, str]
+) -> None:
+    await _ensure_builtin_general()
+    code = f"reuse_{uuid.uuid4().hex[:8]}"
+
+    derived = await client.post(
+        "/api/v1/industry-profiles",
+        headers=auth_headers,
+        json={"base_code": "general", "code": code, "name": "首次模板"},
+    )
+    assert derived.status_code == 201, derived.text
+    profile_id = derived.json()["id"]
+
+    deleted = await client.delete(f"/api/v1/industry-profiles/{profile_id}", headers=auth_headers)
+    assert deleted.status_code == 204, deleted.text
+
+    recreated = await client.post(
+        "/api/v1/industry-profiles",
+        headers=auth_headers,
+        json={"base_code": "general", "code": code, "name": "复用同 code"},
+    )
+    assert recreated.status_code == 201, recreated.text
+    assert recreated.json()["code"] == code
+    assert recreated.json()["id"] != profile_id
+    assert recreated.json()["name"] == "复用同 code"
+
+
+async def test_cannot_delete_profile_in_use(
+    client: AsyncClient, auth_headers: dict[str, str]
+) -> None:
+    await _ensure_builtin_general()
+    code = f"inuse_{uuid.uuid4().hex[:8]}"
+
+    derived = await client.post(
+        "/api/v1/industry-profiles",
+        headers=auth_headers,
+        json={"base_code": "general", "code": code, "name": "占用中模板"},
+    )
+    assert derived.status_code == 201, derived.text
+    profile_id = derived.json()["id"]
+
+    kb = await client.post(
+        "/api/v1/knowledge-bases",
+        headers=auth_headers,
+        json={"name": "绑定占用库", "profile_code": code},
+    )
+    assert kb.status_code == 201, kb.text
+
+    resp = await client.delete(f"/api/v1/industry-profiles/{profile_id}", headers=auth_headers)
+    assert resp.status_code == 409
+    assert resp.json()["error"]["code"] == "profile_in_use"

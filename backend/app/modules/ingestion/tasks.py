@@ -330,7 +330,8 @@ async def _embed_document(document_id: uuid.UUID, tenant_id: uuid.UUID, job_id: 
                             f"embedding dim mismatch: got {len(vec)}, "
                             f"expect {settings.embedding_dim}"
                         )
-                    tsv_text = build_tsv(draft.content)
+                    dictionary = effective.parse_rules.get("dictionary")
+                    tsv_text = build_tsv(draft.content, dictionary=dictionary)
                     tsv_value = (
                         await session.execute(select(func.to_tsvector("simple", tsv_text)))
                     ).scalar_one()

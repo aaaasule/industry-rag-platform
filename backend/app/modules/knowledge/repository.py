@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import uuid
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.modules.knowledge.models import Chunk, Document, IndustryProfile, KbGrant, KnowledgeBase
@@ -17,7 +17,10 @@ class KnowledgeRepository:
     async def list_profiles(self, tenant_id: uuid.UUID) -> list[IndustryProfile]:
         stmt = (
             select(IndustryProfile)
-            .where((IndustryProfile.tenant_id.is_(None)) | (IndustryProfile.tenant_id == tenant_id))
+            .where(
+                (IndustryProfile.tenant_id.is_(None)) | (IndustryProfile.tenant_id == tenant_id),
+                IndustryProfile.deleted_at.is_(None),
+            )
             .order_by(IndustryProfile.is_builtin.desc(), IndustryProfile.code)
         )
         return list((await self._session.execute(stmt)).scalars().all())
@@ -27,7 +30,9 @@ class KnowledgeRepository:
         tenant_row = (
             await self._session.execute(
                 select(IndustryProfile).where(
-                    IndustryProfile.code == code, IndustryProfile.tenant_id == tenant_id
+                    IndustryProfile.code == code,
+                    IndustryProfile.tenant_id == tenant_id,
+                    IndustryProfile.deleted_at.is_(None),
                 )
             )
         ).scalar_one_or_none()
@@ -36,7 +41,9 @@ class KnowledgeRepository:
         return (
             await self._session.execute(
                 select(IndustryProfile).where(
-                    IndustryProfile.code == code, IndustryProfile.tenant_id.is_(None)
+                    IndustryProfile.code == code,
+                    IndustryProfile.tenant_id.is_(None),
+                    IndustryProfile.deleted_at.is_(None),
                 )
             )
         ).scalar_one_or_none()
@@ -51,6 +58,7 @@ class KnowledgeRepository:
                     IndustryProfile.id == profile_id,
                     (IndustryProfile.tenant_id.is_(None))
                     | (IndustryProfile.tenant_id == tenant_id),
+                    IndustryProfile.deleted_at.is_(None),
                 )
             )
         ).scalar_one_or_none()
@@ -59,11 +67,25 @@ class KnowledgeRepository:
         row = (
             await self._session.execute(
                 select(IndustryProfile.id).where(
-                    IndustryProfile.code == code, IndustryProfile.tenant_id == tenant_id
+                    IndustryProfile.code == code,
+                    IndustryProfile.tenant_id == tenant_id,
+                    IndustryProfile.deleted_at.is_(None),
                 )
             )
         ).scalar_one_or_none()
         return row is not None
+
+    async def count_kbs_with_profile(self, profile_id: uuid.UUID) -> int:
+        """统计仍绑定该模板且未软删的知识库数量。"""
+        result = await self._session.execute(
+            select(func.count())
+            .select_from(KnowledgeBase)
+            .where(
+                KnowledgeBase.profile_id == profile_id,
+                KnowledgeBase.deleted_at.is_(None),
+            )
+        )
+        return int(result.scalar_one())
 
     async def add_profile(self, profile: IndustryProfile) -> IndustryProfile:
         self._session.add(profile)

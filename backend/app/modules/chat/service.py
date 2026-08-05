@@ -281,6 +281,7 @@ class ChatService:
                 kb_ids=list(conv.kb_ids),
                 top_k=effective.retrieval_rules.top_k,
                 options=SearchOptions(rerank=rerank),
+                dictionary=effective.parse_rules.get("dictionary"),
             )
         except AppError as exc:
             asst.content = str(exc.message)

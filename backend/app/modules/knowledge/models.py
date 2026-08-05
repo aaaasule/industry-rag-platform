@@ -62,6 +62,7 @@ class IndustryProfile(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         JSONColumn, nullable=False, default=dict
     )
     is_builtin: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
 
 class KnowledgeBase(UUIDPrimaryKeyMixin, Base):

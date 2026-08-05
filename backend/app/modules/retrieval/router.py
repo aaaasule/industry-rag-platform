@@ -61,6 +61,7 @@ async def search(
         expand_context=int(payload.options.get("expand_context", 1)),
         rerank=rerank,
     )
+    dictionary = effective.parse_rules.get("dictionary")
     result = await service.search(
         tenant_id=claims.tenant_id,
         user_id=claims.user_id,
@@ -69,6 +70,7 @@ async def search(
         kb_ids=payload.kb_ids,
         top_k=top_k,
         options=opts,
+        dictionary=dictionary,
     )
     return SearchResponse(
         query=result.rewritten_query,

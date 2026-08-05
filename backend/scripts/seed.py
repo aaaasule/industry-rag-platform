@@ -79,7 +79,7 @@ BUILTIN_PROFILES: list[dict[str, Any]] = [
             "clause_mode": False,
             "keep_heading_prefix": True,
         },
-        "parse_rules": {},
+        "parse_rules": {"dictionary": ["液压缸座总成", "HYD-2201"]},
         "metadata_schema": {"equipment_model": {"type": "string"}},
         "prompt_overrides": {},
         "retrieval_rules": {"top_k": 8},

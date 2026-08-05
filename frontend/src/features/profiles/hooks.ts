@@ -1,5 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
+import type { ApiError } from '@/lib/http';
+
 import * as api from './api';
 
 export function useProfiles(enabled = true) {
@@ -23,6 +25,14 @@ export function useUpdateProfile() {
   return useMutation({
     mutationFn: ({ id, body }: { id: string; body: api.IndustryProfileUpdate }) =>
       api.updateProfile(id, body),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: api.PROFILES_KEY }),
+  });
+}
+
+export function useDeleteProfile() {
+  const qc = useQueryClient();
+  return useMutation<void, ApiError, string>({
+    mutationFn: api.deleteProfile,
     onSuccess: () => void qc.invalidateQueries({ queryKey: api.PROFILES_KEY }),
   });
 }

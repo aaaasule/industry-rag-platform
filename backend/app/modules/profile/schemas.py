@@ -17,7 +17,9 @@ class ChunkRulesConfig(BaseModel):
 
 
 class ParseRulesConfig(BaseModel):
-    """预留：OCR / 页眉页脚 / 术语表等。本切片仅占位。"""
+    """预留：OCR / 页眉页脚 / 术语表等。"""
+
+    dictionary: list[str] = Field(default_factory=list)
 
     model_config = {"extra": "allow"}
 

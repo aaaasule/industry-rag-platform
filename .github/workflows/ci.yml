@@ -97,6 +97,104 @@ jobs:
       - name: Export OpenAPI
         run: uv run python -m scripts.export_openapi ../frontend/src/types/openapi.json
 
+  eval:
+    name: Retrieval eval
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: irp
+          POSTGRES_PASSWORD: irp
+          POSTGRES_DB: irp
+        ports:
+          - 5433:5432
+        options: >-
+          --health-cmd "pg_isready -U irp -d irp"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 20
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6380:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 20
+    env:
+      IRP_ENVIRONMENT: local
+      IRP_LOG_LEVEL: WARNING
+      IRP_LOG_FORMAT: console
+      IRP_DATABASE_URL: postgresql+asyncpg://irp_app:irp_app@127.0.0.1:5433/irp
+      IRP_DATABASE_MIGRATION_URL: postgresql+asyncpg://irp:irp@127.0.0.1:5433/irp
+      IRP_REDIS_URL: redis://127.0.0.1:6380/0
+      IRP_JWT_SECRET: ci-only-change-me-0123456789abcdef
+      IRP_LLM_PROVIDER: fake
+      IRP_EMBEDDING_PROVIDER: fake
+      IRP_RERANK_PROVIDER: fake
+      IRP_EMBEDDING_DIM: "1024"
+      IRP_RETRIEVAL_RERANK_DEFAULT: "false"
+      IRP_S3_ENDPOINT: http://127.0.0.1:9000
+      IRP_S3_BUCKET: irp-documents
+      IRP_S3_ACCESS_KEY: minioadmin
+      IRP_S3_SECRET_KEY: minioadmin
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install dependencies
+        run: uv sync --frozen --extra dev
+      - name: Init Postgres app role
+        env:
+          PGPASSWORD: irp
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq postgresql-client
+          psql -h 127.0.0.1 -p 5433 -U irp -d irp -v ON_ERROR_STOP=1 \
+            -f ../deploy/postgres-init/01-app-role.sql
+      - name: Migrate
+        run: uv run alembic upgrade head
+      - name: Start API
+        run: |
+          nohup uv run uvicorn app.main:app --host 127.0.0.1 --port 8000 \
+            > /tmp/uvicorn.log 2>&1 &
+          echo $! > /tmp/uvicorn.pid
+      - name: Wait for API
+        run: |
+          for i in $(seq 1 60); do
+            if curl -fsS http://127.0.0.1:8000/healthz >/dev/null 2>&1; then
+              echo "API ready"
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "API failed to start" >&2
+          tail -n 100 /tmp/uvicorn.log >&2 || true
+          exit 1
+      - name: Seed eval CI data
+        run: uv run python -m scripts.seed_eval_ci
+      - name: Evaluate retrieval (hard gate)
+        run: |
+          uv run python scripts/evaluate.py \
+            --base http://127.0.0.1:8000/api/v1 \
+            --email eval-ci@example.com \
+            --password 'EvalCI-Passw0rd!' \
+            --tenant eval-ci \
+            --kb-id 01900000-0000-7000-8000-000000000001 \
+            --golden evals/golden.ci.jsonl \
+            --k 10 \
+            --min-recall 1.0 \
+            --min-mrr 1.0
+
   frontend:
     name: Frontend
     runs-on: ubuntu-latest
