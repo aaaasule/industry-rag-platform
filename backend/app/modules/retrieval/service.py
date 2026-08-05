@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import time
 import uuid
+from collections.abc import Sequence
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -42,6 +43,7 @@ class RetrievalService:
         kb_ids: list[uuid.UUID] | None,
         top_k: int = 8,
         options: SearchOptions | None = None,
+        dictionary: Sequence[str] | None = None,
     ) -> SearchResult:
         opts = options or SearchOptions()
         t0 = time.perf_counter()
@@ -63,7 +65,7 @@ class RetrievalService:
             resolved = list(kb_ids)
 
         q_norm = normalize(query)
-        tsv_q = build_tsv(q_norm)
+        tsv_q = build_tsv(q_norm, dictionary=dictionary)
 
         emb_t0 = time.perf_counter()
         vectors = await self._embedding.embed([q_norm], input_type="query")
