@@ -17,21 +17,27 @@ import {
   YAxis,
 } from 'recharts';
 
+import { EmptyState } from '@/components/EmptyState';
+import { ChartSkeleton } from '@/components/Skeleton';
+import { HealthStatusBadge } from '@/components/StatusBadge';
+
 import type { BreakdownItem, ModelConnection, SeriesGroup } from './api';
 import { mergeSeriesPoints } from './api';
 
-const COLORS = ['#0f766e', '#0369a1', '#b45309', '#7c3aed', '#be123c', '#334155', '#059669'];
+const COLORS = ['#2F6F7E', '#3D6B4F', '#B8792A', '#5C6570', '#A33B2B', '#275A66', '#8A929A'];
 
 function ChartShell({
   title,
   hint = null,
   empty = false,
+  emptyHint = '所选时间范围内暂无用量记录',
   loading = false,
   children,
 }: {
   title: string;
   hint?: string | null;
   empty?: boolean;
+  emptyHint?: string;
   loading?: boolean;
   children: ReactNode;
 }) {
@@ -41,11 +47,18 @@ function ChartShell({
         <h3 className="text-sm font-medium text-ink">{title}</h3>
         {hint ? <span className="text-xs text-ink-faint">{hint}</span> : null}
       </div>
-      <div className="min-h-0 flex-1">
+      <div className="flex min-h-0 flex-1 flex-col">
         {loading ? (
-          <p className="flex h-full items-center justify-center text-sm text-ink-faint">加载中…</p>
+          <div className="flex h-full items-center">
+            <ChartSkeleton />
+          </div>
         ) : empty ? (
-          <p className="flex h-full items-center justify-center text-sm text-ink-faint">暂无数据</p>
+          <EmptyState
+            compact
+            className="h-full"
+            title={`${title}暂无数据`}
+            description={emptyHint}
+          />
         ) : (
           children
         )}
@@ -74,6 +87,7 @@ export function TokenTrendChart({
       hint={stale ?? null}
       loading={loading ?? false}
       empty={!data.length}
+      emptyHint="产生调用后将显示 Token 随时间变化"
     >
       <ResponsiveContainer width="100%" height={220}>
         <AreaChart data={data}>
@@ -86,16 +100,16 @@ export function TokenTrendChart({
             type="monotone"
             dataKey="prompt"
             stackId="1"
-            stroke="#0f766e"
-            fill="#99f6e4"
+            stroke="#2F6F7E"
+            fill="#C8E0E5"
             name="prompt"
           />
           <Area
             type="monotone"
             dataKey="completion"
             stackId="1"
-            stroke="#0369a1"
-            fill="#bae6fd"
+            stroke="#275A66"
+            fill="#E4F0F2"
             name="completion"
           />
         </AreaChart>
@@ -122,6 +136,7 @@ export function CostTrendChart({
       hint={(quotaHint ? `${stale ?? ''} · ${quotaHint}`.replace(/^ · /, '') : stale) ?? null}
       loading={loading ?? false}
       empty={!data.length}
+      emptyHint="产生调用后将显示成本随时间变化"
     >
       <ResponsiveContainer width="100%" height={220}>
         <LineChart data={data}>
@@ -132,7 +147,7 @@ export function CostTrendChart({
           <Line
             type="monotone"
             dataKey="cost"
-            stroke="#b45309"
+            stroke="#B8792A"
             strokeWidth={2}
             dot={false}
             name="USD"
@@ -164,6 +179,7 @@ export function ModelDonutChart({
       hint={stale ?? null}
       loading={loading ?? false}
       empty={!data.length}
+      emptyHint="按模型聚合的成本占比将显示在此"
     >
       <ResponsiveContainer width="100%" height={220}>
         <PieChart>
@@ -203,6 +219,7 @@ export function PurposeBarChart({
       hint={stale ?? null}
       loading={loading ?? false}
       empty={!data.length}
+      emptyHint="chat / embedding 等用途成本将显示在此"
     >
       <ResponsiveContainer width="100%" height={220}>
         <BarChart data={data}>
@@ -210,7 +227,7 @@ export function PurposeBarChart({
           <XAxis dataKey="name" tick={{ fontSize: 11 }} />
           <YAxis tick={{ fontSize: 11 }} />
           <Tooltip />
-          <Bar dataKey="value" fill="#0f766e" name="USD" radius={[4, 4, 0, 0]} />
+          <Bar dataKey="value" fill="#2F6F7E" name="USD" radius={[4, 4, 0, 0]} />
         </BarChart>
       </ResponsiveContainer>
     </ChartShell>
@@ -236,6 +253,7 @@ export function SuccessRateChart({
       hint={stale ?? null}
       loading={loading ?? false}
       empty={!data.length}
+      emptyHint="产生调用后将显示成功率曲线"
     >
       <ResponsiveContainer width="100%" height={220}>
         <LineChart data={data}>
@@ -246,7 +264,7 @@ export function SuccessRateChart({
           <Line
             type="monotone"
             dataKey="rate"
-            stroke="#059669"
+            stroke="#3D6B4F"
             strokeWidth={2}
             dot={false}
             name="成功率 %"
@@ -273,6 +291,7 @@ export function TopConsumersChart({
       hint={stale ?? null}
       loading={loading ?? false}
       empty={!data.length}
+      emptyHint="按用户或知识库聚合的消耗排行将显示在此"
     >
       <ResponsiveContainer width="100%" height={220}>
         <BarChart data={data} layout="vertical" margin={{ left: 24 }}>
@@ -280,7 +299,7 @@ export function TopConsumersChart({
           <XAxis type="number" tick={{ fontSize: 11 }} />
           <YAxis type="category" dataKey="name" width={96} tick={{ fontSize: 11 }} />
           <Tooltip />
-          <Bar dataKey="value" fill="#7c3aed" name="USD" radius={[0, 4, 4, 0]} />
+          <Bar dataKey="value" fill="#275A66" name="USD" radius={[0, 4, 4, 0]} />
         </BarChart>
       </ResponsiveContainer>
     </ChartShell>
@@ -305,7 +324,12 @@ export function ConnectionHealthPanel({
   }
   const rows = connections ?? [];
   return (
-    <ChartShell title="接入点健康与延迟" loading={loading ?? false} empty={!rows.length}>
+    <ChartShell
+      title="接入点健康与延迟"
+      loading={loading ?? false}
+      empty={!rows.length}
+      emptyHint="配置模型接入点后可在此查看健康与延迟"
+    >
       <div className="overflow-auto">
         <table className="w-full text-left text-sm">
           <thead className="text-xs text-ink-muted">
@@ -322,7 +346,7 @@ export function ConnectionHealthPanel({
                 <td className="py-2 pr-2 text-ink">{c.name}</td>
                 <td className="py-2 pr-2 text-ink-muted">{c.model}</td>
                 <td className="py-2 pr-2">
-                  <HealthBadge health={c.health} />
+                  <HealthStatusBadge health={c.health} />
                 </td>
                 <td className="py-2 text-ink">
                   {latestLatency.get(c.id) != null ? latestLatency.get(c.id) : '—'}
@@ -343,7 +367,7 @@ export function ConnectionHealthPanel({
               <Line
                 type="monotone"
                 dataKey="p95"
-                stroke="#0369a1"
+                stroke="#2F6F7E"
                 strokeWidth={2}
                 dot={false}
                 name="P95 ms"
@@ -358,15 +382,4 @@ export function ConnectionHealthPanel({
 
 function mergeConnectionLatency(groups: SeriesGroup[]) {
   return mergeSeriesPoints(groups).map((p) => ({ t: p.t, p95: p.latency_p95_ms ?? 0 }));
-}
-
-function HealthBadge({ health }: { health: string }) {
-  const tone =
-    health === 'healthy'
-      ? 'bg-ok/10 text-ok'
-      : health === 'down'
-        ? 'bg-danger/10 text-danger'
-        : 'bg-canvas text-ink-muted';
-  const label = health === 'healthy' ? '正常' : health === 'down' ? '故障' : health || '未知';
-  return <span className={`rounded px-1.5 py-0.5 text-xs font-medium ${tone}`}>{label}</span>;
 }
