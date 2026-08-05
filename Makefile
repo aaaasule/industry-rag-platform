@@ -68,6 +68,14 @@ openapi: ## 从后端导出 OpenAPI 并生成前端类型
 	cd backend && uv run python -m scripts.export_openapi
 	cd frontend && pnpm gen:api
 
+.PHONY: eval-ci
+eval-ci: ## 对已启动的 API 跑 CI 同款评测硬门槛
+	cd backend && uv run python -m scripts.seed_eval_ci && \
+	uv run python scripts/evaluate.py --base http://127.0.0.1:8000/api/v1 \
+	  --email eval-ci@example.com --password 'EvalCI-Passw0rd!' --tenant eval-ci \
+	  --kb-id 01900000-0000-7000-8000-000000000001 \
+	  --golden evals/golden.ci.jsonl --k 10 --min-recall 1.0 --min-mrr 1.0
+
 .PHONY: bootstrap
 bootstrap: up install migrate seed openapi ## 一键初始化开发环境
 	@echo "环境就绪：make api / make web"
