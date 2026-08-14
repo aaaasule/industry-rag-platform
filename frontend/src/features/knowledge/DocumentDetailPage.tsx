@@ -1,19 +1,35 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { PdfHighlightViewer } from '@/components/PdfHighlightViewer';
 import type { PdfBBox } from '@/components/PdfHighlightViewer';
+import { streamEventsGet } from '@/lib/sse';
 
 import * as kbApi from './api';
 import { useDocument, useKnowledgeBase } from './hooks';
 
+type IngestProgressEvent = {
+  stage?: string;
+  progress?: number;
+  page_done?: number;
+  page_total?: number;
+  chunk_done?: number;
+  chunk_total?: number;
+  status?: string;
+  error_code?: string;
+  error_detail?: string;
+  chunk_count?: number;
+};
+
 export function DocumentDetailPage() {
   const { kbId: kbIdParam = '', docId = '' } = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
+  const qc = useQueryClient();
   const { data: doc } = useDocument(docId);
   const kbId = kbIdParam && kbIdParam !== '_' ? kbIdParam : (doc?.kb_id ?? '');
   const { data: kb } = useKnowledgeBase(kbId);
+  const [ingestHint, setIngestHint] = useState<string | null>(null);
 
   const chunkParam = searchParams.get('chunk');
   const pageParam = Number(searchParams.get('page') || '0');
@@ -76,6 +92,44 @@ export function DocumentDetailPage() {
   }
 
   const isPdf = Boolean(doc?.mime_type?.includes('pdf'));
+  const inProgress = Boolean(doc && kbApi.IN_PROGRESS.has(doc.status));
+
+  useEffect(() => {
+    if (!docId || !inProgress) {
+      setIngestHint(null);
+      return;
+    }
+    const ac = new AbortController();
+    void (async () => {
+      try {
+        for await (const ev of streamEventsGet<IngestProgressEvent>(
+          `/documents/${docId}/events`,
+          { signal: ac.signal },
+        )) {
+          if (ev.event === 'progress') {
+            const d = ev.data;
+            const pct = Math.round((d.progress ?? 0) * 100);
+            if (d.stage === 'parsing' && d.page_total) {
+              setIngestHint(`解析 ${d.page_done ?? 0}/${d.page_total}（${pct}%）`);
+            } else if (d.stage === 'embedding' && d.chunk_total) {
+              setIngestHint(`向量化 ${d.chunk_done ?? 0}/${d.chunk_total}（${pct}%）`);
+            } else {
+              setIngestHint(`${d.stage ?? '处理中'} ${pct}%`);
+            }
+          } else if (ev.event === 'completed' || ev.event === 'failed') {
+            setIngestHint(ev.event === 'completed' ? '摄取完成' : `失败：${ev.data.error_code ?? ''}`);
+            void qc.invalidateQueries({ queryKey: ['document', docId] });
+            void qc.invalidateQueries({ queryKey: ['chunks', docId] });
+            if (kbId) void qc.invalidateQueries({ queryKey: ['documents', kbId] });
+            break;
+          }
+        }
+      } catch {
+        /* 轮询 hook 仍会刷新状态 */
+      }
+    })();
+    return () => ac.abort();
+  }, [docId, inProgress, kbId, qc]);
 
   return (
     <div className="page-fill flex-col gap-3">
@@ -91,6 +145,7 @@ export function DocumentDetailPage() {
         </h1>
         <p className="text-xs text-ink-faint">
           {doc ? `${kbApi.statusLabel(doc.status)} · ${doc.page_count ?? '—'} 页` : '加载中…'}
+          {ingestHint ? ` · ${ingestHint}` : ''}
         </p>
       </div>
 

@@ -1,7 +1,7 @@
 """摄取 Celery 任务。
 
-解析调度单位在函数层是「页」（parse_one_page / ocr_page），文档任务内循环调用。
-未来可改为 Celery group 页级并行（R1c），接口保持不变。
+解析调度单位在函数层是「页」；PDF OCR 在文档任务内用线程池并行。
+未来可改为 Celery group/chord 页级并行（R1c），接口保持不变。
 
 HTTP 登记文档后才 commit，Celery 可能抢跑；任务对 missing 做短暂重试。
 """
@@ -18,8 +18,9 @@ from sqlalchemy import delete, func, select
 
 from app.modules.ingestion.chunkers.structure import chunk_pages
 from app.modules.ingestion.chunkers.tsv import build_tsv
+from app.modules.ingestion.parsers.dispatch import parse_document_bytes
 from app.modules.ingestion.parsers.layout import strip_headers_footers
-from app.modules.ingestion.parsers.pdf import PageParse, parse_pdf_bytes
+from app.modules.ingestion.progress import write_progress
 from app.modules.knowledge.models import (
     DOC_CHUNKING,
     DOC_EMBEDDING,
@@ -95,7 +96,33 @@ async def _parse_document(document_id: uuid.UUID, tenant_id: uuid.UUID, job_id: 
         try:
             store = S3ObjectStore(settings)
             data = await asyncio.to_thread(store.get, doc.storage_key)
-            pages = await asyncio.to_thread(_parse_all_pages, data, doc.mime_type)
+            write_progress(
+                settings,
+                job_id,
+                stage="parsing",
+                progress=0.05,
+                page_done=0,
+                page_total=0,
+            )
+
+            def _on_ocr(done: int, total: int) -> None:
+                frac = 0.1 if total <= 0 else 0.1 + 0.8 * (done / total)
+                write_progress(
+                    settings,
+                    job_id,
+                    stage="parsing",
+                    progress=frac,
+                    page_done=done,
+                    page_total=total,
+                )
+
+            pages = await asyncio.to_thread(
+                parse_document_bytes,
+                data,
+                doc.mime_type,
+                ocr_workers=settings.parse_ocr_workers,
+                on_ocr_progress=_on_ocr,
+            )
             page_dicts = [
                 {
                     "page_no": p.page_no,
@@ -131,6 +158,14 @@ async def _parse_document(document_id: uuid.UUID, tenant_id: uuid.UUID, job_id: 
             job.status = JOB_SUCCEEDED
             job.progress = 1.0
             job.finished_at = datetime.now(UTC)
+            write_progress(
+                settings,
+                job_id,
+                stage="parsing",
+                progress=1.0,
+                page_done=len(page_dicts),
+                page_total=len(page_dicts),
+            )
 
             next_job = IngestionJob(
                 id=uuid7(),
@@ -151,6 +186,16 @@ async def _parse_document(document_id: uuid.UUID, tenant_id: uuid.UUID, job_id: 
             job.error_code = "parse_failed"
             job.error_detail = str(exc)[:2000]
             job.finished_at = datetime.now(UTC)
+            write_progress(
+                settings,
+                job_id,
+                stage="parsing",
+                progress=job.progress,
+                status="failed",
+                error_code="parse_failed",
+                error_detail=str(exc)[:500],
+                retryable=True,
+            )
             return "failed"
 
     if next_embed is not None:
@@ -169,53 +214,6 @@ async def _parse_document(document_id: uuid.UUID, tenant_id: uuid.UUID, job_id: 
                 job.celery_task_id = async_result.id
         return "parsed"
     return "failed"
-
-
-def _parse_all_pages(data: bytes, mime_type: str) -> list[PageParse]:
-    if "pdf" not in mime_type.lower() and not data[:5].startswith(b"%PDF"):
-        from app.modules.ingestion.parsers.normalize import normalize
-
-        plain = normalize(data.decode("utf-8", errors="ignore"))
-        return [
-            PageParse(
-                page_no=1,
-                width=595,
-                height=842,
-                blocks=[
-                    {
-                        "type": "paragraph",
-                        "level": 0,
-                        "text": plain,
-                        "bbox": [72, 72, 523, 800],
-                        "order": 0,
-                        "size": 12,
-                        "bold": False,
-                    }
-                ],
-                plain_text=plain,
-                source="text",
-                needs_ocr=False,
-            )
-        ]
-
-    pages = parse_pdf_bytes(data)
-    if not any(p.needs_ocr for p in pages):
-        return pages
-
-    try:
-        import pymupdf as fitz
-    except ImportError:  # pragma: no cover
-        import fitz  # type: ignore[no-redef]
-    from app.modules.ingestion.parsers.ocr import ocr_page
-
-    doc = fitz.open(stream=data, filetype="pdf")
-    try:
-        out: list[PageParse] = []
-        for p in pages:
-            out.append(ocr_page(doc[p.page_no - 1]) if p.needs_ocr else p)
-        return out
-    finally:
-        doc.close()
 
 
 async def _embed_document(document_id: uuid.UUID, tenant_id: uuid.UUID, job_id: uuid.UUID) -> str:
@@ -239,6 +237,14 @@ async def _embed_document(document_id: uuid.UUID, tenant_id: uuid.UUID, job_id: 
             job.attempt += 1
             doc.status = DOC_EMBEDDING
             await session.flush()
+            write_progress(
+                settings,
+                job_id,
+                stage="embedding",
+                progress=0.0,
+                chunk_done=0,
+                chunk_total=0,
+            )
 
             try:
                 pages = list(
@@ -282,6 +288,7 @@ async def _embed_document(document_id: uuid.UUID, tenant_id: uuid.UUID, job_id: 
                 conn_id, provider_type, model = await resolve_usage_route(
                     session, tenant_id, "embedding"
                 )
+                total_chunks = len(texts)
                 for i in range(0, len(texts), batch_size):
                     batch = texts[i : i + batch_size]
                     if not batch:
@@ -318,6 +325,17 @@ async def _embed_document(document_id: uuid.UUID, tenant_id: uuid.UUID, job_id: 
                             error_code="embed_failed",
                         )
                         raise
+                    done = len(vectors)
+                    frac = done / total_chunks if total_chunks else 1.0
+                    job.progress = frac
+                    write_progress(
+                        settings,
+                        job_id,
+                        stage="embedding",
+                        progress=frac,
+                        chunk_done=done,
+                        chunk_total=total_chunks,
+                    )
 
                 if len(vectors) != len(drafts):
                     raise RuntimeError(
@@ -372,6 +390,16 @@ async def _embed_document(document_id: uuid.UUID, tenant_id: uuid.UUID, job_id: 
                 job.status = JOB_SUCCEEDED
                 job.progress = 1.0
                 job.finished_at = datetime.now(UTC)
+                write_progress(
+                    settings,
+                    job_id,
+                    stage="embedding",
+                    progress=1.0,
+                    status="ready",
+                    chunk_count=len(drafts),
+                    chunk_done=len(drafts),
+                    chunk_total=len(drafts),
+                )
                 await session.flush()
                 return "ready"
             except Exception as exc:
@@ -383,6 +411,16 @@ async def _embed_document(document_id: uuid.UUID, tenant_id: uuid.UUID, job_id: 
                 job.error_code = "embed_failed"
                 job.error_detail = str(exc)[:2000]
                 job.finished_at = datetime.now(UTC)
+                write_progress(
+                    settings,
+                    job_id,
+                    stage="embedding",
+                    progress=job.progress,
+                    status="failed",
+                    error_code="embed_failed",
+                    error_detail=str(exc)[:500],
+                    retryable=True,
+                )
                 return "failed"
         finally:
             await aclose_provider(embedding)

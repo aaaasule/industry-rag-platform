@@ -136,13 +136,15 @@ export function KbDetailPage() {
         style={{ borderRadius: 'var(--radius-md)' }}
       >
         <p className="text-sm font-semibold text-ink">
-          {upload.isPending ? '上传中…' : '拖拽 PDF 到此处，或点击选择文件'}
+          {upload.isPending ? '上传中…' : '拖拽文件到此处，或点击选择'}
         </p>
-        <p className="mt-1 text-xs text-ink-faint">经 API 中转上传，单文件建议不超过 32MB</p>
+        <p className="mt-1 text-xs text-ink-faint">
+          支持 PDF / Word / Excel / PPT / Markdown / TXT，单文件建议不超过 32MB
+        </p>
         <input
           ref={inputRef}
           type="file"
-          accept=".pdf,application/pdf,.txt,text/plain"
+          accept=".pdf,.docx,.xlsx,.pptx,.md,.markdown,.txt,application/pdf,text/plain,text/markdown"
           className="hidden"
           multiple
           onChange={(e) => {

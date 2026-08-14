@@ -91,6 +91,11 @@ export function useDocument(docId: string) {
     queryKey: ['document', docId],
     queryFn: () => kbApi.getDocument(docId),
     enabled: Boolean(docId),
+    refetchInterval: (query) => {
+      const doc = query.state.data;
+      if (!doc) return false;
+      return kbApi.IN_PROGRESS.has(doc.status) ? 2000 : false;
+    },
   });
 }
 

@@ -3,10 +3,13 @@
 from __future__ import annotations
 
 import uuid
+from collections.abc import AsyncIterator
 
 from fastapi import APIRouter, Depends, File, Form, UploadFile
+from fastapi.responses import StreamingResponse
 
 from app.modules.identity.models import ROLE_ADMIN
+from app.modules.ingestion.events import iter_document_events
 from app.modules.knowledge.repository import KnowledgeRepository
 from app.modules.knowledge.schemas import (
     ChunkOut,
@@ -237,6 +240,35 @@ async def preview_url(
     doc_id: uuid.UUID, claims: ClaimsDep, service: KnowledgeService = ServiceDep
 ) -> PreviewUrlOut:
     return await service.preview_url(claims, doc_id)
+
+
+@router.get("/documents/{doc_id}/events")
+async def document_events(
+    doc_id: uuid.UUID,
+    claims: ClaimsDep,
+    settings: SettingsDep,
+    service: KnowledgeService = ServiceDep,
+) -> StreamingResponse:
+    """摄取进度 SSE（详情页用；列表页继续轮询）。"""
+
+    async def _gen() -> AsyncIterator[str]:
+        async for chunk in iter_document_events(
+            service=service,
+            claims=claims,
+            settings=settings,
+            doc_id=doc_id,
+        ):
+            yield chunk
+
+    return StreamingResponse(
+        _gen(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
+    )
 
 
 @router.get("/documents/{doc_id}/chunks", response_model=list[ChunkOut])
