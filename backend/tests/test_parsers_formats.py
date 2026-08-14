@@ -86,3 +86,12 @@ def test_dispatch_routes_by_mime() -> None:
         )
         == "docx"
     )
+
+
+def test_resolve_content_type_prefers_md_extension_over_text_plain() -> None:
+    from app.modules.ingestion.parsers.dispatch import resolve_content_type
+
+    assert resolve_content_type("text/plain", "手册.md") == "text/markdown"
+    assert resolve_content_type("application/octet-stream", "a.markdown") == "text/markdown"
+    assert resolve_content_type("text/plain", "original.md") == "text/markdown"
+    assert resolve_content_type("application/pdf", "x.md") == "application/pdf"

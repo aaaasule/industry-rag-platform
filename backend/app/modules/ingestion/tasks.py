@@ -96,6 +96,13 @@ async def _parse_document(document_id: uuid.UUID, tenant_id: uuid.UUID, job_id: 
         try:
             store = S3ObjectStore(settings)
             data = await asyncio.to_thread(store.get, doc.storage_key)
+            from app.modules.ingestion.parsers.dispatch import resolve_content_type
+
+            # storage_key 末段含原文件名；纠正浏览器把 .md 标成 text/plain 的情况
+            filename = doc.storage_key.rsplit("/", 1)[-1]
+            mime = resolve_content_type(doc.mime_type, filename)
+            if mime != doc.mime_type:
+                doc.mime_type = mime
             write_progress(
                 settings,
                 job_id,
@@ -119,7 +126,7 @@ async def _parse_document(document_id: uuid.UUID, tenant_id: uuid.UUID, job_id: 
             pages = await asyncio.to_thread(
                 parse_document_bytes,
                 data,
-                doc.mime_type,
+                mime,
                 ocr_workers=settings.parse_ocr_workers,
                 on_ocr_progress=_on_ocr,
             )

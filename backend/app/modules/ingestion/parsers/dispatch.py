@@ -126,5 +126,32 @@ def guess_mime_from_filename(filename: str) -> str | None:
     return None
 
 
+# 浏览器常把 .md 标成 text/plain，需用扩展名纠正，否则整文件一块超长 → embedding 400
+_GENERIC_MIMES = frozenset(
+    {
+        "",
+        "application/octet-stream",
+        "binary/octet-stream",
+        "text/plain",
+    }
+)
+
+
+def resolve_content_type(content_type: str | None, filename: str | None) -> str:
+    """优先扩展名（对泛化 mime），否则保留浏览器声明。"""
+    declared = (content_type or "").strip() or "application/octet-stream"
+    guessed = guess_mime_from_filename(filename or "")
+    if guessed and declared.lower() in _GENERIC_MIMES:
+        return guessed
+    # .md：浏览器常给 text/* 泛化类型，扩展名优先
+    if (
+        guessed == "text/markdown"
+        and "markdown" not in declared.lower()
+        and (declared.lower() in _GENERIC_MIMES or declared.lower().startswith("text/"))
+    ):
+        return guessed
+    return declared
+
+
 def supported_upload_extensions() -> tuple[str, ...]:
     return (".pdf", ".docx", ".xlsx", ".pptx", ".md", ".markdown", ".txt")
