@@ -5,7 +5,7 @@ import { Skeleton } from '@/components/Skeleton';
 import { useToast } from '@/components/toast/useToast';
 import { useSession } from '@/features/auth/hooks';
 import { ApiError } from '@/lib/http';
-import type { MemberOut, MemberRole } from './api';
+import type { MemberRole } from './api';
 import { useAddMember, useMemberships, useRemoveMember, useUpdateMemberRole } from './hooks';
 
 const ROLES: MemberRole[] = ['member', 'admin', 'owner'];
@@ -36,11 +36,11 @@ export function MembersPanel({ enabled }: { enabled: boolean }) {
     setError(null);
     setInviteCred(null);
     try {
-      const created = (await addM.mutateAsync({
+      const created = await addM.mutateAsync({
         email: email.trim(),
         role,
         create_if_missing: true,
-      })) as MemberOut;
+      });
       setEmail('');
       setRole('member');
       if (created.created_user && created.temporary_password) {

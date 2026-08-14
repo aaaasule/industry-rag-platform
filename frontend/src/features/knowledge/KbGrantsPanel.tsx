@@ -27,7 +27,7 @@ export function KbGrantsPanel({ kbId }: { kbId: string }) {
   const [userId, setUserId] = useState('');
   const [permission, setPermission] = useState<GrantPermission>('read');
 
-  const grants = grantsQ.data ?? [];
+  const grants = useMemo(() => grantsQ.data ?? [], [grantsQ.data]);
   const members = membersQ.data?.items ?? [];
   const grantedIds = useMemo(() => new Set(grants.map((g) => g.user_id)), [grants]);
   const candidates = members.filter((m) => !grantedIds.has(m.user_id));
