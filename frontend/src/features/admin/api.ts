@@ -1,8 +1,16 @@
 import { api } from '@/lib/http';
 import type { components } from '@/types/openapi.gen';
 
-export type MemberOut = components['schemas']['MemberOut'];
-export type MembershipList = components['schemas']['MembershipList'];
+export type MemberOut = {
+  user_id: string;
+  email: string;
+  display_name: string;
+  role: string;
+  created_at: string;
+  created_user?: boolean;
+  temporary_password?: string | null;
+};
+export type MembershipList = { items: MemberOut[] };
 export type AuditLogOut = components['schemas']['AuditLogOut'];
 export type AuditLogList = components['schemas']['AuditLogList'];
 
@@ -24,7 +32,12 @@ export function listMemberships(): Promise<MembershipList> {
   return api.get('/memberships');
 }
 
-export function addMember(body: { email: string; role?: MemberRole }): Promise<MemberOut> {
+export function addMember(body: {
+  email: string;
+  role?: MemberRole;
+  create_if_missing?: boolean;
+  display_name?: string;
+}): Promise<MemberOut> {
   return api.post('/memberships', body);
 }
 

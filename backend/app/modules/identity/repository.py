@@ -74,6 +74,11 @@ class IdentityRepository:
         )
         return int((await self._session.execute(stmt)).scalar_one())
 
+    async def add_user(self, user: User) -> User:
+        self._session.add(user)
+        await self._session.flush()
+        return user
+
     async def add_membership(self, membership: Membership) -> Membership:
         self._session.add(membership)
         await self._session.flush()

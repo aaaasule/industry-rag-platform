@@ -99,4 +99,29 @@ export function useDocument(docId: string) {
   });
 }
 
+export function useGrants(kbId: string) {
+  return useQuery({
+    queryKey: ['grants', kbId],
+    queryFn: () => kbApi.listGrants(kbId),
+    enabled: Boolean(kbId),
+  });
+}
+
+export function useUpsertGrant(kbId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ userId, permission }: { userId: string; permission: kbApi.GrantPermission }) =>
+      kbApi.upsertGrant(kbId, userId, permission),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ['grants', kbId] }),
+  });
+}
+
+export function useDeleteGrant(kbId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (userId: string) => kbApi.deleteGrant(kbId, userId),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ['grants', kbId] }),
+  });
+}
+
 export type { ApiError };

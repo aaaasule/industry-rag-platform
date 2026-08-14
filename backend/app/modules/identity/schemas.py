@@ -61,6 +61,13 @@ class SessionInfo(BaseModel):
 class MemberCreate(BaseModel):
     email: EmailStr
     role: str = Field(default="member", description="member | admin | owner")
+    create_if_missing: bool = Field(
+        default=True,
+        description="邮箱对应用户不存在时是否创建账号（无邮件邀请；返回 temporary_password）",
+    )
+    display_name: str | None = Field(
+        default=None, min_length=1, max_length=128, description="仅新建用户时使用"
+    )
 
 
 class MemberRoleUpdate(BaseModel):
@@ -73,6 +80,8 @@ class MemberOut(BaseModel):
     display_name: str
     role: str
     created_at: datetime
+    created_user: bool = False
+    temporary_password: str | None = None
 
 
 class MembershipList(BaseModel):

@@ -155,6 +155,34 @@ export async function uploadDocument(
 
 export const IN_PROGRESS = new Set(['pending', 'parsing', 'chunking', 'embedding']);
 
+export type GrantPermission = 'read' | 'write' | 'manage';
+
+export interface GrantItem {
+  id: string;
+  kb_id: string;
+  user_id: string;
+  permission: GrantPermission;
+  created_at: string;
+  email: string | null;
+  display_name: string | null;
+}
+
+export function listGrants(kbId: string): Promise<GrantItem[]> {
+  return api.get(`/knowledge-bases/${kbId}/grants`);
+}
+
+export function upsertGrant(
+  kbId: string,
+  userId: string,
+  permission: GrantPermission,
+): Promise<GrantItem> {
+  return api.put(`/knowledge-bases/${kbId}/grants/${userId}`, { permission });
+}
+
+export function deleteGrant(kbId: string, userId: string): Promise<void> {
+  return api.delete(`/knowledge-bases/${kbId}/grants/${userId}`);
+}
+
 export function statusLabel(status: string): string {
   return (
     {

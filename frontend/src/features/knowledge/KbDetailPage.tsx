@@ -17,7 +17,7 @@ import {
   useUpdateKnowledgeBase,
   useUploadDocument,
 } from './hooks';
-
+import { KbGrantsPanel } from './KbGrantsPanel';
 export function KbDetailPage() {
   const { kbId = '' } = useParams();
   const toast = useToast();
@@ -286,6 +286,8 @@ export function KbDetailPage() {
           </tbody>
         </table>
       </section>
+
+      {kbId ? <KbGrantsPanel kbId={kbId} /> : null}
     </div>
   );
 }

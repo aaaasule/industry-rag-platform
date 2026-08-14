@@ -100,11 +100,41 @@ async def test_owner_lists_and_adds_member(
     unknown = await client.post(
         "/api/v1/memberships",
         headers=auth_headers,
-        json={"email": f"nope-{uuid.uuid4().hex[:8]}@example.com", "role": "member"},
+        json={
+            "email": f"nope-{uuid.uuid4().hex[:8]}@example.com",
+            "role": "member",
+            "create_if_missing": False,
+        },
     )
     assert unknown.status_code == 404, unknown.text
 
     await _delete_user(orphan_id, fixture_data.primary_tenant_id)
+
+
+async def test_invite_creates_user_with_temporary_password(
+    client: AsyncClient, auth_headers: dict[str, str], fixture_data: Fixture
+) -> None:
+    email = f"invite-{uuid.uuid4().hex[:8]}@example.com"
+    created = await client.post(
+        "/api/v1/memberships",
+        headers=auth_headers,
+        json={"email": email, "role": "member", "create_if_missing": True},
+    )
+    assert created.status_code == 201, created.text
+    body = created.json()
+    assert body["email"] == email
+    assert body["created_user"] is True
+    assert body["temporary_password"]
+    assert len(body["temporary_password"]) >= 8
+
+    headers = await _login(
+        client, email, body["temporary_password"], fixture_data.primary_tenant_slug
+    )
+    me = await client.get("/api/v1/auth/me", headers=headers)
+    assert me.status_code == 200, me.text
+    assert me.json()["user"]["email"] == email
+
+    await _delete_user(uuid.UUID(body["user_id"]), fixture_data.primary_tenant_id)
 
 
 async def test_cannot_demote_last_owner(

@@ -100,12 +100,6 @@ async def test_membership_and_grant_audit_hooks(
     )
     assert patch.status_code == 200, patch.text
 
-    remove = await client.delete(
-        f"/api/v1/memberships/{orphan_id}",
-        headers=auth_headers,
-    )
-    assert remove.status_code == 204, remove.text
-
     kb = await client.post(
         "/api/v1/knowledge-bases",
         headers=auth_headers,
@@ -133,6 +127,12 @@ async def test_membership_and_grant_audit_hooks(
         headers=auth_headers,
     )
     assert revoke.status_code == 204, revoke.text
+
+    remove = await client.delete(
+        f"/api/v1/memberships/{orphan_id}",
+        headers=auth_headers,
+    )
+    assert remove.status_code == 204, remove.text
 
     deleted = await client.delete(
         f"/api/v1/knowledge-bases/{kb_id}",

@@ -6,10 +6,25 @@
 
 | 项 | 值 |
 | --- | --- |
-| 阶段 | **M5 完成**；P1 功能债批次 A 进行中（`feat/p1-batch-a-ingestion`） |
-| 下一里程碑 | **真实行业语料 E2E 验收** → 再定 M6；并行还清 P1（A→B→C→D） |
-| 已落地 | metadata 校验、Profile 软删、jieba 词典、CI 检索评测硬门槛、工作台 UI |
+| 阶段 | **M5 完成**；P1 批次 A 已合入 `main`（#21）；批次 B 进行中 |
+| 下一里程碑 | **真实行业语料 E2E 验收** → 再定 M6；并行还清 P1（B→C→D） |
+| 已落地 | metadata 校验、Profile 软删、jieba 词典、CI 检索评测硬门槛、工作台 UI、多格式摄取/SSE |
 | 阻塞项 | 无（产品开放问题见下文，不挡验收） |
+
+---
+
+## 2026-08-14（P1 批次 B · KB 授权 UI + 无邮件邀请）
+
+### 进行中
+
+| # | 任务 | 状态 |
+| --- | --- | --- |
+| B-1 | 成员邀请：不存在则建号 + `temporary_password` | ✓ |
+| B-2 | Admin 成员面板展示初始口令 | ✓ |
+| B-3 | KB grants UI（详情页）+ GrantOut 带邮箱 | ✓ |
+| B-4 | 测试 / 设计短文 | ✓ |
+
+**决策**：无 SMTP；`create_if_missing` 默认 true；授权仅限本租户成员。
 
 ---
 
@@ -23,9 +38,10 @@
 | A-2 | PDF OCR 文档内线程池并行 + Redis 进度 | ✓ |
 | A-3 | `GET /documents/{id}/events` SSE | ✓ |
 | A-4 | 详情页 SSE；列表轮询；上传 accept 扩展 | ✓ |
-| A-5 | 单测夹具；Celery chord **后置** | ✓ / 后置 |
+| A-5 | 单测夹具；Celery chord **后置**；`.md` mime 纠正 | ✓ |
 
-**决策**：非 PDF 仅可检索、预览仍「暂不支持」；chord 页级任务 follow-up。
+**决策**：非 PDF 仅可检索、预览仍「暂不支持」；chord 页级任务 follow-up。  
+**合并**：PR [#21](https://github.com/aaaasule/industry-rag-platform/pull/21) squash → `main`。
 
 ---
 
