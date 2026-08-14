@@ -41,6 +41,8 @@ class Settings(BaseSettings):
     s3_access_key: SecretStr = SecretStr("minioadmin")
     s3_secret_key: SecretStr = SecretStr("minioadmin")
     s3_presign_ttl_seconds: int = 900
+    # PDF OCR 文档内并行度（Celery chord 页级任务后置）
+    parse_ocr_workers: int = 4
 
     # 认证
     # HS256 要求密钥不短于 32 字节，否则 PyJWT 会告警且强度不足

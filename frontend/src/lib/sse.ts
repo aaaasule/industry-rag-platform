@@ -38,6 +38,30 @@ export async function* streamEvents<T = unknown>(
     ...(options.signal ? { signal: options.signal } : {}),
   });
 
+  yield* readSseStream<T>(resp, options);
+}
+
+/** GET SSE（摄取进度等）。 */
+export async function* streamEventsGet<T = unknown>(
+  path: string,
+  options: SseOptions = {},
+): AsyncGenerator<SseEvent<T>> {
+  const resp = await fetch(`/api/v1${path}`, {
+    method: 'GET',
+    headers: {
+      Accept: 'text/event-stream',
+      ...(tokenStore.access ? { Authorization: `Bearer ${tokenStore.access}` } : {}),
+    },
+    ...(options.signal ? { signal: options.signal } : {}),
+  });
+
+  yield* readSseStream<T>(resp, options);
+}
+
+async function* readSseStream<T>(
+  resp: Response,
+  options: SseOptions,
+): AsyncGenerator<SseEvent<T>> {
   if (!resp.ok || !resp.body) {
     throw new ApiError('stream_failed', `流式请求失败（${resp.status}）`, resp.status);
   }
@@ -51,7 +75,6 @@ export async function* streamEvents<T = unknown>(
       if (done) break;
       buffer += value;
 
-      // SSE 以空行分隔事件；\r\n\r\n 兼容部分反向代理的换行改写
       let boundary = findBoundary(buffer);
       while (boundary !== null) {
         const rawEvent = buffer.slice(0, boundary.index);

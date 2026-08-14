@@ -403,7 +403,9 @@ class KnowledgeService:
         await self._require_kb(claims, kb_id, PERM_WRITE)
         document_id = uuid7()
         key = document_key(claims.tenant_id, document_id, filename)
-        mime = content_type or "application/octet-stream"
+        from app.modules.ingestion.parsers.dispatch import resolve_content_type
+
+        mime = resolve_content_type(content_type, filename)
         self._store.put(key, data, mime)
         checksum = "sha256:" + hashlib.sha256(data).hexdigest()
         return await self.register_document(

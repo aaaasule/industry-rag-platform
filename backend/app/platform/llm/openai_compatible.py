@@ -67,8 +67,9 @@ class OpenAICompatibleClient:
         if resp.status_code in _RETRYABLE_STATUS:
             raise ProviderUnavailable(f"上游返回 {resp.status_code}，建议重试")
         if resp.status_code >= 400:
-            logger.warning("provider_error", status=resp.status_code, path=path)
-            raise ProviderUnavailable(f"上游返回 {resp.status_code}")
+            body = (resp.text or "")[:500]
+            logger.warning("provider_error", status=resp.status_code, path=path, body=body)
+            raise ProviderUnavailable(f"上游返回 {resp.status_code}: {body or 'no body'}")
         return resp.json()
 
     def stream_lines(self, path: str, payload: dict[str, Any]) -> Any:
@@ -150,8 +151,12 @@ class OpenAICompatibleEmbedding:
         if not texts:
             return []
         out: list[Vector] = []
+        # DashScope text-embedding-v*：单条约 ≤8192 tokens；过长会 400
+        max_chars = 6000
         for i in range(0, len(texts), self._batch_size):
-            batch = texts[i : i + self._batch_size]
+            raw_batch = texts[i : i + self._batch_size]
+            batch = [(t[:max_chars] if len(t) > max_chars else t) for t in raw_batch]
+            batch = [t if t.strip() else " " for t in batch]
             payload: dict[str, Any] = {
                 "model": self.model,
                 "input": batch,

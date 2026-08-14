@@ -35,7 +35,7 @@ make web         # http://localhost:5173
 
 ## 项目状态
 
-**M0 工程骨架已完成**（身份认证、多租户 RLS、Provider 抽象、前后端骨架、CI）。下一步是 M1 摄取链路。进度见 [07 进展与计划](./docs/07-progress.md)，设计文档见 [`docs/`](./docs/README.md)。
+**M0–M5 已完成**（摄取、混合检索与问答、引用溯源、多租户与模型运营、行业 Profile 与 CI 评测）。下一步是真实行业语料 E2E 验收，再定 M6。进度见 [07 进展与计划](./docs/07-progress.md)，设计文档见 [`docs/`](./docs/README.md)。
 
 | 文档 | 内容 |
 | --- | --- |
