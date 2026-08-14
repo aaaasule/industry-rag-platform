@@ -153,3 +153,5 @@ class GrantOut(BaseModel):
     user_id: uuid.UUID
     permission: str
     created_at: datetime
+    email: str | None = None
+    display_name: str | None = None

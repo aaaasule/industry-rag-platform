@@ -262,7 +262,7 @@ class KnowledgeService:
     async def list_grants(self, claims: TokenClaims, kb_id: uuid.UUID) -> list[GrantOut]:
         await self._require_kb(claims, kb_id, PERM_MANAGE)
         rows = await self._repo.list_grants(claims.tenant_id, kb_id)
-        return [GrantOut.model_validate(r) for r in rows]
+        return [await self._grant_out(r) for r in rows]
 
     async def upsert_grant(
         self,
@@ -272,6 +272,14 @@ class KnowledgeService:
         payload: GrantUpsert,
     ) -> GrantOut:
         await self._require_kb(claims, kb_id, PERM_MANAGE)
+        from app.modules.identity.repository import IdentityRepository
+
+        membership = await IdentityRepository(self._repo._session).get_membership(
+            user_id, claims.tenant_id
+        )
+        if membership is None:
+            raise NotFound("用户不是本租户成员")
+
         existing = await self._repo.get_grant(claims.tenant_id, kb_id, user_id)
         if existing is None:
             row = KbGrant(
@@ -312,7 +320,7 @@ class KnowledgeService:
                     "changes": {"permission": {"from": old_perm, "to": payload.permission}},
                 },
             )
-        return GrantOut.model_validate(row)
+        return await self._grant_out(row)
 
     async def delete_grant(self, claims: TokenClaims, kb_id: uuid.UUID, user_id: uuid.UUID) -> None:
         await self._require_kb(claims, kb_id, PERM_MANAGE)
@@ -329,6 +337,15 @@ class KnowledgeService:
             target_id=grant_id,
             payload={"grant_id": str(grant_id), "kb_id": str(kb_id)},
         )
+
+    async def _grant_out(self, row: KbGrant) -> GrantOut:
+        from app.modules.identity.repository import IdentityRepository
+
+        user = await IdentityRepository(self._repo._session).get_user(row.user_id)
+        base = GrantOut.model_validate(row)
+        if user is None:
+            return base
+        return base.model_copy(update={"email": user.email, "display_name": user.display_name})
 
     async def create_upload_url(
         self, claims: TokenClaims, kb_id: uuid.UUID, payload: UploadUrlRequest

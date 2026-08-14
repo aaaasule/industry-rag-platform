@@ -37,7 +37,7 @@ async def list_memberships(
     "",
     response_model=MemberOut,
     status_code=status.HTTP_201_CREATED,
-    summary="按邮箱添加已存在用户为本租户成员",
+    summary="按邮箱添加成员；不存在则创建账号（create_if_missing）",
 )
 async def add_membership(
     payload: MemberCreate,

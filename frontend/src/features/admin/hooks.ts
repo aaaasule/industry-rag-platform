@@ -16,7 +16,12 @@ export function useMemberships(enabled: boolean) {
 export function useAddMember() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (body: { email: string; role?: MemberRole }) => adminApi.addMember(body),
+    mutationFn: (body: {
+      email: string;
+      role?: MemberRole;
+      create_if_missing?: boolean;
+      display_name?: string;
+    }) => adminApi.addMember(body),
     onSuccess: async () => {
       await qc.invalidateQueries({ queryKey: adminApi.MEMBERSHIPS_KEY });
     },

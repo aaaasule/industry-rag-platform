@@ -5,7 +5,7 @@ import { Skeleton } from '@/components/Skeleton';
 import { useToast } from '@/components/toast/useToast';
 import { useSession } from '@/features/auth/hooks';
 import { ApiError } from '@/lib/http';
-import type { MemberRole } from './api';
+import type { MemberOut, MemberRole } from './api';
 import { useAddMember, useMemberships, useRemoveMember, useUpdateMemberRole } from './hooks';
 
 const ROLES: MemberRole[] = ['member', 'admin', 'owner'];
@@ -23,6 +23,10 @@ export function MembersPanel({ enabled }: { enabled: boolean }) {
   const [email, setEmail] = useState('');
   const [role, setRole] = useState<MemberRole>('member');
   const [error, setError] = useState<string | null>(null);
+  const [inviteCred, setInviteCred] = useState<{
+    email: string;
+    temporary_password: string;
+  } | null>(null);
 
   const items = listQ.data?.items ?? [];
   const isOwner = myRole === 'owner';
@@ -30,11 +34,24 @@ export function MembersPanel({ enabled }: { enabled: boolean }) {
   async function onAdd(e: FormEvent) {
     e.preventDefault();
     setError(null);
+    setInviteCred(null);
     try {
-      await addM.mutateAsync({ email: email.trim(), role });
+      const created = (await addM.mutateAsync({
+        email: email.trim(),
+        role,
+        create_if_missing: true,
+      })) as MemberOut;
       setEmail('');
       setRole('member');
-      toast.success(`已添加成员 ${email.trim()}`);
+      if (created.created_user && created.temporary_password) {
+        setInviteCred({
+          email: created.email,
+          temporary_password: created.temporary_password,
+        });
+        toast.success(`已创建账号并加入：${created.email}`);
+      } else {
+        toast.success(`已添加成员 ${created.email}`);
+      }
     } catch (err) {
       const msg = err instanceof ApiError ? err.message : '添加失败';
       setError(msg);
@@ -89,13 +106,34 @@ export function MembersPanel({ enabled }: { enabled: boolean }) {
   return (
     <div className="space-y-5">
       <p className="text-sm text-ink-muted">
-        仅可添加已注册用户（按邮箱）。admin 不能变更或移除 owner；不能移除自己。
+        按邮箱添加成员：若账号不存在将自动创建（无邮件），请妥善保存返回的初始口令。admin
+        不能变更或移除 owner；不能移除自己。
       </p>
 
       {error ? (
         <p className="rounded-md border border-danger/30 bg-danger/5 px-3 py-2 text-sm text-danger">
           {error}
         </p>
+      ) : null}
+
+      {inviteCred ? (
+        <div className="rounded-md border border-brand-500/30 bg-brand-50 px-4 py-3 text-sm text-ink">
+          <p className="font-medium">新用户初始口令（仅显示一次）</p>
+          <p className="mt-1 text-ink-muted">{inviteCred.email}</p>
+          <code className="mt-2 block select-all rounded bg-canvas px-2 py-1.5 font-mono text-sm">
+            {inviteCred.temporary_password}
+          </code>
+          <button
+            type="button"
+            className="mt-2 text-xs text-brand-700 hover:underline"
+            onClick={() => {
+              void navigator.clipboard.writeText(inviteCred.temporary_password);
+              toast.success('已复制口令');
+            }}
+          >
+            复制口令
+          </button>
+        </div>
       ) : null}
 
       <form
@@ -128,7 +166,7 @@ export function MembersPanel({ enabled }: { enabled: boolean }) {
           </select>
         </label>
         <button type="submit" className="btn-primary" disabled={addM.isPending}>
-          {addM.isPending ? '添加中…' : '添加成员'}
+          {addM.isPending ? '添加中…' : '添加 / 邀请'}
         </button>
       </form>
 

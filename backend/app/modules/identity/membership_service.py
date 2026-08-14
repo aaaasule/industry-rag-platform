@@ -2,15 +2,30 @@
 
 from __future__ import annotations
 
+import secrets
+import string
 import uuid
 
 from app.modules.audit.service import AuditService
-from app.modules.identity.models import ROLE_OWNER, ROLES, Membership, role_at_least
+from app.modules.identity.models import ROLE_OWNER, ROLES, Membership, User, role_at_least
 from app.modules.identity.repository import IdentityRepository
 from app.modules.identity.schemas import MemberCreate, MemberOut, MemberRoleUpdate, MembershipList
 from app.platform.errors import AppError, Conflict, Forbidden, NotFound
 from app.platform.ids import uuid7
-from app.platform.security import TokenClaims
+from app.platform.security import TokenClaims, hash_password
+
+
+def _generate_temporary_password(length: int = 16) -> str:
+    alphabet = string.ascii_letters + string.digits
+    # 保证至少含大小写与数字，满足登录 min_length=8
+    parts = [
+        secrets.choice(string.ascii_lowercase),
+        secrets.choice(string.ascii_uppercase),
+        secrets.choice(string.digits),
+    ]
+    parts.extend(secrets.choice(alphabet) for _ in range(max(0, length - len(parts))))
+    secrets.SystemRandom().shuffle(parts)
+    return "".join(parts)
 
 
 class MembershipService:
@@ -27,9 +42,25 @@ class MembershipService:
         if role not in ROLES:
             raise AppError(f"无效角色: {role}", code="validation_error")
 
-        user = await self._repo.get_user_by_email(payload.email)
+        email = str(payload.email).lower()
+        user = await self._repo.get_user_by_email(email)
+        created_user = False
+        temporary_password: str | None = None
+
         if user is None:
-            raise NotFound("user not found")
+            if not payload.create_if_missing:
+                raise NotFound("user not found")
+            temporary_password = _generate_temporary_password()
+            display = (payload.display_name or email.split("@", 1)[0]).strip() or email
+            user = User(
+                id=uuid7(),
+                email=email,
+                display_name=display[:128],
+                password_hash=hash_password(temporary_password),
+                status="active",
+            )
+            await self._repo.add_user(user)
+            created_user = True
 
         if not role_at_least(claims.role, ROLE_OWNER) and role == ROLE_OWNER:
             raise Forbidden("仅 owner 可将成员设为 owner")
@@ -45,7 +76,6 @@ class MembershipService:
             role=role,
         )
         await self._repo.add_membership(membership)
-        # 回填 user 供响应（joinedload 未跑）
         membership.user = user
 
         await self._audit.record(
@@ -54,9 +84,18 @@ class MembershipService:
             action="membership.add",
             target_type="membership",
             target_id=membership.id,
-            payload={"email": user.email, "role": role, "user_id": str(user.id)},
+            payload={
+                "email": user.email,
+                "role": role,
+                "user_id": str(user.id),
+                "created_user": created_user,
+            },
         )
-        return _member_out(membership)
+        return _member_out(
+            membership,
+            created_user=created_user,
+            temporary_password=temporary_password,
+        )
 
     async def update_role(
         self, claims: TokenClaims, user_id: uuid.UUID, payload: MemberRoleUpdate
@@ -126,7 +165,12 @@ class MembershipService:
         )
 
 
-def _member_out(m: Membership) -> MemberOut:
+def _member_out(
+    m: Membership,
+    *,
+    created_user: bool = False,
+    temporary_password: str | None = None,
+) -> MemberOut:
     user = m.user
     return MemberOut(
         user_id=m.user_id,
@@ -134,4 +178,6 @@ def _member_out(m: Membership) -> MemberOut:
         display_name=user.display_name,
         role=m.role,
         created_at=m.created_at,
+        created_user=created_user,
+        temporary_password=temporary_password,
     )
