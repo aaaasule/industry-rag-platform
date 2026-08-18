@@ -40,6 +40,7 @@ from app.modules.knowledge.schemas import (
 )
 from app.modules.profile.schemas import (
     ChunkRulesConfig,
+    ParseRulesConfig,
     PromptOverridesConfig,
     RetrievalRulesConfig,
 )
@@ -55,6 +56,7 @@ def _validate_profile_rules(
     chunk_rules: dict[str, Any] | None = None,
     prompt_overrides: dict[str, Any] | None = None,
     retrieval_rules: dict[str, Any] | None = None,
+    parse_rules: dict[str, Any] | None = None,
 ) -> None:
     try:
         if chunk_rules is not None:
@@ -63,6 +65,8 @@ def _validate_profile_rules(
             PromptOverridesConfig.model_validate(prompt_overrides)
         if retrieval_rules is not None:
             RetrievalRulesConfig.model_validate(retrieval_rules)
+        if parse_rules is not None:
+            ParseRulesConfig.model_validate(parse_rules)
     except ValidationError as exc:
         raise AppError(
             "行业配置字段校验失败",
@@ -86,8 +90,12 @@ class KnowledgeService:
         self._settings = settings
         self._store = store or S3ObjectStore(settings)
 
-    async def list_profiles(self, tenant_id: uuid.UUID) -> list[IndustryProfileOut]:
+    async def list_profiles(
+        self, tenant_id: uuid.UUID, *, include_deleted: bool = False
+    ) -> list[IndustryProfileOut]:
         rows = await self._repo.list_profiles(tenant_id)
+        if include_deleted:
+            rows = [*rows, *await self._repo.list_deleted_tenant_profiles(tenant_id)]
         return [IndustryProfileOut.model_validate(r) for r in rows]
 
     async def create_profile(
@@ -128,6 +136,7 @@ class KnowledgeService:
             chunk_rules=chunk_rules,
             prompt_overrides=prompt_overrides,
             retrieval_rules=retrieval_rules,
+            parse_rules=parse_rules,
         )
 
         profile = IndustryProfile(
@@ -176,6 +185,7 @@ class KnowledgeService:
             chunk_rules=profile.chunk_rules,
             prompt_overrides=profile.prompt_overrides,
             retrieval_rules=profile.retrieval_rules,
+            parse_rules=profile.parse_rules,
         )
         await self._repo._session.flush()
         return IndustryProfileOut.model_validate(profile)
@@ -193,6 +203,18 @@ class KnowledgeService:
             raise Conflict("仍有知识库绑定该模板", code="profile_in_use")
         row.deleted_at = datetime.now(UTC)
         await self._repo._session.flush()
+
+    async def restore_profile(
+        self, claims: TokenClaims, profile_id: uuid.UUID
+    ) -> IndustryProfileOut:
+        row = await self._repo.get_tenant_profile_any(claims.tenant_id, profile_id)
+        if row is None or row.deleted_at is None:
+            raise NotFound("已删除的行业模板不存在")
+        if await self._repo.tenant_profile_code_exists(claims.tenant_id, row.code):
+            raise Conflict("本租户已存在相同 code", code="profile_code_in_use")
+        row.deleted_at = None
+        await self._repo._session.flush()
+        return IndustryProfileOut.model_validate(row)
 
     async def list_knowledge_bases(self, claims: TokenClaims) -> list[KnowledgeBaseOut]:
         ids = await visible_kb_ids(

@@ -5,7 +5,7 @@ from __future__ import annotations
 import uuid
 from collections.abc import AsyncIterator
 
-from fastapi import APIRouter, Depends, File, Form, UploadFile
+from fastapi import APIRouter, Depends, File, Form, Query, UploadFile
 from fastapi.responses import StreamingResponse
 
 from app.modules.identity.models import ROLE_ADMIN
@@ -44,9 +44,11 @@ ServiceDep = Depends(_service)
 
 @router.get("/industry-profiles", response_model=list[IndustryProfileOut])
 async def list_profiles(
-    claims: ClaimsDep, service: KnowledgeService = ServiceDep
+    claims: ClaimsDep,
+    service: KnowledgeService = ServiceDep,
+    include_deleted: bool = Query(default=False),
 ) -> list[IndustryProfileOut]:
-    return await service.list_profiles(claims.tenant_id)
+    return await service.list_profiles(claims.tenant_id, include_deleted=include_deleted)
 
 
 @router.post(
@@ -88,6 +90,19 @@ async def delete_profile(
     service: KnowledgeService = ServiceDep,
 ) -> None:
     await service.delete_profile(claims, profile_id)
+
+
+@router.post(
+    "/industry-profiles/{profile_id}/restore",
+    response_model=IndustryProfileOut,
+    dependencies=[Depends(require_role(ROLE_ADMIN))],
+)
+async def restore_profile(
+    profile_id: uuid.UUID,
+    claims: ClaimsDep,
+    service: KnowledgeService = ServiceDep,
+) -> IndustryProfileOut:
+    return await service.restore_profile(claims, profile_id)
 
 
 @router.get("/knowledge-bases", response_model=list[KnowledgeBaseOut])

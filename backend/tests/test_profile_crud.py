@@ -216,3 +216,69 @@ async def test_cannot_delete_profile_in_use(
     resp = await client.delete(f"/api/v1/industry-profiles/{profile_id}", headers=auth_headers)
     assert resp.status_code == 409
     assert resp.json()["error"]["code"] == "profile_in_use"
+
+
+async def test_restore_soft_deleted_profile(
+    client: AsyncClient, auth_headers: dict[str, str]
+) -> None:
+    await _ensure_builtin_general()
+    code = f"rest_{uuid.uuid4().hex[:8]}"
+    derived = await client.post(
+        "/api/v1/industry-profiles",
+        headers=auth_headers,
+        json={"base_code": "general", "code": code, "name": "可恢复"},
+    )
+    assert derived.status_code == 201, derived.text
+    profile_id = derived.json()["id"]
+
+    deleted = await client.delete(f"/api/v1/industry-profiles/{profile_id}", headers=auth_headers)
+    assert deleted.status_code == 204
+
+    live = await client.get("/api/v1/industry-profiles", headers=auth_headers)
+    assert all(p["id"] != profile_id for p in live.json())
+
+    hidden = await client.get(
+        "/api/v1/industry-profiles",
+        headers=auth_headers,
+        params={"include_deleted": "true"},
+    )
+    assert hidden.status_code == 200
+    found = next(p for p in hidden.json() if p["id"] == profile_id)
+    assert found["deleted_at"] is not None
+
+    restored = await client.post(
+        f"/api/v1/industry-profiles/{profile_id}/restore",
+        headers=auth_headers,
+    )
+    assert restored.status_code == 200, restored.text
+    assert restored.json()["deleted_at"] is None
+
+    live2 = await client.get("/api/v1/industry-profiles", headers=auth_headers)
+    assert any(p["id"] == profile_id for p in live2.json())
+
+
+async def test_restore_conflicts_when_code_reused(
+    client: AsyncClient, auth_headers: dict[str, str]
+) -> None:
+    await _ensure_builtin_general()
+    code = f"clash_{uuid.uuid4().hex[:8]}"
+    first = await client.post(
+        "/api/v1/industry-profiles",
+        headers=auth_headers,
+        json={"base_code": "general", "code": code, "name": "旧模板"},
+    )
+    assert first.status_code == 201, first.text
+    old_id = first.json()["id"]
+    removed = await client.delete(f"/api/v1/industry-profiles/{old_id}", headers=auth_headers)
+    assert removed.status_code == 204
+
+    second = await client.post(
+        "/api/v1/industry-profiles",
+        headers=auth_headers,
+        json={"base_code": "general", "code": code, "name": "新模板"},
+    )
+    assert second.status_code == 201, second.text
+
+    clash = await client.post(f"/api/v1/industry-profiles/{old_id}/restore", headers=auth_headers)
+    assert clash.status_code == 409
+    assert clash.json()["error"]["code"] == "profile_code_in_use"

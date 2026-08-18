@@ -32,6 +32,17 @@ class KnowledgeRepository:
         )
         return list((await self._session.execute(stmt)).scalars().all())
 
+    async def list_deleted_tenant_profiles(self, tenant_id: uuid.UUID) -> list[IndustryProfile]:
+        stmt = (
+            select(IndustryProfile)
+            .where(
+                IndustryProfile.tenant_id == tenant_id,
+                IndustryProfile.deleted_at.is_not(None),
+            )
+            .order_by(IndustryProfile.deleted_at.desc())
+        )
+        return list((await self._session.execute(stmt)).scalars().all())
+
     async def get_profile_by_code(self, tenant_id: uuid.UUID, code: str) -> IndustryProfile | None:
         # 租户自定义优先于内置
         tenant_row = (
@@ -66,6 +77,19 @@ class KnowledgeRepository:
                     (IndustryProfile.tenant_id.is_(None))
                     | (IndustryProfile.tenant_id == tenant_id),
                     IndustryProfile.deleted_at.is_(None),
+                )
+            )
+        ).scalar_one_or_none()
+
+    async def get_tenant_profile_any(
+        self, tenant_id: uuid.UUID, profile_id: uuid.UUID
+    ) -> IndustryProfile | None:
+        """本租户自定义模板（含已软删）。"""
+        return (
+            await self._session.execute(
+                select(IndustryProfile).where(
+                    IndustryProfile.id == profile_id,
+                    IndustryProfile.tenant_id == tenant_id,
                 )
             )
         ).scalar_one_or_none()

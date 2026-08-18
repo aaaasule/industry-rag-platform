@@ -11,6 +11,7 @@ export interface IndustryProfile {
   retrieval_rules: Record<string, unknown>;
   parse_rules: Record<string, unknown>;
   metadata_schema: Record<string, unknown>;
+  deleted_at?: string | null;
 }
 
 export interface IndustryProfileCreate {
@@ -35,8 +36,9 @@ export interface IndustryProfileUpdate {
 
 export const PROFILES_KEY = ['industry-profiles'] as const;
 
-export function listProfiles(): Promise<IndustryProfile[]> {
-  return api.get('/industry-profiles');
+export function listProfiles(includeDeleted = false): Promise<IndustryProfile[]> {
+  const q = includeDeleted ? '?include_deleted=true' : '';
+  return api.get(`/industry-profiles${q}`);
 }
 
 export function createProfile(body: IndustryProfileCreate): Promise<IndustryProfile> {
@@ -49,4 +51,8 @@ export function updateProfile(id: string, body: IndustryProfileUpdate): Promise<
 
 export function deleteProfile(id: string): Promise<void> {
   return api.delete(`/industry-profiles/${id}`);
+}
+
+export function restoreProfile(id: string): Promise<IndustryProfile> {
+  return api.post(`/industry-profiles/${id}/restore`, {});
 }

@@ -4,19 +4,21 @@ import { useToast } from '@/components/toast/useToast';
 import { ApiError } from '@/lib/http';
 import type { IndustryProfile } from './api';
 import { ProfileEditor } from './ProfileEditor';
-import { useCreateProfile, useDeleteProfile, useProfiles } from './hooks';
+import { useCreateProfile, useDeleteProfile, useProfiles, useRestoreProfile } from './hooks';
 
 export function ProfilesPanel({ enabled }: { enabled: boolean }) {
   const toast = useToast();
-  const listQ = useProfiles(enabled);
-  const createM = useCreateProfile();
-  const deleteM = useDeleteProfile();
-
   const [deriveFrom, setDeriveFrom] = useState<IndustryProfile | null>(null);
   const [newCode, setNewCode] = useState('');
   const [newName, setNewName] = useState('');
   const [edit, setEdit] = useState<IndustryProfile | null>(null);
+  const [showDeleted, setShowDeleted] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const listQ = useProfiles(enabled, showDeleted);
+  const createM = useCreateProfile();
+  const deleteM = useDeleteProfile();
+  const restoreM = useRestoreProfile();
 
   const rows = listQ.data ?? [];
 
@@ -34,6 +36,23 @@ export function ProfilesPanel({ enabled }: { enabled: boolean }) {
           : err instanceof ApiError
             ? err.message
             : '删除失败';
+      setError(msg);
+      toast.error(msg);
+    }
+  }
+
+  async function onRestore(p: IndustryProfile) {
+    setError(null);
+    try {
+      await restoreM.mutateAsync(p.id);
+      toast.success(`已恢复模板 ${p.code}`);
+    } catch (err) {
+      const msg =
+        err instanceof ApiError && err.code === 'profile_code_in_use'
+          ? '同 code 的模板已存在，无法恢复'
+          : err instanceof ApiError
+            ? err.message
+            : '恢复失败';
       setError(msg);
       toast.error(msg);
     }
@@ -65,8 +84,16 @@ export function ProfilesPanel({ enabled }: { enabled: boolean }) {
   return (
     <div className="space-y-4">
       <p className="text-sm text-ink-muted">
-        内置模板只读；派生后可用表单或 JSON 编辑常用规则（chunk / retrieval / system prompt）。
+        内置模板只读；派生后可编辑分块、检索、术语表、同义词与元数据字段。
       </p>
+      <label className="flex items-center gap-2 text-sm text-ink-muted">
+        <input
+          type="checkbox"
+          checked={showDeleted}
+          onChange={(e) => setShowDeleted(e.target.checked)}
+        />
+        显示已删除
+      </label>
       {error ? <p className="text-sm text-danger">{error}</p> : null}
       {listQ.isLoading ? <p className="text-sm text-ink-muted">加载中…</p> : null}
 
@@ -89,23 +116,25 @@ export function ProfilesPanel({ enabled }: { enabled: boolean }) {
                 <td className="px-4 py-3 font-mono text-xs text-ink">{p.code}</td>
                 <td className="px-4 py-3 text-ink">{p.name}</td>
                 <td className="px-4 py-3 text-ink-muted">
-                  {p.is_builtin ? '内置' : '自定义'}
+                  {p.is_builtin ? '内置' : p.deleted_at ? '已删除' : '自定义'}
                 </td>
                 <td className="px-4 py-3">
-                  <button
-                    type="button"
-                    className="mr-3 text-brand-700 hover:underline"
-                    onClick={() => {
-                      setEdit(null);
-                      setDeriveFrom(p);
-                      setNewCode(`${p.code}_custom`);
-                      setNewName(`${p.name}（自定义）`);
-                      setError(null);
-                    }}
-                  >
-                    派生
-                  </button>
-                  {!p.is_builtin ? (
+                  {!p.deleted_at ? (
+                    <button
+                      type="button"
+                      className="mr-3 text-brand-700 hover:underline"
+                      onClick={() => {
+                        setEdit(null);
+                        setDeriveFrom(p);
+                        setNewCode(`${p.code}_custom`);
+                        setNewName(`${p.name}（自定义）`);
+                        setError(null);
+                      }}
+                    >
+                      派生
+                    </button>
+                  ) : null}
+                  {!p.is_builtin && !p.deleted_at ? (
                     <>
                       <button
                         type="button"
@@ -126,6 +155,15 @@ export function ProfilesPanel({ enabled }: { enabled: boolean }) {
                         删除
                       </button>
                     </>
+                  ) : null}
+                  {p.deleted_at ? (
+                    <button
+                      type="button"
+                      className="text-brand-700 hover:underline"
+                      onClick={() => void onRestore(p)}
+                    >
+                      恢复
+                    </button>
                   ) : null}
                 </td>
               </tr>
