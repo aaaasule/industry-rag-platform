@@ -90,6 +90,30 @@ async def upsert_feedback(
 
 
 @router.post(
+    "/messages/{message_id}/regenerate",
+    dependencies=[Depends(require_chat_qps), Depends(require_token_quota)],
+)
+async def regenerate_message(
+    message_id: uuid.UUID,
+    claims: ClaimsDep,
+    service: ChatService = ServiceDep,
+) -> StreamingResponse:
+    await service.ensure_regenerable(claims, message_id)
+    limiter = RateLimiter()
+    lease_id = limiter.acquire_chat_slot(tenant_id=claims.tenant_id)
+    gen = service.stream_regenerate(claims, message_id=message_id)
+
+    async def _stream_with_lease() -> AsyncIterator[str | bytes]:
+        try:
+            async for chunk in gen:
+                yield chunk
+        finally:
+            limiter.release_chat_slot(tenant_id=claims.tenant_id, lease_id=lease_id)
+
+    return StreamingResponse(_stream_with_lease(), media_type="text/event-stream")
+
+
+@router.post(
     "/chat/completions",
     dependencies=[Depends(require_chat_qps), Depends(require_token_quota)],
 )

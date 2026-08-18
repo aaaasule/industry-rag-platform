@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import type { FormEvent } from 'react';
+import type { Dispatch, FormEvent, SetStateAction } from 'react';
 import { Link } from 'react-router-dom';
 
 import { EmptyState } from '@/components/EmptyState';
@@ -43,7 +43,7 @@ export function ChatPage() {
   const [error, setError] = useState<string | null>(null);
   const [liveMessages, setLiveMessages] = useState<UiMessage[]>([]);
   const [activeCitation, setActiveCitation] = useState<number | null>(null);
-  const [rightMode, setRightMode] = useState<'list' | 'pdf'>('list');
+  const [rightMode, setRightMode] = useState<'list' | 'preview'>('list');
   const [evidenceOpen, setEvidenceOpen] = useState(false);
   const [sessionsOpen, setSessionsOpen] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
@@ -128,7 +128,7 @@ export function ChatPage() {
 
   function openCitation(n: number) {
     setActiveCitation(n);
-    setRightMode('pdf');
+    setRightMode('preview');
     setEvidenceOpen(true);
   }
 
@@ -171,91 +171,24 @@ export function ChatPage() {
     abortRef.current = ac;
 
     try {
-      for await (const ev of chatApi.streamChatCompletions(
+      await consumeAssistantStream(
+        chatApi.streamChatCompletions(
+          {
+            conversation_id: conversationId,
+            ...(conversationId ? {} : { kb_ids: selectedKbIds }),
+            message: text,
+          },
+          ac.signal,
+        ),
         {
-          conversation_id: conversationId,
-          ...(conversationId ? {} : { kb_ids: selectedKbIds }),
-          message: text,
+          setConversationId,
+          setLiveMessages,
+          setError,
         },
-        ac.signal,
-      )) {
-        const data = ev.data as Record<string, unknown>;
-        if (ev.event === 'message_created') {
-          const cid = String(data.conversation_id);
-          const mid = String(data.message_id);
-          setConversationId(cid);
-          setLiveMessages((prev) =>
-            prev.map((m, i) => (i === prev.length - 1 ? { ...m, id: mid } : m)),
-          );
-        } else if (ev.event === 'citations') {
-          const citations = (data.citations as Citation[]) ?? [];
-          setLiveMessages((prev) =>
-            prev.map((m, i) => (i === prev.length - 1 ? { ...m, citations } : m)),
-          );
-        } else if (ev.event === 'delta') {
-          const chunk = asString(data.text);
-          setLiveMessages((prev) =>
-            prev.map((m, i) =>
-              i === prev.length - 1 ? { ...m, content: m.content + chunk } : m,
-            ),
-          );
-        } else if (ev.event === 'no_answer') {
-          const reason = asString(data.reason) || 'no_relevant_evidence';
-          setLiveMessages((prev) =>
-            prev.map((m, i) =>
-              i === prev.length - 1
-                ? {
-                    ...m,
-                    content: '未找到足够相关的资料，请换一种问法或补充上传文档。',
-                    status: 'completed',
-                  }
-                : m,
-            ),
-          );
-          setError(`拒答：${reason}`);
-        } else if (ev.event === 'done') {
-          const used = Array.isArray(data.used_citations)
-            ? (data.used_citations as number[])
-            : [];
-          setLiveMessages((prev) =>
-            prev.map((m, i) =>
-              i === prev.length - 1
-                ? { ...m, status: 'completed', used_citations: used }
-                : m,
-            ),
-          );
-        } else if (ev.event === 'error') {
-          setError(asString(data.message) || '流式问答失败');
-          setLiveMessages((prev) =>
-            prev.map((m, i) =>
-              i === prev.length - 1 ? { ...m, status: 'failed' } : m,
-            ),
-          );
-        }
-      }
+      );
       void refetchConversations();
     } catch (err) {
-      if ((err as Error).name === 'AbortError') {
-        setLiveMessages((prev) =>
-          prev.map((m, i) =>
-            i === prev.length - 1 && m.role === 'assistant'
-              ? {
-                  ...m,
-                  status: 'completed',
-                  content: m.content.trim() ? m.content : '（已停止生成）',
-                }
-              : m,
-          ),
-        );
-        toast.info('已停止生成');
-      } else {
-        setError(err instanceof Error ? err.message : '问答失败');
-        setLiveMessages((prev) =>
-          prev.map((m, i) =>
-            i === prev.length - 1 ? { ...m, status: 'failed' } : m,
-          ),
-        );
-      }
+      handleStreamError(err, setLiveMessages, setError, toast);
     } finally {
       setStreaming(false);
       abortRef.current = null;
@@ -274,6 +207,49 @@ export function ChatPage() {
       return;
     }
     await submitText(question);
+  }
+
+  async function regenerateLast() {
+    if (streaming) return;
+    const base = liveMessages.length > 0 ? liveMessages : history.map(toUi);
+    const last = base[base.length - 1];
+    if (!last || last.role !== 'assistant' || last.id.startsWith('local-')) return;
+    if (last.status !== 'completed' && last.status !== 'failed') return;
+
+    setError(null);
+    setStreaming(true);
+    setActiveCitation(null);
+    setRightMode('list');
+    setLiveMessages(
+      base.map((m, i) =>
+        i === base.length - 1
+          ? {
+              ...m,
+              content: '',
+              status: 'streaming',
+              citations: [],
+              used_citations: [],
+              feedback: undefined,
+            }
+          : m,
+      ),
+    );
+
+    const ac = new AbortController();
+    abortRef.current = ac;
+    try {
+      await consumeAssistantStream(chatApi.streamRegenerate(last.id, ac.signal), {
+        setConversationId,
+        setLiveMessages,
+        setError,
+      });
+      void refetchConversations();
+    } catch (err) {
+      handleStreamError(err, setLiveMessages, setError, toast);
+    } finally {
+      setStreaming(false);
+      abortRef.current = null;
+    }
   }
 
   const evidencePanel = (
@@ -394,7 +370,13 @@ export function ChatPage() {
               </div>
             </div>
           )}
-          {displayMessages.map((m) => (
+          {displayMessages.map((m, idx) => {
+            const lastAssistant =
+              m.role === 'assistant' &&
+              idx === displayMessages.length - 1 &&
+              !m.id.startsWith('local-') &&
+              (m.status === 'completed' || m.status === 'failed');
+            return (
             <div
               key={m.id}
               className={['flex', m.role === 'user' ? 'justify-end' : 'justify-start'].join(' ')}
@@ -423,16 +405,34 @@ export function ChatPage() {
                 {m.role === 'assistant' && m.status === 'streaming' && (
                   <span className="ml-1 inline-block h-3 w-1 animate-pulse bg-ink-faint align-middle" />
                 )}
-                {m.role === 'assistant' && m.status === 'completed' && (
-                  <MessageFeedback
-                    messageId={m.id}
-                    initial={m.feedback}
-                    disabled={streaming}
-                  />
+                {m.role === 'assistant' && m.status === 'failed' && (
+                  <p className="mt-2 text-xs text-danger">生成失败，可重新生成</p>
+                )}
+                {m.role === 'assistant' && (m.status === 'completed' || lastAssistant) && (
+                  <div className="mt-1 flex flex-wrap items-center gap-2">
+                    {m.status === 'completed' && (
+                      <MessageFeedback
+                        messageId={m.id}
+                        initial={m.feedback}
+                        disabled={streaming}
+                      />
+                    )}
+                    {lastAssistant && (
+                      <button
+                        type="button"
+                        disabled={streaming}
+                        onClick={() => void regenerateLast()}
+                        className="rounded px-1.5 py-0.5 text-xs text-ink-muted hover:bg-canvas hover:text-ink disabled:opacity-50"
+                      >
+                        重新生成
+                      </button>
+                    )}
+                  </div>
                 )}
               </div>
             </div>
-          ))}
+            );
+          })}
           <div ref={bottomRef} />
         </div>
 
@@ -592,4 +592,94 @@ function toUi(m: ChatMessage): UiMessage {
     used_citations: m.used_citations,
     feedback: m.feedback,
   };
+}
+
+async function consumeAssistantStream(
+  stream: AsyncIterable<{ event: string; data: unknown }>,
+  ctx: {
+    setConversationId: (id: string) => void;
+    setLiveMessages: Dispatch<SetStateAction<UiMessage[]>>;
+    setError: (msg: string | null) => void;
+  },
+) {
+  for await (const ev of stream) {
+    const data = ev.data as Record<string, unknown>;
+    if (ev.event === 'message_created') {
+      const cid = String(data.conversation_id);
+      const mid = String(data.message_id);
+      ctx.setConversationId(cid);
+      ctx.setLiveMessages((prev) =>
+        prev.map((m, i) => (i === prev.length - 1 ? { ...m, id: mid } : m)),
+      );
+    } else if (ev.event === 'citations') {
+      const citations = (data.citations as Citation[]) ?? [];
+      ctx.setLiveMessages((prev) =>
+        prev.map((m, i) => (i === prev.length - 1 ? { ...m, citations } : m)),
+      );
+    } else if (ev.event === 'delta') {
+      const chunk = asString(data.text);
+      ctx.setLiveMessages((prev) =>
+        prev.map((m, i) =>
+          i === prev.length - 1 ? { ...m, content: m.content + chunk } : m,
+        ),
+      );
+    } else if (ev.event === 'no_answer') {
+      const reason = asString(data.reason) || 'no_relevant_evidence';
+      ctx.setLiveMessages((prev) =>
+        prev.map((m, i) =>
+          i === prev.length - 1
+            ? {
+                ...m,
+                content: '未找到足够相关的资料，请换一种问法或补充上传文档。',
+                status: 'completed',
+              }
+            : m,
+        ),
+      );
+      ctx.setError(`拒答：${reason}`);
+    } else if (ev.event === 'done') {
+      const used = Array.isArray(data.used_citations)
+        ? (data.used_citations as number[])
+        : [];
+      ctx.setLiveMessages((prev) =>
+        prev.map((m, i) =>
+          i === prev.length - 1
+            ? { ...m, status: 'completed', used_citations: used }
+            : m,
+        ),
+      );
+    } else if (ev.event === 'error') {
+      ctx.setError(asString(data.message) || '流式问答失败');
+      ctx.setLiveMessages((prev) =>
+        prev.map((m, i) => (i === prev.length - 1 ? { ...m, status: 'failed' } : m)),
+      );
+    }
+  }
+}
+
+function handleStreamError(
+  err: unknown,
+  setLiveMessages: Dispatch<SetStateAction<UiMessage[]>>,
+  setError: (msg: string | null) => void,
+  toast: { info: (msg: string) => void },
+) {
+  if ((err as Error).name === 'AbortError') {
+    setLiveMessages((prev) =>
+      prev.map((m, i) =>
+        i === prev.length - 1 && m.role === 'assistant'
+          ? {
+              ...m,
+              status: 'completed',
+              content: m.content.trim() ? m.content : '（已停止生成）',
+            }
+          : m,
+      ),
+    );
+    toast.info('已停止生成');
+    return;
+  }
+  setError(err instanceof Error ? err.message : '问答失败');
+  setLiveMessages((prev) =>
+    prev.map((m, i) => (i === prev.length - 1 ? { ...m, status: 'failed' } : m)),
+  );
 }

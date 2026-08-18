@@ -81,6 +81,7 @@
 | DELETE | `/documents/{doc_id}` | 软删除并清理 chunks |
 | POST | `/documents/{doc_id}/reingest` | 重新摄取，可指定起始阶段 |
 | GET | `/documents/{doc_id}/preview-url` | 原文预签名下载 URL（15 分钟有效） |
+| GET | `/documents/{doc_id}/pages` | 解析后的页文本，非 PDF 预览用 |
 | GET | `/documents/{doc_id}/chunks` | 分块列表，用于质量排查 |
 | GET | `/documents/{doc_id}/events` | SSE，实时推送摄取进度 |
 
@@ -95,6 +96,7 @@
 | GET | `/conversations/{id}/messages` | 历史消息（含引用） |
 | DELETE | `/conversations/{id}` | 删除会话 |
 | POST | `/messages/{id}/feedback` | 点赞/点踩 + 原因，沉淀为评测样本 |
+| POST | `/messages/{id}/regenerate` | 对最后一条助手消息原地重新生成（SSE） |
 
 ### 行业配置与管理
 

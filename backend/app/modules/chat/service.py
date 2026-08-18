@@ -264,7 +264,77 @@ class ChatService:
             "message_created",
             {"message_id": str(asst.id), "conversation_id": str(conv.id)},
         )
+        async for chunk in self._stream_answer(
+            claims, conv=conv, asst=asst, query=message, temperature=temperature
+        ):
+            yield chunk
 
+    async def ensure_regenerable(self, claims: TokenClaims, message_id: uuid.UUID) -> None:
+        await self._load_regenerate_context(claims, message_id)
+
+    async def _load_regenerate_context(
+        self, claims: TokenClaims, message_id: uuid.UUID
+    ) -> tuple[Message, Conversation, Message]:
+        asst = await self._repo.get_message(claims.tenant_id, message_id)
+        if asst is None:
+            raise NotFound("消息不存在")
+        conv = asst.conversation
+        if (
+            conv is None
+            or conv.user_id != claims.user_id
+            or conv.deleted_at is not None
+            or conv.tenant_id != claims.tenant_id
+        ):
+            raise NotFound("消息不存在")
+        if asst.role != ROLE_ASSISTANT:
+            raise UnprocessableState("只能重新生成助手消息")
+        if asst.status == MSG_STREAMING:
+            raise UnprocessableState("回答正在生成中")
+
+        history = await self._repo.list_messages(claims.tenant_id, conv.id)
+        if not history or history[-1].id != asst.id:
+            raise UnprocessableState("只能重新生成会话中最后一条消息")
+        user_msg = next((m for m in reversed(history[:-1]) if m.role == ROLE_USER), None)
+        if user_msg is None or not user_msg.content.strip():
+            raise UnprocessableState("找不到对应的用户问题")
+        return asst, conv, user_msg
+
+    async def stream_regenerate(
+        self,
+        claims: TokenClaims,
+        *,
+        message_id: uuid.UUID,
+        temperature: float = 0.1,
+    ) -> AsyncIterator[bytes]:
+        asst, conv, user_msg = await self._load_regenerate_context(claims, message_id)
+
+        asst.citations.clear()
+        asst.feedbacks.clear()
+        asst.content = ""
+        asst.status = MSG_STREAMING
+        asst.retrieval_meta = None
+        asst.token_usage = None
+        asst.model = getattr(self._llm, "model", None) or self._llm.name
+        await self._commit_keep_rls(claims)
+
+        yield sse_event(
+            "message_created",
+            {"message_id": str(asst.id), "conversation_id": str(conv.id)},
+        )
+        async for chunk in self._stream_answer(
+            claims, conv=conv, asst=asst, query=user_msg.content, temperature=temperature
+        ):
+            yield chunk
+
+    async def _stream_answer(
+        self,
+        claims: TokenClaims,
+        *,
+        conv: Conversation,
+        asst: Message,
+        query: str,
+        temperature: float,
+    ) -> AsyncIterator[bytes]:
         settings = get_settings()
         effective = await resolve_for_kb_ids(self._session, list(conv.kb_ids))
         rerank = resolve_rerank_enabled(
@@ -277,7 +347,7 @@ class ChatService:
                 tenant_id=claims.tenant_id,
                 user_id=claims.user_id,
                 role=claims.role,
-                query=message,
+                query=query,
                 kb_ids=list(conv.kb_ids),
                 top_k=effective.retrieval_rules.top_k,
                 options=SearchOptions(rerank=rerank),
@@ -353,7 +423,7 @@ class ChatService:
         llm_msgs = [
             LLMMessage(role=m["role"], content=m["content"])  # type: ignore[arg-type]
             for m in build_messages(
-                message,
+                query,
                 search.hits,
                 system_override=effective.prompt_overrides.system,
             )

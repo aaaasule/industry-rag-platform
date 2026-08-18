@@ -106,6 +106,20 @@ export function listChunks(docId: string): Promise<ChunkItem[]> {
   return api.get(`/documents/${docId}/chunks`);
 }
 
+export interface DocumentPageItem {
+  page_no: number;
+  plain_text: string;
+  source: string;
+}
+
+export function listPages(docId: string): Promise<DocumentPageItem[]> {
+  return api.get(`/documents/${docId}/pages`);
+}
+
+export function isPdfMime(mime?: string | null): boolean {
+  return (mime ?? '').toLowerCase().includes('pdf');
+}
+
 export function reingestDocument(docId: string): Promise<DocumentCreated> {
   return api.post(`/documents/${docId}/reingest`);
 }

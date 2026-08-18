@@ -16,7 +16,7 @@ from app.modules.chat.models import (
     Message,
 )
 from app.modules.ingestion.chunkers.tsv import build_tsv
-from app.modules.knowledge.models import Chunk, Document, KnowledgeBase
+from app.modules.knowledge.models import Chunk, Document, DocumentPage, KnowledgeBase
 from app.platform.db import session_scope
 from app.platform.ids import uuid7
 from app.platform.llm.fake import FakeEmbeddingProvider
@@ -75,6 +75,18 @@ async def _seed_doc_with_chunk(fixture: Fixture) -> tuple[uuid.UUID, uuid.UUID]:
                 tsv=tsv_value,
             )
         )
+        session.add(
+            DocumentPage(
+                tenant_id=fixture.primary_tenant_id,
+                document_id=doc.id,
+                page_no=2,
+                width=595.0,
+                height=842.0,
+                blocks=[],
+                plain_text=content,
+                source="text",
+            )
+        )
         return kb.id, doc.id
 
 
@@ -93,6 +105,25 @@ async def test_list_document_chunks(
 
     missing = await client.get(
         "/api/v1/documents/00000000-0000-7000-8000-000000000099/chunks",
+        headers=auth_headers,
+    )
+    assert missing.status_code == 404
+
+
+async def test_list_document_pages(
+    client: AsyncClient, auth_headers: dict[str, str], fixture_data: Fixture
+) -> None:
+    _, doc_id = await _seed_doc_with_chunk(fixture_data)
+    resp = await client.get(f"/api/v1/documents/{doc_id}/pages", headers=auth_headers)
+    assert resp.status_code == 200, resp.text
+    rows = resp.json()
+    assert len(rows) == 1
+    assert rows[0]["page_no"] == 2
+    assert "溢流阀" in rows[0]["plain_text"]
+    assert rows[0]["source"] == "text"
+
+    missing = await client.get(
+        "/api/v1/documents/00000000-0000-7000-8000-000000000099/pages",
         headers=auth_headers,
     )
     assert missing.status_code == 404
