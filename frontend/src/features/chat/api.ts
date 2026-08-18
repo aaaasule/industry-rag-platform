@@ -72,3 +72,7 @@ export function streamChatCompletions(
 ) {
   return streamEvents('/chat/completions', body, signal ? { signal } : {});
 }
+
+export function streamRegenerate(messageId: string, signal?: AbortSignal) {
+  return streamEvents(`/messages/${messageId}/regenerate`, {}, signal ? { signal } : {});
+}

@@ -128,6 +128,12 @@ class PreviewUrlOut(BaseModel):
     expires_in: int
 
 
+class DocumentPageOut(BaseModel):
+    page_no: int
+    plain_text: str
+    source: str
+
+
 class ChunkOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 

@@ -4,6 +4,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { PdfHighlightViewer } from '@/components/PdfHighlightViewer';
 import type { PdfBBox } from '@/components/PdfHighlightViewer';
+import { TextPreview } from '@/components/TextPreview';
 import { streamEventsGet } from '@/lib/sse';
 
 import * as kbApi from './api';
@@ -43,8 +44,14 @@ export function DocumentDetailPage() {
   const { data: preview, error: previewError } = useQuery({
     queryKey: ['preview-url', docId],
     queryFn: () => kbApi.getPreviewUrl(docId),
-    enabled: Boolean(docId) && Boolean(doc?.mime_type?.includes('pdf')),
+    enabled: Boolean(docId) && kbApi.isPdfMime(doc?.mime_type),
     staleTime: 10 * 60 * 1000,
+  });
+
+  const { data: pages = [], isLoading: pagesLoading } = useQuery({
+    queryKey: ['document-pages', docId],
+    queryFn: () => kbApi.listPages(docId),
+    enabled: Boolean(docId) && Boolean(doc) && !kbApi.isPdfMime(doc?.mime_type),
   });
 
   const [activeChunkId, setActiveChunkId] = useState<string | null>(chunkParam);
@@ -91,7 +98,7 @@ export function DocumentDetailPage() {
     );
   }
 
-  const isPdf = Boolean(doc?.mime_type?.includes('pdf'));
+  const isPdf = kbApi.isPdfMime(doc?.mime_type);
   const inProgress = Boolean(doc && kbApi.IN_PROGRESS.has(doc.status));
 
   useEffect(() => {
@@ -151,8 +158,17 @@ export function DocumentDetailPage() {
 
       <div className="grid min-h-0 flex-1 gap-3 lg:grid-cols-2">
         <section className="panel min-h-0 overflow-hidden">
-          {!isPdf && (
-            <p className="p-6 text-sm text-ink-muted">当前文件类型暂不支持 PDF 预览。</p>
+          {doc && !isPdf && (
+            <>
+              {pagesLoading && <p className="p-6 text-sm text-ink-muted">加载预览…</p>}
+              {!pagesLoading && (
+                <TextPreview
+                  pages={pages}
+                  activePage={activeChunk?.page_start ?? page}
+                  highlightText={activeChunk?.content ?? null}
+                />
+              )}
+            </>
           )}
           {isPdf && previewError && (
             <p className="p-6 text-sm text-danger">预览地址获取失败</p>

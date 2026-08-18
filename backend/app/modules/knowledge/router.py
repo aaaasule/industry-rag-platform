@@ -15,6 +15,7 @@ from app.modules.knowledge.schemas import (
     ChunkOut,
     DocumentCreated,
     DocumentOut,
+    DocumentPageOut,
     DocumentRegisterRequest,
     GrantOut,
     GrantUpsert,
@@ -240,6 +241,13 @@ async def preview_url(
     doc_id: uuid.UUID, claims: ClaimsDep, service: KnowledgeService = ServiceDep
 ) -> PreviewUrlOut:
     return await service.preview_url(claims, doc_id)
+
+
+@router.get("/documents/{doc_id}/pages", response_model=list[DocumentPageOut])
+async def list_pages(
+    doc_id: uuid.UUID, claims: ClaimsDep, service: KnowledgeService = ServiceDep
+) -> list[DocumentPageOut]:
+    return await service.list_pages(claims, doc_id)
 
 
 @router.get("/documents/{doc_id}/events")

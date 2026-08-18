@@ -7,7 +7,14 @@ import uuid
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.modules.knowledge.models import Chunk, Document, IndustryProfile, KbGrant, KnowledgeBase
+from app.modules.knowledge.models import (
+    Chunk,
+    Document,
+    DocumentPage,
+    IndustryProfile,
+    KbGrant,
+    KnowledgeBase,
+)
 
 
 class KnowledgeRepository:
@@ -179,6 +186,14 @@ class KnowledgeRepository:
         self._session.add(doc)
         await self._session.flush()
         return doc
+
+    async def list_pages(self, tenant_id: uuid.UUID, doc_id: uuid.UUID) -> list[DocumentPage]:
+        stmt = (
+            select(DocumentPage)
+            .where(DocumentPage.tenant_id == tenant_id, DocumentPage.document_id == doc_id)
+            .order_by(DocumentPage.page_no.asc())
+        )
+        return list((await self._session.execute(stmt)).scalars().all())
 
     async def list_chunks(self, tenant_id: uuid.UUID, doc_id: uuid.UUID) -> list[Chunk]:
         stmt = (

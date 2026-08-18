@@ -71,7 +71,11 @@ class ChatRepository:
     async def get_message(self, tenant_id: uuid.UUID, message_id: uuid.UUID) -> Message | None:
         stmt = (
             select(Message)
-            .options(selectinload(Message.conversation))
+            .options(
+                selectinload(Message.conversation),
+                selectinload(Message.citations),
+                selectinload(Message.feedbacks),
+            )
             .where(Message.id == message_id, Message.tenant_id == tenant_id)
         )
         return (await self._session.execute(stmt)).scalar_one_or_none()

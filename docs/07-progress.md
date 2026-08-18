@@ -6,10 +6,25 @@
 
 | 项 | 值 |
 | --- | --- |
-| 阶段 | **M5 完成**；P1 批次 A 已合入 `main`（#21）；批次 B 进行中 |
-| 下一里程碑 | **真实行业语料 E2E 验收** → 再定 M6；并行还清 P1（B→C→D） |
-| 已落地 | metadata 校验、Profile 软删、jieba 词典、CI 检索评测硬门槛、工作台 UI、多格式摄取/SSE |
+| 阶段 | **M5 完成**；P1 批次 A/B 已合入 `main`；批次 C 进行中 |
+| 下一里程碑 | **真实行业语料 E2E 验收** → 再定 M6；并行还清 P1（C→D） |
+| 已落地 | metadata 校验、Profile 软删、jieba 词典、CI 检索评测硬门槛、工作台 UI、多格式摄取/SSE、KB 授权 UI、无邮件邀请 |
 | 阻塞项 | 无（产品开放问题见下文，不挡验收） |
+
+---
+
+## 2026-08-14（P1 批次 C · 重新生成 + 非 PDF 预览）
+
+### 进行中 / 本批目标
+
+| # | 任务 | 状态 |
+| --- | --- | --- |
+| C-1 | `POST /messages/{id}/regenerate` 原地重跑 SSE | ✓ |
+| C-2 | 问答页最后一条助手消息「重新生成」 | ✓ |
+| C-3 | `GET /documents/{id}/pages` + 非 PDF 正文预览与分块联动 | ✓ |
+| C-4 | 测试 / 设计短文 | ✓ |
+
+**决策**：只重跑会话最后一条助手消息；非 PDF 用解析页文本高亮，不做 bbox。
 
 ---
 
@@ -24,7 +39,8 @@
 | B-3 | KB grants UI（详情页）+ GrantOut 带邮箱 | ✓ |
 | B-4 | 测试 / 设计短文 | ✓ |
 
-**决策**：无 SMTP；`create_if_missing` 默认 true；授权仅限本租户成员。
+**决策**：无 SMTP；`create_if_missing` 默认 true；授权仅限本租户成员。  
+**合并**：PR [#22](https://github.com/aaaasule/industry-rag-platform/pull/22) squash → `main`。
 
 ---
 

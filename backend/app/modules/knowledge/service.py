@@ -24,6 +24,7 @@ from app.modules.knowledge.schemas import (
     ChunkOut,
     DocumentCreated,
     DocumentOut,
+    DocumentPageOut,
     DocumentRegisterRequest,
     GrantOut,
     GrantUpsert,
@@ -464,6 +465,14 @@ class KnowledgeService:
         doc = await self._require_doc(claims, doc_id, PERM_READ)
         url = self._store.presign_download(doc.storage_key)
         return PreviewUrlOut(url=url, expires_in=self._settings.s3_presign_ttl_seconds)
+
+    async def list_pages(self, claims: TokenClaims, doc_id: uuid.UUID) -> list[DocumentPageOut]:
+        await self._require_doc(claims, doc_id, PERM_READ)
+        rows = await self._repo.list_pages(claims.tenant_id, doc_id)
+        return [
+            DocumentPageOut(page_no=p.page_no, plain_text=p.plain_text, source=p.source)
+            for p in rows
+        ]
 
     async def list_chunks(self, claims: TokenClaims, doc_id: uuid.UUID) -> list[ChunkOut]:
         await self._require_doc(claims, doc_id, PERM_READ)
