@@ -121,6 +121,7 @@ class IndustryProfileOut(BaseModel):
     retrieval_rules: dict[str, Any] = Field(default_factory=dict)
     parse_rules: dict[str, Any] = Field(default_factory=dict)
     metadata_schema: dict[str, Any] = Field(default_factory=dict)
+    deleted_at: datetime | None = None
 
 
 class PreviewUrlOut(BaseModel):

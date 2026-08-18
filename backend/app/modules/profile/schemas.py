@@ -17,9 +17,10 @@ class ChunkRulesConfig(BaseModel):
 
 
 class ParseRulesConfig(BaseModel):
-    """预留：OCR / 页眉页脚 / 术语表等。"""
+    """OCR / 页眉页脚 / 术语表 / 同义词。"""
 
     dictionary: list[str] = Field(default_factory=list)
+    synonyms: dict[str, str] = Field(default_factory=dict)
 
     model_config = {"extra": "allow"}
 

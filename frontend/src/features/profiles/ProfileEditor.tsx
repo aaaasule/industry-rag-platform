@@ -15,6 +15,7 @@ import {
   toUpdateBody,
   type ProfileDraft,
 } from './formModel';
+import { ProfileOpsFields } from './ProfileOpsFields';
 import { useUpdateProfile } from './hooks';
 
 type Tab = 'form' | 'json';
@@ -218,9 +219,13 @@ export function ProfileEditor({
               placeholder="留空则使用平台默认 SYSTEM_PROMPT"
             />
           </label>
-          <p className="text-xs text-ink-faint">
-            parse_rules / metadata_schema 等请在 JSON 视图编辑。
-          </p>
+          <p className="text-xs text-ink-faint">更复杂的规则仍可在 JSON 视图编辑。</p>
+          <ProfileOpsFields
+            parseRules={draft.parse_rules}
+            metadataSchema={draft.metadata_schema}
+            onParseRules={(parse_rules) => setDraft((d) => ({ ...d, parse_rules }))}
+            onMetadataSchema={(metadata_schema) => setDraft((d) => ({ ...d, metadata_schema }))}
+          />
         </div>
       ) : (
         <label className="block text-xs text-ink-muted">

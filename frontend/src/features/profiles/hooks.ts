@@ -4,10 +4,10 @@ import type { ApiError } from '@/lib/http';
 
 import * as api from './api';
 
-export function useProfiles(enabled = true) {
+export function useProfiles(enabled = true, includeDeleted = false) {
   return useQuery({
-    queryKey: api.PROFILES_KEY,
-    queryFn: api.listProfiles,
+    queryKey: [...api.PROFILES_KEY, includeDeleted] as const,
+    queryFn: () => api.listProfiles(includeDeleted),
     enabled,
   });
 }
@@ -33,6 +33,14 @@ export function useDeleteProfile() {
   const qc = useQueryClient();
   return useMutation<void, ApiError, string>({
     mutationFn: api.deleteProfile,
+    onSuccess: () => void qc.invalidateQueries({ queryKey: api.PROFILES_KEY }),
+  });
+}
+
+export function useRestoreProfile() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: api.restoreProfile,
     onSuccess: () => void qc.invalidateQueries({ queryKey: api.PROFILES_KEY }),
   });
 }

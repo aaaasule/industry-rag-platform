@@ -352,6 +352,7 @@ class ChatService:
                 top_k=effective.retrieval_rules.top_k,
                 options=SearchOptions(rerank=rerank),
                 dictionary=effective.parse_rules.get("dictionary"),
+                synonyms=effective.parse_rules.get("synonyms"),
             )
         except AppError as exc:
             asst.content = str(exc.message)

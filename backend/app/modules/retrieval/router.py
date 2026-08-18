@@ -62,6 +62,7 @@ async def search(
         rerank=rerank,
     )
     dictionary = effective.parse_rules.get("dictionary")
+    synonyms = effective.parse_rules.get("synonyms")
     result = await service.search(
         tenant_id=claims.tenant_id,
         user_id=claims.user_id,
@@ -71,6 +72,7 @@ async def search(
         top_k=top_k,
         options=opts,
         dictionary=dictionary,
+        synonyms=synonyms,
     )
     return SearchResponse(
         query=result.rewritten_query,

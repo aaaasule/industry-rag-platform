@@ -102,9 +102,10 @@
 
 | 方法 | 路径 | 说明 |
 | --- | --- | --- |
-| GET | `/industry-profiles` | 内置模板 + 本租户自定义 |
+| GET | `/industry-profiles` | 内置模板 + 本租户自定义；`?include_deleted=true` 含已软删 |
 | POST | `/industry-profiles` | 基于内置模板派生自定义配置 |
 | PATCH | `/industry-profiles/{id}` | 更新，写入前做 schema 校验 |
+| POST | `/industry-profiles/{id}/restore` | 恢复已软删的自定义模板 |
 | GET | `/admin/audit-logs` | 审计日志查询 |
 | GET | `/healthz` `/readyz` | 存活与就绪探针，不需认证 |
 

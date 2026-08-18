@@ -5,6 +5,7 @@ from __future__ import annotations
 import time
 import uuid
 from collections.abc import Sequence
+from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -15,6 +16,7 @@ from app.modules.retrieval.base import SearchHit, SearchOptions, SearchResult
 from app.modules.retrieval.expand import expand_hits, load_document_titles
 from app.modules.retrieval.repository import RetrievalRepository
 from app.modules.retrieval.rrf import rrf_fuse
+from app.modules.retrieval.synonyms import apply_synonyms, coerce_synonyms
 from app.platform.errors import NotFound
 from app.platform.llm.base import EmbeddingProvider, RerankProvider
 
@@ -44,6 +46,7 @@ class RetrievalService:
         top_k: int = 8,
         options: SearchOptions | None = None,
         dictionary: Sequence[str] | None = None,
+        synonyms: Any = None,
     ) -> SearchResult:
         opts = options or SearchOptions()
         t0 = time.perf_counter()
@@ -65,6 +68,7 @@ class RetrievalService:
             resolved = list(kb_ids)
 
         q_norm = normalize(query)
+        q_norm = apply_synonyms(q_norm, coerce_synonyms(synonyms))
         tsv_q = build_tsv(q_norm, dictionary=dictionary)
 
         emb_t0 = time.perf_counter()
