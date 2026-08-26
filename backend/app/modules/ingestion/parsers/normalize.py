@@ -12,5 +12,9 @@ CJK_LATIN_MAP.update({ord(c): chr(ord("a") + i) for i, c in enumerate(_LOWER)})
 
 
 def normalize(text: str) -> str:
-    """索引侧与查询侧必须共用这一份实现。"""
-    return unicodedata.normalize("NFKC", text.translate(CJK_LATIN_MAP))
+    """索引侧与查询侧必须共用这一份实现。
+
+    去掉 ``\\u0000``：部分 PDF 字体抽取会带上空字符，Postgres text/jsonb 无法存储。
+    """
+    cleaned = text.replace("\x00", "").translate(CJK_LATIN_MAP)
+    return unicodedata.normalize("NFKC", cleaned)

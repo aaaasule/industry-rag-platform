@@ -142,6 +142,7 @@ async def _parse_document(document_id: uuid.UUID, tenant_id: uuid.UUID, job_id: 
                 for p in pages
             ]
             page_dicts = strip_headers_footers(page_dicts)
+            page_dicts = [_scrub_nul_page(p) for p in page_dicts]
 
             await session.execute(
                 delete(DocumentPage).where(DocumentPage.document_id == document_id)
@@ -431,3 +432,22 @@ async def _embed_document(document_id: uuid.UUID, tenant_id: uuid.UUID, job_id: 
                 return "failed"
         finally:
             await aclose_provider(embedding)
+
+
+def _scrub_nul_page(page: dict[str, Any]) -> dict[str, Any]:
+    """Postgres text/jsonb 拒绝 \\u0000；解析结果偶发携带，写入前剔除。"""
+    return {
+        **page,
+        "plain_text": str(page.get("plain_text") or "").replace("\x00", ""),
+        "blocks": [_scrub_nul_value(b) for b in (page.get("blocks") or [])],
+    }
+
+
+def _scrub_nul_value(value: Any) -> Any:
+    if isinstance(value, str):
+        return value.replace("\x00", "")
+    if isinstance(value, list):
+        return [_scrub_nul_value(v) for v in value]
+    if isinstance(value, dict):
+        return {k: _scrub_nul_value(v) for k, v in value.items()}
+    return value
