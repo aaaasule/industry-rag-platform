@@ -245,6 +245,13 @@ async def test_cannot_mutate_platform(client: AsyncClient, auth_headers: dict[st
     )
     assert deny_del.status_code == 403, deny_del.text
 
+    tested = await client.post(
+        f"/api/v1/model-connections/{platform_id}/test",
+        headers=auth_headers,
+    )
+    assert tested.status_code == 200, tested.text
+    assert tested.json()["ok"] is True
+
     engine = create_async_engine(url, pool_pre_ping=True)
     maker = async_sessionmaker(engine, expire_on_commit=False, autoflush=False)
     try:
