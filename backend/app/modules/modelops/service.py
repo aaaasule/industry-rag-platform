@@ -163,10 +163,13 @@ class ModelOpsService:
             raise NotFound("接入点不存在")
 
         result = await probe_connection(row, settings=self._settings)
+        # 平台行 RLS WITH CHECK 禁止应用角色写入；health 由定时 probe 任务（迁移角色）更新
+        persist_health = row.tenant_id is not None
         if result.ok:
-            row.health = HEALTH_HEALTHY
-            row.health_checked_at = datetime.now(UTC)
-            await self._repo._session.flush()
+            if persist_health:
+                row.health = HEALTH_HEALTHY
+                row.health_checked_at = datetime.now(UTC)
+                await self._repo._session.flush()
             await self._audit.record(
                 tenant_id=claims.tenant_id,
                 actor_id=claims.user_id,
@@ -179,9 +182,10 @@ class ModelOpsService:
                 ok=True, latency_ms=round(result.latency_ms, 2), model_echo=row.model
             )
 
-        row.health = HEALTH_DOWN
-        row.health_checked_at = datetime.now(UTC)
-        await self._repo._session.flush()
+        if persist_health:
+            row.health = HEALTH_DOWN
+            row.health_checked_at = datetime.now(UTC)
+            await self._repo._session.flush()
         await self._audit.record(
             tenant_id=claims.tenant_id,
             actor_id=claims.user_id,
