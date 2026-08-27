@@ -1,3 +1,14 @@
+import '@fontsource/plus-jakarta-sans/400.css';
+import '@fontsource/plus-jakarta-sans/500.css';
+import '@fontsource/plus-jakarta-sans/600.css';
+import '@fontsource/plus-jakarta-sans/700.css';
+import '@fontsource/noto-sans-sc/400.css';
+import '@fontsource/noto-sans-sc/500.css';
+import '@fontsource/noto-sans-sc/600.css';
+import '@fontsource/noto-sans-sc/700.css';
+import '@fontsource/ibm-plex-mono/400.css';
+import '@fontsource/ibm-plex-mono/500.css';
+
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
@@ -11,8 +22,6 @@ import './index.css';
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      // 401 已由 http.ts 自动刷新处理，重试只会放大真实故障；
-      // 4xx 属于确定性失败，重试没有意义
       retry: (failureCount, error) =>
         error instanceof ApiError && error.status >= 500 && failureCount < 2,
       refetchOnWindowFocus: false,

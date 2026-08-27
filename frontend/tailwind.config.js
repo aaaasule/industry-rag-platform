@@ -4,29 +4,34 @@ export default {
   theme: {
     extend: {
       colors: {
-        // 工业控制台：铁青强调色（映射既有 brand-*，避免双色并存）
         brand: {
-          50: '#E4F0F2',
-          100: '#C8E0E5',
-          500: '#2F6F7E',
-          600: '#2F6F7E',
-          700: '#275A66',
+          50: '#EFF6FF',
+          100: '#DBEAFE',
+          500: '#1D4ED8',
+          600: '#1D4ED8',
+          700: '#1E40AF',
         },
-        canvas: '#F2F1ED',
-        surface: '#FFFEFB',
+        canvas: '#F1F5F9',
+        surface: '#FFFFFF',
+        elevated: '#F8FAFC',
         ink: {
-          DEFAULT: '#1A1F24',
-          muted: '#5C6570',
-          faint: '#8A929A',
+          DEFAULT: '#0F172A',
+          muted: '#64748B',
+          faint: '#94A3B8',
         },
-        line: '#D5D8DC',
-        ok: '#3D6B4F',
-        warn: '#B8792A',
-        danger: '#A33B2B',
+        line: '#E2E8F0',
+        accent: {
+          DEFAULT: '#1D4ED8',
+          hover: '#1E40AF',
+          soft: '#EFF6FF',
+        },
+        ok: '#15803D',
+        warn: '#B45309',
+        danger: '#B91C1C',
       },
       fontFamily: {
         sans: [
-          '"IBM Plex Sans"',
+          '"Plus Jakarta Sans"',
           '"Noto Sans SC"',
           'system-ui',
           '-apple-system',
@@ -37,17 +42,19 @@ export default {
         mono: ['"IBM Plex Mono"', 'ui-monospace', 'SFMono-Regular', 'Menlo', 'monospace'],
       },
       borderRadius: {
-        sm: '4px',
-        DEFAULT: '6px',
-        md: '6px',
-        lg: '6px',
+        sm: '6px',
+        DEFAULT: '8px',
+        md: '8px',
+        lg: '8px',
+        full: '9999px',
       },
       boxShadow: {
-        panel: '0 1px 0 rgba(26, 31, 36, 0.06)',
+        panel: '0 1px 0 rgba(15, 23, 42, 0.06)',
+        elevated: '0 1px 3px rgba(15, 23, 42, 0.08)',
       },
       keyframes: {
         'fade-up': {
-          from: { opacity: '0', transform: 'translateY(4px)' },
+          from: { opacity: '0', transform: 'translateY(6px)' },
           to: { opacity: '1', transform: 'translateY(0)' },
         },
       },

@@ -4,14 +4,14 @@ type Props = {
   size?: number;
 };
 
-/** 与顶栏一致的几何品牌标 */
+/** 品牌标：几何块面 */
 export function BrandMark({ className = '', size = 28 }: Props) {
   const icon = Math.round(size * 0.5);
   return (
     <span
       aria-hidden
       className={[
-        'inline-flex shrink-0 items-center justify-center rounded bg-brand-600 text-white',
+        'inline-flex shrink-0 items-center justify-center rounded-lg bg-accent text-white shadow-elevated',
         className,
       ].join(' ')}
       style={{ width: size, height: size }}
