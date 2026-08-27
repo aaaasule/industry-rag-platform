@@ -79,7 +79,7 @@ export function ChatRightPanel({
       <div className="flex items-center justify-between gap-2 border-b border-line px-3 py-2">
         <button
           type="button"
-          className="text-xs text-brand-700 hover:underline"
+          className="text-xs text-accent hover:underline"
           onClick={onBackToList}
         >
           ← 返回证据
@@ -90,7 +90,7 @@ export function ChatRightPanel({
       </div>
       <div className="border-b border-line px-3 py-1.5 text-right">
         <Link
-          className="text-xs text-ink-muted hover:text-brand-700"
+          className="text-xs text-ink-muted hover:text-accent"
           to={`/documents/${active.document_id}?page=${active.page_start}${
             active.chunk_id ? `&chunk=${active.chunk_id}` : ''
           }`}

@@ -1,6 +1,6 @@
 # 整站视觉系统升级（工业控制台）
 
-> 状态：已批准；P1 实施中  
+> 状态：已被 [`2026-08-27-frontend-refresh-p1-design.md`](./2026-08-27-frontend-refresh-p1-design.md) 取代  
 > 日期：2026-08-05  
 > 分支建议：`feat/ui-visual-system`（可拆多 PR）
 

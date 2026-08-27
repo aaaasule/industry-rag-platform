@@ -1,3 +1,4 @@
+import { ArrowLeft, CloudArrowUp } from '@phosphor-icons/react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 
@@ -5,6 +6,9 @@ import { EmptyState } from '@/components/EmptyState';
 import { IngestProgress } from '@/components/IngestProgress';
 import { Skeleton } from '@/components/Skeleton';
 import { DocumentStatusBadge } from '@/components/StatusBadge';
+import { Badge } from '@/components/ui/Badge';
+import { Button } from '@/components/ui/Button';
+import { Select } from '@/components/ui/Select';
 import { useToast } from '@/components/toast/useToast';
 import { ApiError } from '@/lib/http';
 import { IN_PROGRESS } from './api';
@@ -18,6 +22,7 @@ import {
   useUploadDocument,
 } from './hooks';
 import { KbGrantsPanel } from './KbGrantsPanel';
+
 export function KbDetailPage() {
   const { kbId = '' } = useParams();
   const toast = useToast();
@@ -61,39 +66,47 @@ export function KbDetailPage() {
 
   return (
     <div className="page-shell space-y-6">
-      <div>
-        <Link to="/knowledge" className="text-sm text-ink-muted transition-colors hover:text-ink">
-          ← 知识库
+      <header>
+        <Link
+          to="/knowledge"
+          className="inline-flex items-center gap-1.5 text-sm text-ink-muted transition-colors hover:text-accent"
+        >
+          <ArrowLeft size={16} weight="bold" />
+          知识库
         </Link>
-        <h1 className="mt-2 text-xl font-semibold tracking-tight text-ink">
-          {kb?.name ?? '知识库'}
-        </h1>
-        <p className="mt-1 text-sm text-ink-muted">
-          {kb ? `${kb.doc_count} 文档 · ${kb.chunk_count} 分块` : '加载中…'}
-          {inProgressCount > 0 ? (
-            <span className="ml-2 text-warn">· {inProgressCount} 个摄取中</span>
-          ) : null}
-        </p>
-      </div>
+        <div className="mt-3 flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <h1 className="text-xl font-semibold tracking-tight text-ink md:text-2xl">
+              {kb?.name ?? '知识库'}
+            </h1>
+            <p className="mt-1.5 text-sm text-ink-muted">
+              {kb ? `${kb.doc_count} 文档 · ${kb.chunk_count} 分块` : '加载中…'}
+              {inProgressCount > 0 ? (
+                <Badge tone="warn" className="ml-2">
+                  {inProgressCount} 个摄取中
+                </Badge>
+              ) : null}
+            </p>
+          </div>
+        </div>
+      </header>
 
-      <section className="flex flex-wrap items-end gap-3 rounded-md border border-line/80 bg-canvas/50 px-4 py-3">
-        <label className="block text-xs text-ink-muted">
-          行业模板
-          <select
-            value={profileCode}
-            onChange={(e) => setProfileCode(e.target.value)}
-            className="field-input mt-1 min-w-[220px]"
-          >
-            <option value="">未绑定</option>
-            {profiles.map((p) => (
-              <option key={p.id} value={p.code}>
-                {p.name} ({p.code})
-              </option>
-            ))}
-          </select>
-        </label>
-        <button
-          type="button"
+      <section className="panel flex flex-wrap items-end gap-3 p-4">
+        <Select
+          label="行业模板"
+          value={profileCode}
+          onChange={(e) => setProfileCode(e.target.value)}
+          className="min-w-[220px] flex-1"
+        >
+          <option value="">未绑定</option>
+          {profiles.map((p) => (
+            <option key={p.id} value={p.code}>
+              {p.name} ({p.code})
+            </option>
+          ))}
+        </Select>
+        <Button
+          variant="secondary"
           disabled={!profileCode || updateKb.isPending}
           onClick={() => {
             updateKb
@@ -103,10 +116,9 @@ export function KbDetailPage() {
                 toast.error(err instanceof ApiError ? err.message : '改绑失败'),
               );
           }}
-          className="btn-ghost border border-line bg-surface font-medium text-ink hover:border-brand-500"
         >
           保存绑定
-        </button>
+        </Button>
       </section>
 
       <div
@@ -127,15 +139,17 @@ export function KbDetailPage() {
         }}
         onClick={() => inputRef.current?.click()}
         className={[
-          'cursor-pointer border-2 border-dashed p-10 text-center transition-colors duration-150',
+          'panel cursor-pointer border-2 border-dashed p-10 text-center transition-all duration-150',
           dragOver
-            ? 'border-brand-500 bg-brand-50'
-            : 'border-line bg-surface hover:border-brand-500 hover:bg-brand-50/30',
+            ? 'border-accent bg-accent-soft'
+            : 'border-line hover:border-accent hover:bg-accent-soft/50',
           upload.isPending ? 'pointer-events-none opacity-70' : '',
         ].join(' ')}
-        style={{ borderRadius: 'var(--radius-md)' }}
       >
-        <p className="text-sm font-semibold text-ink">
+        <span className="mx-auto inline-flex rounded-full bg-accent-soft p-3 text-accent">
+          <CloudArrowUp size={28} weight="duotone" />
+        </span>
+        <p className="mt-4 text-sm font-semibold text-ink">
           {upload.isPending ? '上传中…' : '拖拽文件到此处，或点击选择'}
         </p>
         <p className="mt-1 text-xs text-ink-faint">
@@ -156,12 +170,12 @@ export function KbDetailPage() {
 
       <section className="table-scroll panel">
         <table className="w-full text-left text-sm">
-          <thead className="border-b border-line bg-canvas/80 text-xs uppercase tracking-wider text-ink-faint">
+          <thead className="text-xs font-medium text-ink-faint">
             <tr>
-              <th className="px-4 py-3 font-medium">标题</th>
-              <th className="px-4 py-3 font-medium">状态 / 进度</th>
-              <th className="px-4 py-3 font-medium">页数</th>
-              <th className="px-4 py-3 font-medium">操作</th>
+              <th className="px-4 py-3">标题</th>
+              <th className="px-4 py-3">状态 / 进度</th>
+              <th className="px-4 py-3">页数</th>
+              <th className="px-4 py-3">操作</th>
             </tr>
           </thead>
           <tbody>
@@ -188,7 +202,7 @@ export function KbDetailPage() {
                   <EmptyState
                     compact
                     title="暂无文档"
-                    description="拖拽上方区域上传 PDF，完成后会出现在此列表"
+                    description="拖拽上方区域上传文档，完成后会出现在此列表"
                   />
                 </td>
               </tr>
@@ -200,7 +214,7 @@ export function KbDetailPage() {
                 <tr
                   key={doc.id}
                   className={[
-                    'border-b border-line/60 transition-colors last:border-0 hover:bg-brand-50/40',
+                    'border-b border-line/60 transition-colors last:border-0 hover:bg-accent-soft/40',
                     failed ? 'bg-danger/[0.03]' : '',
                   ].join(' ')}
                 >
@@ -208,7 +222,7 @@ export function KbDetailPage() {
                     <Link
                       to={`/knowledge/${kbId}/documents/${doc.id}`}
                       title={doc.title}
-                      className="block truncate font-medium text-ink hover:text-brand-700 hover:underline"
+                      className="block truncate font-medium text-ink hover:text-accent hover:underline"
                     >
                       {doc.title}
                     </Link>
@@ -225,7 +239,7 @@ export function KbDetailPage() {
                         {doc.error_detail.length > 48 ? (
                           <button
                             type="button"
-                            className="mt-0.5 text-[11px] text-ink-muted hover:text-brand-700"
+                            className="mt-0.5 text-[11px] text-ink-muted hover:text-accent"
                             onClick={() =>
                               setExpandedErrorId((id) => (id === doc.id ? null : doc.id))
                             }
@@ -246,9 +260,8 @@ export function KbDetailPage() {
                   <td className="px-4 py-3">
                     <div className="flex flex-wrap items-center gap-2">
                       {failed ? (
-                        <button
-                          type="button"
-                          className="btn-primary !px-2.5 !py-1 text-xs"
+                        <Button
+                          className="!px-2.5 !py-1 text-xs"
                           disabled={reingest.isPending}
                           onClick={() => {
                             void reingest
@@ -260,7 +273,7 @@ export function KbDetailPage() {
                           }}
                         >
                           {reingest.isPending ? '提交中…' : '重试'}
-                        </button>
+                        </Button>
                       ) : null}
                       <button
                         type="button"

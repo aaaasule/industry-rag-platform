@@ -47,7 +47,7 @@ export function IngestProgress({
       </div>
       <div className="h-1 overflow-hidden rounded-full bg-canvas">
         <div
-          className="h-full rounded-full bg-brand-500 transition-[width] duration-500 ease-out"
+          className="h-full rounded-full bg-accent transition-[width] duration-500 ease-out"
           style={{ width: `${Math.min(pct, 95)}%` }}
         />
       </div>
@@ -60,7 +60,7 @@ export function IngestProgress({
               key={step.key}
               className={[
                 'h-1 flex-1 rounded-full',
-                done || active ? 'bg-brand-500' : 'bg-line',
+                done || active ? 'bg-accent' : 'bg-line',
                 active ? 'animate-pulse' : '',
               ].join(' ')}
               title={step.label}
