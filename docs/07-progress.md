@@ -7,11 +7,43 @@
 
 | 项     | 值                                                                                        |
 | ----- | ---------------------------------------------------------------------------------------- |
-| 阶段    | **M0–M5 + P1（A→D）完成**；真实语料 E2E **已通过**                                                |
+| 阶段    | **M0–M5 + P1（A→D）完成**；真实语料 E2E **已通过**；前端视觉 P1/P2 **已合入**                          |
 | 下一里程碑 | **M6 待定**（按产品优先级从路线图演进项中挑选）                                                                |
-| 已落地   | 摄取/检索/问答/溯源/多租户/模型运营/Profile；P1：多格式+SSE、授权邀请、重新生成与非 PDF 预览、术语归一与软删恢复 |
+| 已落地   | 摄取/检索/问答/溯源/多租户/模型运营/Profile；P1：多格式+SSE、授权邀请、重新生成与非 PDF 预览、术语归一与软删恢复；**Cobalt+Slate 前端改版**（Sidebar、共享 UI、登录/概览/知识库/问答/运营/用量/预览）；**modelops 平台接入点 test 与 RLS 对齐** |
 | 阻塞项   | 无                                                                                        |
 
+
+---
+
+## 2026-08-27（日进度 · 合入与收口）
+
+### 结论
+
+工程面 **收口**：modelops 平台探测 RLS 缺陷已修；前端 Cobalt+Slate 视觉 P1/P2 合入 `main`。下一里程碑 **M6 仍待定**，需产品先定首发行业、部署形态与 SSO 等方向。
+
+### 当日完成
+
+| # | 事项 | 说明 |
+| --- | --- | --- |
+| 1 | modelops RLS | PR [#27](https://github.com/aaaasule/industry-rag-platform/pull/27)：`test()` 对 `tenant_id = NULL` 的平台行跳过 `health` 写入，仅返回探测结果 → `f5507f5` |
+| 2 | 前端视觉 P1 | PR [#26](https://github.com/aaaasule/industry-rag-platform/pull/26) Part 1：Design tokens（Cobalt+Slate）、Plus Jakarta / Noto Sans SC / IBM Plex Mono、Phosphor 图标；`components/ui` 共享组件；Sidebar + 精简顶栏；Login / Overview / Knowledge / KbDetail / Chat（拆分为 Toolbar / MessageList / Composer / ConversationList） |
+| 3 | 前端视觉 P2 | 同上 PR Part 2：Admin、UsageDashboard、DocumentDetail、EvidencePanel / ChatRightPanel 对齐新视觉 |
+| 4 | 规格文档 | [`2026-08-27-frontend-refresh-p1-design.md`](./superpowers/specs/2026-08-27-frontend-refresh-p1-design.md)、[`p2-design.md`](./superpowers/specs/2026-08-27-frontend-refresh-p2-design.md)；旧 `2026-08-05-frontend-visual-system-design.md` 标记 superseded |
+| 5 | 验证 | `pnpm lint && pnpm typecheck && pnpm build` 通过；核心旅程冒烟：登录 → 概览 → 建库 → 问答 → 证据 |
+
+### 实测要点
+
+| 项 | 内容 |
+| --- | --- |
+| 日期 | 2026-08-27 |
+| modelops | 平台接入点「测试连接」不再触发 `InsufficientPrivilegeError`；租户行仍正常持久化 health |
+| 前端 | 冷色 B2B 专业系；`< lg` 侧栏 drawer；路由未变；暗色主题仍为后置项 |
+
+### 下一步（待产品拍板）
+
+1. 首发行业与语料、部署形态（内网/云）、是否 SSO / 跨租户复用  
+2. 有痛点再开工程：页级 Celery chord、查询改写/指代消解、golden 固化、暗色主题等  
+3. 路线图 M6 演进项（重排默认开、图谱、Agent…）仅在触发条件成立时启动  
 
 ---
 
