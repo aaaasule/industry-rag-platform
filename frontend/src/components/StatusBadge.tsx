@@ -5,7 +5,7 @@ const TONE_CLASS: Record<Tone, string> = {
   warn: 'bg-warn/10 text-warn',
   danger: 'bg-danger/10 text-danger',
   neutral: 'bg-canvas text-ink-muted',
-  brand: 'bg-brand-50 text-brand-700',
+  brand: 'bg-accent-soft text-accent',
 };
 
 type BadgeProps = {

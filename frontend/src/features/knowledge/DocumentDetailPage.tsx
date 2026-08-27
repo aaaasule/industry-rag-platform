@@ -1,3 +1,4 @@
+import { ArrowLeft } from '@phosphor-icons/react';
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -5,6 +6,8 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { PdfHighlightViewer } from '@/components/PdfHighlightViewer';
 import type { PdfBBox } from '@/components/PdfHighlightViewer';
 import { TextPreview } from '@/components/TextPreview';
+import { Badge } from '@/components/ui/Badge';
+import { EmptyState } from '@/components/EmptyState';
 import { streamEventsGet } from '@/lib/sse';
 
 import * as kbApi from './api';
@@ -139,25 +142,29 @@ export function DocumentDetailPage() {
   }, [docId, inProgress, kbId, qc]);
 
   return (
-    <div className="page-fill flex-col gap-3">
-      <div>
+    <div className="page-fill flex-col gap-4">
+      <header>
         <Link
           to={kbId ? `/knowledge/${kbId}` : '/knowledge'}
-          className="text-sm text-ink-muted transition-colors hover:text-ink"
+          className="inline-flex items-center gap-1.5 text-sm text-ink-muted transition-colors hover:text-accent"
         >
-          ← {kb?.name ?? '知识库'}
+          <ArrowLeft size={16} weight="bold" />
+          {kb?.name ?? '知识库'}
         </Link>
-        <h1 className="mt-1 text-lg font-semibold tracking-tight text-ink">
-          {doc?.title ?? '文档详情'}
-        </h1>
-        <p className="text-xs text-ink-faint">
-          {doc ? `${kbApi.statusLabel(doc.status)} · ${doc.page_count ?? '—'} 页` : '加载中…'}
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          <h1 className="text-lg font-semibold tracking-tight text-ink md:text-xl">
+            {doc?.title ?? '文档详情'}
+          </h1>
+          {doc ? <Badge tone={inProgress ? 'warn' : 'default'}>{kbApi.statusLabel(doc.status)}</Badge> : null}
+        </div>
+        <p className="mt-1 text-xs text-ink-faint">
+          {doc ? `${doc.page_count ?? '—'} 页` : '加载中…'}
           {ingestHint ? ` · ${ingestHint}` : ''}
         </p>
-      </div>
+      </header>
 
       <div className="grid min-h-0 flex-1 gap-3 lg:grid-cols-2">
-        <section className="panel min-h-0 overflow-hidden">
+        <section className="panel min-h-0 overflow-hidden shadow-elevated">
           {doc && !isPdf && (
             <>
               {pagesLoading && <p className="p-6 text-sm text-ink-muted">加载预览…</p>}
@@ -187,15 +194,17 @@ export function DocumentDetailPage() {
         </section>
 
         <aside className="panel flex min-h-0 flex-col overflow-hidden">
-          <div className="border-b border-line px-4 py-3">
-            <h2 className="text-sm font-medium text-ink">分块（{chunks.length}）</h2>
+          <div className="border-b border-line bg-elevated/60 px-4 py-3">
+            <h2 className="text-sm font-semibold text-ink">分块（{chunks.length}）</h2>
           </div>
           <ul className="flex-1 space-y-2 overflow-auto p-3">
             {chunksLoading && (
               <li className="px-2 py-4 text-sm text-ink-faint">加载分块…</li>
             )}
             {!chunksLoading && chunks.length === 0 && (
-              <li className="px-2 py-4 text-sm text-ink-faint">暂无分块</li>
+              <li>
+                <EmptyState compact title="暂无分块" description="文档摄取完成后会出现在这里" />
+              </li>
             )}
             {chunks.map((c) => {
               const active = c.id === activeChunkId;
@@ -205,10 +214,10 @@ export function DocumentDetailPage() {
                     type="button"
                     onClick={() => selectChunk(c)}
                     className={[
-                      'w-full rounded border px-3 py-2 text-left transition-colors duration-150',
+                      'w-full rounded-lg border px-3 py-2.5 text-left transition-all duration-150',
                       active
-                        ? 'border-brand-500 bg-brand-50'
-                        : 'border-line hover:border-brand-500',
+                        ? 'border-accent bg-accent-soft shadow-panel'
+                        : 'border-line bg-surface hover:border-accent/50',
                     ].join(' ')}
                   >
                     <div className="flex items-center gap-2 text-xs text-ink-faint">

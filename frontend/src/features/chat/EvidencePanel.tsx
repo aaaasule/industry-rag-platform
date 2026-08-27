@@ -35,8 +35,8 @@ export function EvidencePanel({
 
   return (
     <aside className="flex h-full flex-col overflow-hidden panel">
-      <div className="border-b border-line px-4 py-3">
-        <h2 className="text-sm font-medium text-ink">证据（{citations.length}）</h2>
+      <div className="border-b border-line bg-elevated/60 px-4 py-3">
+        <h2 className="text-sm font-semibold text-ink">证据（{citations.length}）</h2>
       </div>
       <ul className="flex-1 space-y-2 overflow-auto p-3">
         {citations.map((c) => {
@@ -50,8 +50,8 @@ export function EvidencePanel({
                 className={[
                   'w-full rounded-md border px-3 py-2 text-left transition-colors duration-150',
                   active
-                    ? 'border-brand-500 bg-brand-50'
-                    : 'border-line bg-surface hover:border-brand-500/40',
+                    ? 'border-accent bg-accent-soft shadow-panel'
+                    : 'border-line bg-surface hover:border-accent/40',
                   unused ? 'opacity-45' : '',
                 ].join(' ')}
               >
@@ -59,7 +59,7 @@ export function EvidencePanel({
                   <span
                     className={[
                       'inline-flex h-5 min-w-5 items-center justify-center rounded px-1 font-medium',
-                      active ? 'bg-brand-600 text-white' : 'bg-canvas text-ink',
+                      active ? 'bg-accent text-white' : 'bg-elevated text-ink',
                     ].join(' ')}
                   >
                     {c.index_no}

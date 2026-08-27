@@ -3,23 +3,25 @@
 @tailwind utilities;
 
 :root {
-  --bg-canvas: #f2f1ed;
-  --bg-surface: #fffefb;
-  --ink: #1a1f24;
-  --ink-muted: #5c6570;
-  --line: #d5d8dc;
-  --accent: #2f6f7e;
-  --accent-hover: #275a66;
-  --accent-soft: #e4f0f2;
-  --ok: #3d6b4f;
-  --warn: #b8792a;
-  --danger: #a33b2b;
-  --radius-sm: 4px;
-  --radius-md: 6px;
-  --grid-line: rgba(26, 31, 36, 0.045);
+  --bg-canvas: #f1f5f9;
+  --bg-surface: #ffffff;
+  --bg-elevated: #f8fafc;
+  --ink: #0f172a;
+  --ink-muted: #64748b;
+  --ink-faint: #94a3b8;
+  --line: #e2e8f0;
+  --accent: #1d4ed8;
+  --accent-hover: #1e40af;
+  --accent-soft: #eff6ff;
+  --ok: #15803d;
+  --warn: #b45309;
+  --danger: #b91c1c;
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --shell-header-h: 3.5rem;
+  --sidebar-w: 15rem;
   --workbench-pad-x: 1rem;
   --workbench-pad-y: 1rem;
-  --header-h: 3.5rem;
 }
 
 @media (min-width: 1024px) {
@@ -44,7 +46,6 @@
 
   body {
     @apply font-sans text-ink antialiased;
-    /* 纯色底：避免宽屏两侧「空网格」抢视觉 */
     background-color: var(--bg-canvas);
   }
 
@@ -67,23 +68,11 @@
   .field-input {
     @apply w-full border border-line bg-surface px-3 py-2 text-sm text-ink outline-none
       transition-colors duration-150 placeholder:text-ink-faint
-      focus:border-brand-500 focus:ring-2 focus:ring-brand-50
-      disabled:bg-canvas disabled:text-ink-muted;
+      focus:border-accent focus:ring-2 focus:ring-accent-soft
+      disabled:bg-elevated disabled:text-ink-muted;
     border-radius: var(--radius-md);
   }
 
-  .btn-primary {
-    @apply inline-flex items-center justify-center px-4 py-2 text-sm font-semibold text-white
-      transition-colors duration-150
-      disabled:cursor-not-allowed disabled:bg-line disabled:text-ink-muted;
-    background-color: var(--accent);
-    border-radius: var(--radius-md);
-  }
-
-  /*
-   * 工作台内容：默认拉满，超宽屏软上限避免表格/正文行过长。
-   * 网格背景仍铺满 main，两侧不会出现「空岛」感。
-   */
   .page-shell {
     @apply mx-auto w-full;
     max-width: 1600px;
@@ -96,46 +85,49 @@
 
   .workbench {
     background-color: var(--bg-canvas);
-    background-image:
-      linear-gradient(var(--grid-line) 1px, transparent 1px),
-      linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
-    background-size: 24px 24px;
   }
 
   .workbench-pad {
     padding: var(--workbench-pad-y) var(--workbench-pad-x);
   }
 
-  /* 问答 / 文档预览等需要吃满可视高度的页面 */
   .page-fill {
     display: flex;
     width: 100%;
     max-width: 1800px;
     min-height: 0;
-    height: calc(100dvh - var(--header-h) - (var(--workbench-pad-y) * 2));
+    height: calc(100dvh - var(--shell-header-h) - (var(--workbench-pad-y) * 2));
     margin-inline: auto;
   }
 
   .section-title {
-    @apply text-xs font-medium uppercase tracking-wider text-ink-faint;
+    @apply text-xs font-medium text-ink-faint;
   }
 
   .chip-idle {
     @apply inline-flex items-center border border-line bg-surface px-2.5 py-0.5 text-xs
-      text-ink-muted transition-colors duration-150 hover:border-brand-500 hover:text-ink;
-    border-radius: var(--radius-sm);
+      text-ink-muted transition-colors duration-150 hover:border-accent hover:text-ink;
+    border-radius: 9999px;
   }
 
   .chip-active {
-    @apply inline-flex items-center border border-brand-500 bg-brand-500 px-2.5 py-0.5
+    @apply inline-flex items-center border border-accent bg-accent px-2.5 py-0.5
       text-xs font-medium text-white transition-colors duration-150;
-    border-radius: var(--radius-sm);
+    border-radius: 9999px;
   }
 
   .chip-soft {
-    @apply inline-flex items-center border border-brand-500 bg-brand-50 px-2.5 py-0.5
-      text-xs font-medium text-brand-700 transition-colors duration-150;
-    border-radius: var(--radius-sm);
+    @apply inline-flex items-center border border-accent/30 bg-accent-soft px-2.5 py-0.5
+      text-xs font-medium text-accent transition-colors duration-150;
+    border-radius: 9999px;
+  }
+
+  .btn-primary {
+    @apply inline-flex items-center justify-center px-4 py-2 text-sm font-semibold text-white
+      transition-colors duration-150 active:scale-[0.98]
+      disabled:cursor-not-allowed disabled:bg-line disabled:text-ink-muted;
+    background-color: var(--accent);
+    border-radius: var(--radius-md);
   }
 
   .btn-primary:hover:not(:disabled) {
@@ -144,7 +136,7 @@
 
   .btn-ghost {
     @apply inline-flex items-center justify-center px-3 py-1.5 text-sm text-ink-muted
-      transition-colors duration-150 hover:bg-brand-50 hover:text-ink;
+      transition-colors duration-150 hover:bg-accent-soft hover:text-ink active:scale-[0.98];
     border-radius: var(--radius-sm);
   }
 
@@ -165,7 +157,6 @@
     @apply leading-relaxed;
   }
 
-  /* 长列表表格：滚动容器内固定表头 */
   .table-scroll {
     @apply overflow-auto;
     max-height: min(70vh, 36rem);
@@ -175,7 +166,7 @@
     position: sticky;
     top: 0;
     z-index: 1;
-    background-color: var(--bg-canvas);
+    background-color: var(--bg-elevated);
     box-shadow: inset 0 -1px 0 var(--line);
   }
 
