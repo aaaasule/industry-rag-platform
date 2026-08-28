@@ -8,16 +8,18 @@ import { Skeleton } from '@/components/Skeleton';
 import { DocumentStatusBadge } from '@/components/StatusBadge';
 import { Button } from '@/components/ui/Button';
 import { useToast } from '@/components/toast/useToast';
-import { BATCH_DOCUMENTS_MAX, IN_PROGRESS } from '../api';
+import { BATCH_DOCUMENTS_MAX, IN_PROGRESS, type DocumentItem } from '../api';
 import {
   useBatchDocuments,
   useDeleteDocument,
   useDocuments,
   useKnowledgeBase,
   usePatchDocument,
+  useProfiles,
   useReingest,
   useUploadDocument,
 } from '../hooks';
+import { DocumentMetaDrawer } from './DocumentMetaDrawer';
 
 function formatBytes(n: number): string {
   if (n < 1024) return `${n} B`;
@@ -29,6 +31,7 @@ export function KbFilesPanel() {
   const { kbId = '' } = useParams();
   const toast = useToast();
   const { data: kb } = useKnowledgeBase(kbId);
+  const { data: profiles = [] } = useProfiles();
   const { data: docs = [], isLoading } = useDocuments(kbId);
   const upload = useUploadDocument(kbId);
   const reingest = useReingest(kbId);
@@ -41,6 +44,16 @@ export function KbFilesPanel() {
   const [expandedErrorId, setExpandedErrorId] = useState<string | null>(null);
   const [selected, setSelected] = useState<Set<string>>(() => new Set());
   const [togglingId, setTogglingId] = useState<string | null>(null);
+  const [metaDoc, setMetaDoc] = useState<DocumentItem | null>(null);
+
+  const metadataSchema = useMemo(() => {
+    if (!kb?.profile_id) return {};
+    const profile = profiles.find((p) => p.id === kb.profile_id);
+    const schema = profile?.metadata_schema;
+    return schema && typeof schema === 'object' && !Array.isArray(schema) ? schema : {};
+  }, [kb?.profile_id, profiles]);
+
+  const hasMetaSchema = Object.keys(metadataSchema).length > 0;
 
   useEffect(() => {
     setSelected(new Set());
@@ -154,6 +167,17 @@ export function KbFilesPanel() {
       toast.error(err instanceof Error ? err.message : '更新启用状态失败');
     } finally {
       setTogglingId(null);
+    }
+  }
+
+  async function onSaveMetadata(metadata: Record<string, unknown>) {
+    if (!metaDoc) return;
+    try {
+      await patchDoc.mutateAsync({ docId: metaDoc.id, payload: { metadata } });
+      toast.success(`已保存元数据：${metaDoc.title}`);
+      setMetaDoc(null);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : '保存元数据失败');
     }
   }
 
@@ -432,6 +456,15 @@ export function KbFilesPanel() {
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex flex-wrap items-center gap-2">
+                      {hasMetaSchema ? (
+                        <button
+                          type="button"
+                          className="text-xs text-indigo-600 hover:underline"
+                          onClick={() => setMetaDoc(doc)}
+                        >
+                          元数据
+                        </button>
+                      ) : null}
                       {failed ? (
                         <Button
                           className="!px-2.5 !py-1 text-xs"
@@ -472,6 +505,15 @@ export function KbFilesPanel() {
           </tbody>
         </table>
       </section>
+
+      <DocumentMetaDrawer
+        open={Boolean(metaDoc)}
+        onClose={() => setMetaDoc(null)}
+        document={metaDoc}
+        schema={metadataSchema}
+        saving={patchDoc.isPending}
+        onSave={onSaveMetadata}
+      />
     </div>
   );
 }
