@@ -61,7 +61,7 @@ export function useLogout() {
 
 export function useUpdateProfile() {
   const queryClient = useQueryClient();
-  return useMutation<SessionInfo, ApiError, { display_name: string }>({
+  return useMutation<SessionInfo, ApiError, authApi.UpdateProfilePayload>({
     mutationFn: authApi.updateProfile,
     onSuccess: (data) => {
       queryClient.setQueryData(SESSION_KEY, data);
@@ -70,7 +70,7 @@ export function useUpdateProfile() {
 }
 
 export function useChangePassword() {
-  return useMutation<void, ApiError, { current_password: string; new_password: string }>({
+  return useMutation<void, ApiError, authApi.ChangePasswordPayload>({
     mutationFn: authApi.changePassword,
   });
 }

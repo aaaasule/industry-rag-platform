@@ -45,6 +45,10 @@ api: ## 启动后端开发服务器
 worker: ## 启动 Celery worker
 	cd backend && uv run celery -A app.worker.celery_app worker -Q ingest,embed,stats -l info
 
+.PHONY: beat
+beat: ## 启动 Celery beat（用量 flush / hourlies 预聚合 / 接入点探测）
+	cd backend && uv run celery -A app.worker.celery_app beat -l info
+
 .PHONY: web
 web: ## 启动前端开发服务器
 	cd frontend && pnpm dev

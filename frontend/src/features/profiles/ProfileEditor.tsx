@@ -84,8 +84,8 @@ export function ProfileEditor({
   return (
     <form onSubmit={(e) => void onSave(e)} className="panel space-y-4 p-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 className="text-sm font-semibold text-ink">编辑 {profile.code}</h2>
-        <div className="flex gap-0.5 border-b border-line">
+        <h2 className="text-sm font-semibold text-slate-800">编辑 {profile.code}</h2>
+        <div className="flex gap-0.5 border-b border-slate-200">
           {(
             [
               ['form', '表单'],
@@ -99,8 +99,8 @@ export function ProfileEditor({
               className={[
                 '-mb-px border-b-2 px-3 py-1.5 text-sm transition-colors',
                 tab === id
-                  ? 'border-brand-600 font-medium text-brand-700'
-                  : 'border-transparent text-ink-muted hover:text-ink',
+                  ? 'border-indigo-600 font-medium text-indigo-600'
+                  : 'border-transparent text-slate-500 hover:text-slate-800',
               ].join(' ')}
             >
               {label}
@@ -109,11 +109,11 @@ export function ProfileEditor({
         </div>
       </div>
 
-      {error ? <p className="text-sm text-danger">{error}</p> : null}
+      {error ? <p className="text-sm text-red-600">{error}</p> : null}
 
       {tab === 'form' ? (
         <div className="space-y-5">
-          <label className="block text-xs text-ink-muted">
+          <label className="block text-xs text-slate-500">
             名称
             <input
               className="field-input mt-1"
@@ -123,7 +123,7 @@ export function ProfileEditor({
           </label>
 
           <fieldset className="space-y-3">
-            <legend className="text-xs font-medium uppercase tracking-wider text-ink-faint">
+            <legend className="text-xs font-medium uppercase tracking-wider text-slate-400">
               分块 chunk_rules
             </legend>
             <div className="grid gap-3 sm:grid-cols-3">
@@ -143,7 +143,7 @@ export function ProfileEditor({
                 onChange={(n) => patchChunk('overlap_tokens', n)}
               />
             </div>
-            <label className="flex items-center gap-2 text-sm text-ink">
+            <label className="flex items-center gap-2 text-sm text-slate-800">
               <input
                 type="checkbox"
                 checked={boolField(draft.chunk_rules, 'clause_mode', false)}
@@ -151,7 +151,7 @@ export function ProfileEditor({
               />
               clause_mode（条款模式）
             </label>
-            <label className="flex items-center gap-2 text-sm text-ink">
+            <label className="flex items-center gap-2 text-sm text-slate-800">
               <input
                 type="checkbox"
                 checked={boolField(draft.chunk_rules, 'keep_heading_prefix', true)}
@@ -162,7 +162,7 @@ export function ProfileEditor({
           </fieldset>
 
           <fieldset className="space-y-3">
-            <legend className="text-xs font-medium uppercase tracking-wider text-ink-faint">
+            <legend className="text-xs font-medium uppercase tracking-wider text-slate-400">
               检索 retrieval_rules
             </legend>
             <div className="grid gap-3 sm:grid-cols-2">
@@ -178,7 +178,7 @@ export function ProfileEditor({
                   }))
                 }
               />
-              <label className="block text-xs text-ink-muted">
+              <label className="block text-xs text-slate-500">
                 rerank_enabled
                 <select
                   className="field-input mt-1"
@@ -201,7 +201,7 @@ export function ProfileEditor({
             </div>
           </fieldset>
 
-          <label className="block text-xs text-ink-muted">
+          <label className="block text-xs text-slate-500">
             system prompt（prompt_overrides.system）
             <textarea
               className="field-input mt-1 min-h-[120px]"
@@ -219,7 +219,7 @@ export function ProfileEditor({
               placeholder="留空则使用平台默认 SYSTEM_PROMPT"
             />
           </label>
-          <p className="text-xs text-ink-faint">更复杂的规则仍可在 JSON 视图编辑。</p>
+          <p className="text-xs text-slate-400">更复杂的规则仍可在 JSON 视图编辑。</p>
           <ProfileOpsFields
             parseRules={draft.parse_rules}
             metadataSchema={draft.metadata_schema}
@@ -228,7 +228,7 @@ export function ProfileEditor({
           />
         </div>
       ) : (
-        <label className="block text-xs text-ink-muted">
+        <label className="block text-xs text-slate-500">
           规则 JSON
           <textarea
             className="field-input mt-1 font-mono text-xs"
@@ -266,7 +266,7 @@ function NumField({
   max?: number;
 }) {
   return (
-    <label className="block text-xs text-ink-muted">
+    <label className="block text-xs text-slate-500">
       {label}
       <input
         type="number"
