@@ -1,51 +1,40 @@
-import { ArrowLeft, CloudUpload } from 'lucide-react';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { CloudUpload, Plus, Search } from 'lucide-react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 
 import { EmptyState } from '@/components/EmptyState';
 import { IngestProgress } from '@/components/IngestProgress';
 import { Skeleton } from '@/components/Skeleton';
 import { DocumentStatusBadge } from '@/components/StatusBadge';
-import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
-import { Select } from '@/components/ui/Select';
 import { useToast } from '@/components/toast/useToast';
-import { ApiError } from '@/lib/http';
-import { IN_PROGRESS } from './api';
+import { IN_PROGRESS } from '../api';
 import {
   useDeleteDocument,
   useDocuments,
   useKnowledgeBase,
-  useProfiles,
   useReingest,
-  useUpdateKnowledgeBase,
   useUploadDocument,
-} from './hooks';
-import { KbGrantsPanel } from './KbGrantsPanel';
+} from '../hooks';
 
-export function KbDetailPage() {
+function formatBytes(n: number): string {
+  if (n < 1024) return `${n} B`;
+  if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`;
+  return `${(n / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+export function KbFilesPanel() {
   const { kbId = '' } = useParams();
   const toast = useToast();
   const { data: kb } = useKnowledgeBase(kbId);
-  const { data: profiles = [] } = useProfiles();
   const { data: docs = [], isLoading } = useDocuments(kbId);
   const upload = useUploadDocument(kbId);
-  const updateKb = useUpdateKnowledgeBase(kbId);
   const reingest = useReingest(kbId);
   const remove = useDeleteDocument(kbId);
   const inputRef = useRef<HTMLInputElement>(null);
   const [dragOver, setDragOver] = useState(false);
-  const [profileCode, setProfileCode] = useState('');
+  const [query, setQuery] = useState('');
   const [expandedErrorId, setExpandedErrorId] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!kb?.profile_id) {
-      setProfileCode('');
-      return;
-    }
-    const match = profiles.find((p) => p.id === kb.profile_id);
-    setProfileCode(match?.code ?? '');
-  }, [kb?.profile_id, profiles]);
 
   const onFiles = useCallback(
     async (files: FileList | File[]) => {
@@ -62,64 +51,67 @@ export function KbDetailPage() {
     [toast, upload],
   );
 
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return docs;
+    return docs.filter((d) => d.title.toLowerCase().includes(q));
+  }, [docs, query]);
+
   const inProgressCount = docs.filter((d) => IN_PROGRESS.has(d.status)).length;
+  const failedCount = docs.filter((d) => d.status === 'failed').length;
+  const totalBytes = docs.reduce((sum, d) => sum + (d.file_size ?? 0), 0);
 
   return (
-    <div className="page-shell space-y-6">
+    <div className="space-y-6">
       <header>
-        <Link
-          to="/knowledge"
-          className="inline-flex items-center gap-1.5 text-sm text-ink-muted transition-colors hover:text-accent"
-        >
-          <ArrowLeft className="h-4 w-4" strokeWidth={1.5} />
-          知识库
-        </Link>
-        <div className="mt-3 flex flex-wrap items-start justify-between gap-4">
-          <div>
-            <h1 className="text-xl font-semibold tracking-tight text-ink md:text-2xl">
-              {kb?.name ?? '知识库'}
-            </h1>
-            <p className="mt-1.5 text-sm text-ink-muted">
-              {kb ? `${kb.doc_count} 文档 · ${kb.chunk_count} 分块` : '加载中…'}
-              {inProgressCount > 0 ? (
-                <Badge tone="warn" className="ml-2">
-                  {inProgressCount} 个摄取中
-                </Badge>
-              ) : null}
-            </p>
-          </div>
-        </div>
+        <h2 className="text-lg font-semibold text-slate-900">文件列表</h2>
+        <p className="mt-1 text-sm text-slate-500">
+          上传文档并完成解析后，方可用于检索与问答。
+        </p>
       </header>
 
-      <section className="panel flex flex-wrap items-end gap-3 p-4">
-        <Select
-          label="行业模板"
-          value={profileCode}
-          onChange={(e) => setProfileCode(e.target.value)}
-          className="min-w-[220px] flex-1"
-        >
-          <option value="">未绑定</option>
-          {profiles.map((p) => (
-            <option key={p.id} value={p.code}>
-              {p.name} ({p.code})
-            </option>
-          ))}
-        </Select>
-        <Button
-          variant="secondary"
-          disabled={!profileCode || updateKb.isPending}
-          onClick={() => {
-            updateKb
-              .mutateAsync({ profile_code: profileCode })
-              .then(() => toast.success(`已绑定模板：${profileCode}`))
-              .catch((err: unknown) =>
-                toast.error(err instanceof ApiError ? err.message : '改绑失败'),
-              );
-          }}
-        >
-          保存绑定
+      <div className="grid gap-3 sm:grid-cols-3">
+        <div className="panel p-4">
+          <p className="text-xs font-medium text-slate-400">文件总数</p>
+          <p className="mt-1 text-2xl font-semibold tabular-nums text-slate-900">
+            {kb?.doc_count ?? docs.length}
+          </p>
+          <p className="mt-1 text-xs text-slate-500">合计约 {formatBytes(totalBytes)}</p>
+        </div>
+        <div className="panel p-4">
+          <p className="text-xs font-medium text-slate-400">正在处理</p>
+          <p className="mt-1 text-2xl font-semibold tabular-nums text-amber-600">
+            {inProgressCount}
+          </p>
+          <p className="mt-1 text-xs text-slate-500">解析 / 分块 / 向量化</p>
+        </div>
+        <div className="panel p-4">
+          <p className="text-xs font-medium text-slate-400">解析失败</p>
+          <p className="mt-1 text-2xl font-semibold tabular-nums text-red-600">{failedCount}</p>
+          <p className="mt-1 text-xs text-slate-500">可重试或删除后重新上传</p>
+        </div>
+      </div>
+
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="relative min-w-[200px] flex-1 max-w-md">
+          <Search
+            className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"
+            strokeWidth={1.5}
+            aria-hidden
+          />
+          <input
+            type="search"
+            placeholder="搜索文件名…"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            className="field-input w-full pl-9"
+          />
+        </div>
+        <Button onClick={() => inputRef.current?.click()} disabled={upload.isPending}>
+          <Plus className="h-4 w-4" strokeWidth={1.5} />
+          新增文件
         </Button>
-      </section>
+      </div>
 
       <div
         role="button"
@@ -139,21 +131,21 @@ export function KbDetailPage() {
         }}
         onClick={() => inputRef.current?.click()}
         className={[
-          'panel cursor-pointer border-2 border-dashed p-10 text-center transition-all duration-150',
+          'panel cursor-pointer border-2 border-dashed p-8 text-center transition-all duration-150',
           dragOver
-            ? 'border-accent bg-accent-soft'
-            : 'border-line hover:border-accent hover:bg-accent-soft/50',
+            ? 'border-indigo-400 bg-indigo-50'
+            : 'border-slate-200 hover:border-indigo-300 hover:bg-indigo-50/40',
           upload.isPending ? 'pointer-events-none opacity-70' : '',
         ].join(' ')}
       >
-        <span className="mx-auto inline-flex rounded-full bg-accent-soft p-3 text-accent">
-          <CloudUpload className="h-7 w-7" strokeWidth={1.5} />
+        <span className="mx-auto inline-flex rounded-full bg-indigo-50 p-3 text-indigo-600">
+          <CloudUpload className="h-6 w-6" strokeWidth={1.5} />
         </span>
-        <p className="mt-4 text-sm font-semibold text-ink">
-          {upload.isPending ? '上传中…' : '拖拽文件到此处，或点击选择'}
+        <p className="mt-3 text-sm font-medium text-slate-800">
+          {upload.isPending ? '上传中…' : '拖拽文件到此处，或点击选择（支持多选）'}
         </p>
-        <p className="mt-1 text-xs text-ink-faint">
-          支持 PDF / Word / Excel / PPT / Markdown / TXT，单文件建议不超过 32MB
+        <p className="mt-1 text-xs text-slate-400">
+          PDF / Word / Excel / PPT / Markdown / TXT，单文件 ≤ 32MB
         </p>
         <input
           ref={inputRef}
@@ -170,10 +162,11 @@ export function KbDetailPage() {
 
       <section className="table-scroll panel">
         <table className="w-full text-left text-sm">
-          <thead className="text-xs font-medium text-ink-faint">
+          <thead className="text-xs font-medium text-slate-400">
             <tr>
-              <th className="px-4 py-3">标题</th>
-              <th className="px-4 py-3">状态 / 进度</th>
+              <th className="px-4 py-3">名称</th>
+              <th className="px-4 py-3">上传时间</th>
+              <th className="px-4 py-3">状态</th>
               <th className="px-4 py-3">页数</th>
               <th className="px-4 py-3">操作</th>
             </tr>
@@ -181,48 +174,41 @@ export function KbDetailPage() {
           <tbody>
             {isLoading &&
               Array.from({ length: 3 }, (_, i) => (
-                <tr key={i} className="border-b border-line/60">
-                  <td className="px-4 py-3">
-                    <Skeleton className="h-4 w-48" />
-                  </td>
-                  <td className="px-4 py-3">
-                    <Skeleton className="h-4 w-24" />
-                  </td>
-                  <td className="px-4 py-3">
-                    <Skeleton className="h-4 w-10" />
-                  </td>
-                  <td className="px-4 py-3">
-                    <Skeleton className="h-4 w-12" />
+                <tr key={i} className="border-b border-slate-100">
+                  <td colSpan={5} className="px-4 py-3">
+                    <Skeleton className="h-4 w-full" />
                   </td>
                 </tr>
               ))}
-            {!isLoading && docs.length === 0 && (
+            {!isLoading && filtered.length === 0 ? (
               <tr>
-                <td colSpan={4}>
+                <td colSpan={5}>
                   <EmptyState
                     compact
-                    title="暂无文档"
-                    description="拖拽上方区域上传文档，完成后会出现在此列表"
+                    title={query ? '无匹配文件' : '暂无文档'}
+                    description={
+                      query ? '尝试其他关键词' : '上传文档后将显示在此列表'
+                    }
                   />
                 </td>
               </tr>
-            )}
-            {docs.map((doc) => {
+            ) : null}
+            {filtered.map((doc) => {
               const failed = doc.status === 'failed';
               const detailExpanded = expandedErrorId === doc.id;
               return (
                 <tr
                   key={doc.id}
                   className={[
-                    'border-b border-line/60 transition-colors last:border-0 hover:bg-accent-soft/40',
-                    failed ? 'bg-danger/[0.03]' : '',
+                    'border-b border-slate-100 transition-colors last:border-0 hover:bg-slate-50/80',
+                    failed ? 'bg-red-50/40' : '',
                   ].join(' ')}
                 >
                   <td className="max-w-md px-4 py-3">
                     <Link
                       to={`/knowledge/${kbId}/documents/${doc.id}`}
                       title={doc.title}
-                      className="block truncate font-medium text-ink hover:text-accent hover:underline"
+                      className="block truncate font-medium text-slate-800 hover:text-indigo-600 hover:underline"
                     >
                       {doc.title}
                     </Link>
@@ -230,7 +216,7 @@ export function KbDetailPage() {
                       <div className="mt-1.5 max-w-lg">
                         <p
                           className={[
-                            'text-xs text-danger',
+                            'text-xs text-red-600',
                             detailExpanded ? 'whitespace-pre-wrap break-words' : 'truncate',
                           ].join(' ')}
                         >
@@ -239,22 +225,25 @@ export function KbDetailPage() {
                         {doc.error_detail.length > 48 ? (
                           <button
                             type="button"
-                            className="mt-0.5 text-[11px] text-ink-muted hover:text-accent"
+                            className="mt-0.5 text-[11px] text-slate-500 hover:text-indigo-600"
                             onClick={() =>
                               setExpandedErrorId((id) => (id === doc.id ? null : doc.id))
                             }
                           >
-                            {detailExpanded ? '收起详情' : '查看详情'}
+                            {detailExpanded ? '收起' : '详情'}
                           </button>
                         ) : null}
                       </div>
                     ) : null}
                   </td>
+                  <td className="whitespace-nowrap px-4 py-3 text-xs text-slate-500">
+                    {new Date(doc.created_at).toLocaleString('zh-CN')}
+                  </td>
                   <td className="px-4 py-3">
                     <DocumentStatusBadge status={doc.status} />
                     <IngestProgress status={doc.status} errorCode={doc.error_code} />
                   </td>
-                  <td className="px-4 py-3 tabular-nums text-ink-muted">
+                  <td className="px-4 py-3 tabular-nums text-slate-500">
                     {doc.page_count ?? '—'}
                   </td>
                   <td className="px-4 py-3">
@@ -272,12 +261,12 @@ export function KbDetailPage() {
                               );
                           }}
                         >
-                          {reingest.isPending ? '提交中…' : '重试'}
+                          重试
                         </Button>
                       ) : null}
                       <button
                         type="button"
-                        className="text-xs text-ink-faint hover:text-danger"
+                        className="text-xs text-slate-400 hover:text-red-600"
                         disabled={remove.isPending}
                         onClick={() => {
                           if (!confirm(`删除「${doc.title}」？`)) return;
@@ -299,8 +288,6 @@ export function KbDetailPage() {
           </tbody>
         </table>
       </section>
-
-      {kbId ? <KbGrantsPanel kbId={kbId} /> : null}
     </div>
   );
 }

@@ -169,6 +169,51 @@ export async function uploadDocument(
 
 export const IN_PROGRESS = new Set(['pending', 'parsing', 'chunking', 'embedding']);
 
+export type SearchHit = {
+  chunk_id: string;
+  document_id: string;
+  document_title: string;
+  heading_path: string[];
+  content: string;
+  page_start: number;
+  page_end: number;
+  scores: {
+    rrf?: number;
+    vector?: number;
+    fulltext?: number;
+    rerank?: number;
+  };
+};
+
+export type SearchResult = {
+  query: string;
+  results: SearchHit[];
+  stats: {
+    vector_ms: number;
+    fulltext_ms: number;
+    rerank_ms: number;
+    total_ms: number;
+  };
+};
+
+export function searchKnowledgeBase(
+  kbId: string,
+  payload: {
+    query: string;
+    top_k?: number;
+    rerank?: boolean;
+  },
+): Promise<SearchResult> {
+  return api.post('/search', {
+    query: payload.query,
+    kb_ids: [kbId],
+    top_k: payload.top_k,
+    options: {
+      rerank: payload.rerank,
+    },
+  });
+}
+
 export type GrantPermission = 'read' | 'write' | 'manage';
 
 export interface GrantItem {
