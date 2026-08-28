@@ -89,6 +89,35 @@ export function useDeleteDocument(kbId: string) {
   });
 }
 
+export function usePatchDocument(kbId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      docId,
+      payload,
+    }: {
+      docId: string;
+      payload: kbApi.DocumentUpdatePayload;
+    }) => kbApi.patchDocument(docId, payload),
+    onSuccess: (doc) => {
+      void qc.invalidateQueries({ queryKey: ['documents', kbId] });
+      void qc.invalidateQueries({ queryKey: ['document', doc.id] });
+    },
+  });
+}
+
+export function useBatchDocuments(kbId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: kbApi.DocumentBatchRequest) =>
+      kbApi.batchDocuments(kbId, payload),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['documents', kbId] });
+      void qc.invalidateQueries({ queryKey: KB_LIST_KEY });
+    },
+  });
+}
+
 export function useKbSearch(kbId: string) {
   return useMutation({
     mutationFn: (payload: { query: string; top_k?: number; rerank?: boolean }) =>

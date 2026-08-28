@@ -8,13 +8,23 @@ import { useMemberships } from '@/features/admin/hooks';
 import { useSession } from '@/features/auth/hooks';
 import { useQuery } from '@tanstack/react-query';
 
-const KB_ACTIONS = ['kb_grant.create', 'kb_grant.update', 'kb_grant.delete', 'knowledge_base.delete'];
+const KB_ACTIONS = [
+  'kb_grant.create',
+  'kb_grant.update',
+  'kb_grant.delete',
+  'knowledge_base.delete',
+  'document.upload',
+  'document.delete',
+  'document.reingest',
+  'ingest.fail',
+];
 
 function matchesKb(
   kbId: string,
   row: { action: string; target_id: string | null; payload?: Record<string, unknown> },
 ): boolean {
   if (row.action === 'knowledge_base.delete' && row.target_id === kbId) return true;
+  if (row.target_id === kbId) return true;
   const payloadKb = row.payload?.kb_id;
   return typeof payloadKb === 'string' && payloadKb === kbId;
 }
@@ -77,7 +87,7 @@ export function KbLogsPanel() {
       <header>
         <h2 className="text-lg font-semibold text-slate-900">日志</h2>
         <p className="mt-1 text-sm text-slate-500">
-          展示与本知识库相关的授权变更与删除记录。文档上传/摄取尚未写入审计。
+          展示与本知识库相关的授权变更、文档上传/删除/重新解析，以及摄取失败记录。
         </p>
       </header>
 
@@ -103,7 +113,11 @@ export function KbLogsPanel() {
             {!logsQ.isLoading && items.length === 0 ? (
               <tr>
                 <td colSpan={4}>
-                  <EmptyState compact title="暂无相关日志" description="授权或删库操作会记录在此" />
+                  <EmptyState
+                    compact
+                    title="暂无相关日志"
+                    description="授权变更、文档上传/删除/重新解析或摄取失败会记录在此"
+                  />
                 </td>
               </tr>
             ) : null}

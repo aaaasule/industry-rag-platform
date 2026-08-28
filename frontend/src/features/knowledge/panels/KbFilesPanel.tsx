@@ -1,5 +1,5 @@
 import { CloudUpload, Plus, Search } from 'lucide-react';
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 
 import { EmptyState } from '@/components/EmptyState';
@@ -8,11 +8,13 @@ import { Skeleton } from '@/components/Skeleton';
 import { DocumentStatusBadge } from '@/components/StatusBadge';
 import { Button } from '@/components/ui/Button';
 import { useToast } from '@/components/toast/useToast';
-import { IN_PROGRESS } from '../api';
+import { BATCH_DOCUMENTS_MAX, IN_PROGRESS } from '../api';
 import {
+  useBatchDocuments,
   useDeleteDocument,
   useDocuments,
   useKnowledgeBase,
+  usePatchDocument,
   useReingest,
   useUploadDocument,
 } from '../hooks';
@@ -31,10 +33,31 @@ export function KbFilesPanel() {
   const upload = useUploadDocument(kbId);
   const reingest = useReingest(kbId);
   const remove = useDeleteDocument(kbId);
+  const patchDoc = usePatchDocument(kbId);
+  const batch = useBatchDocuments(kbId);
   const inputRef = useRef<HTMLInputElement>(null);
   const [dragOver, setDragOver] = useState(false);
   const [query, setQuery] = useState('');
   const [expandedErrorId, setExpandedErrorId] = useState<string | null>(null);
+  const [selected, setSelected] = useState<Set<string>>(() => new Set());
+  const [togglingId, setTogglingId] = useState<string | null>(null);
+
+  useEffect(() => {
+    setSelected(new Set());
+  }, [kbId]);
+
+  useEffect(() => {
+    const ids = new Set(docs.map((d) => d.id));
+    setSelected((prev) => {
+      let changed = false;
+      const next = new Set<string>();
+      for (const id of prev) {
+        if (ids.has(id)) next.add(id);
+        else changed = true;
+      }
+      return changed || next.size !== prev.size ? next : prev;
+    });
+  }, [docs]);
 
   const onFiles = useCallback(
     async (files: FileList | File[]) => {
@@ -57,16 +80,91 @@ export function KbFilesPanel() {
     return docs.filter((d) => d.title.toLowerCase().includes(q));
   }, [docs, query]);
 
+  const filteredIds = useMemo(() => filtered.map((d) => d.id), [filtered]);
+  const allFilteredSelected =
+    filteredIds.length > 0 && filteredIds.every((id) => selected.has(id));
+  const someFilteredSelected = filteredIds.some((id) => selected.has(id));
+  const selectedCount = selected.size;
+  const batchBusy = batch.isPending;
+
   const inProgressCount = docs.filter((d) => IN_PROGRESS.has(d.status)).length;
   const failedCount = docs.filter((d) => d.status === 'failed').length;
   const totalBytes = docs.reduce((sum, d) => sum + (d.file_size ?? 0), 0);
+
+  function toggleOne(id: string) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function toggleAllFiltered() {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (allFilteredSelected) {
+        for (const id of filteredIds) next.delete(id);
+      } else {
+        for (const id of filteredIds) next.add(id);
+      }
+      return next;
+    });
+  }
+
+  async function onBatchReingest() {
+    const ids = [...selected];
+    if (ids.length === 0) return;
+    if (ids.length > BATCH_DOCUMENTS_MAX) {
+      toast.error(`单次最多选择 ${BATCH_DOCUMENTS_MAX} 个文档`);
+      return;
+    }
+    try {
+      const res = await batch.mutateAsync({ action: 'reingest', document_ids: ids });
+      toast.success(`已提交重新解析：${res.accepted} 个文档`);
+      setSelected(new Set());
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : '批量重新解析失败');
+    }
+  }
+
+  async function onBatchDelete() {
+    const ids = [...selected];
+    if (ids.length === 0) return;
+    if (ids.length > BATCH_DOCUMENTS_MAX) {
+      toast.error(`单次最多选择 ${BATCH_DOCUMENTS_MAX} 个文档`);
+      return;
+    }
+    if (!confirm(`确认删除选中的 ${ids.length} 个文档？此操作不可撤销。`)) return;
+    try {
+      const res = await batch.mutateAsync({ action: 'delete', document_ids: ids });
+      toast.success(`已删除 ${res.accepted} 个文档`);
+      setSelected(new Set());
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : '批量删除失败');
+    }
+  }
+
+  async function onToggleEnabled(docId: string, enabled: boolean, title: string) {
+    setTogglingId(docId);
+    try {
+      await patchDoc.mutateAsync({ docId, payload: { enabled } });
+      toast.success(enabled ? `已启用：${title}` : `已禁用：${title}`);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : '更新启用状态失败');
+    } finally {
+      setTogglingId(null);
+    }
+  }
+
+  const colSpan = 8;
 
   return (
     <div className="space-y-6">
       <header>
         <h2 className="text-lg font-semibold text-slate-900">文件列表</h2>
         <p className="mt-1 text-sm text-slate-500">
-          上传文档并完成解析后，方可用于检索与问答。
+          上传文档并完成解析后，方可用于检索与问答。禁用后列表仍可见，但不会参与检索与问答。
         </p>
       </header>
 
@@ -107,10 +205,33 @@ export function KbFilesPanel() {
             className="field-input w-full pl-9"
           />
         </div>
-        <Button onClick={() => inputRef.current?.click()} disabled={upload.isPending}>
-          <Plus className="h-4 w-4" strokeWidth={1.5} />
-          新增文件
-        </Button>
+        <div className="flex flex-wrap items-center gap-2">
+          {selectedCount > 0 ? (
+            <>
+              <span className="text-xs text-slate-500">已选 {selectedCount}</span>
+              <Button
+                variant="secondary"
+                className="!px-3 !py-1.5 text-xs"
+                disabled={batchBusy}
+                onClick={() => void onBatchReingest()}
+              >
+                重新解析
+              </Button>
+              <Button
+                variant="danger"
+                className="!px-3 !py-1.5 text-xs"
+                disabled={batchBusy}
+                onClick={() => void onBatchDelete()}
+              >
+                删除
+              </Button>
+            </>
+          ) : null}
+          <Button onClick={() => inputRef.current?.click()} disabled={upload.isPending}>
+            <Plus className="h-4 w-4" strokeWidth={1.5} />
+            新增文件
+          </Button>
+        </div>
       </div>
 
       <div
@@ -164,10 +285,25 @@ export function KbFilesPanel() {
         <table className="w-full text-left text-sm">
           <thead className="text-xs font-medium text-slate-400">
             <tr>
+              <th className="w-10 px-4 py-3">
+                <input
+                  type="checkbox"
+                  aria-label="全选当前列表"
+                  checked={allFilteredSelected}
+                  ref={(el) => {
+                    if (el) el.indeterminate = someFilteredSelected && !allFilteredSelected;
+                  }}
+                  onChange={toggleAllFiltered}
+                  disabled={filteredIds.length === 0}
+                  className="h-3.5 w-3.5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                />
+              </th>
               <th className="px-4 py-3">名称</th>
               <th className="px-4 py-3">上传时间</th>
               <th className="px-4 py-3">状态</th>
               <th className="px-4 py-3">页数</th>
+              <th className="px-4 py-3">分块数</th>
+              <th className="px-4 py-3">启用</th>
               <th className="px-4 py-3">操作</th>
             </tr>
           </thead>
@@ -175,14 +311,14 @@ export function KbFilesPanel() {
             {isLoading &&
               Array.from({ length: 3 }, (_, i) => (
                 <tr key={i} className="border-b border-slate-100">
-                  <td colSpan={5} className="px-4 py-3">
+                  <td colSpan={colSpan} className="px-4 py-3">
                     <Skeleton className="h-4 w-full" />
                   </td>
                 </tr>
               ))}
             {!isLoading && filtered.length === 0 ? (
               <tr>
-                <td colSpan={5}>
+                <td colSpan={colSpan}>
                   <EmptyState
                     compact
                     title={query ? '无匹配文件' : '暂无文档'}
@@ -196,14 +332,26 @@ export function KbFilesPanel() {
             {filtered.map((doc) => {
               const failed = doc.status === 'failed';
               const detailExpanded = expandedErrorId === doc.id;
+              const enabled = doc.enabled !== false;
+              const switchBusy = togglingId === doc.id;
               return (
                 <tr
                   key={doc.id}
                   className={[
                     'border-b border-slate-100 transition-colors last:border-0 hover:bg-slate-50/80',
                     failed ? 'bg-red-50/40' : '',
+                    !enabled ? 'opacity-75' : '',
                   ].join(' ')}
                 >
+                  <td className="px-4 py-3">
+                    <input
+                      type="checkbox"
+                      aria-label={`选择 ${doc.title}`}
+                      checked={selected.has(doc.id)}
+                      onChange={() => toggleOne(doc.id)}
+                      className="h-3.5 w-3.5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                    />
+                  </td>
                   <td className="max-w-md px-4 py-3">
                     <Link
                       to={`/knowledge/${kbId}/documents/${doc.id}`}
@@ -245,6 +393,42 @@ export function KbFilesPanel() {
                   </td>
                   <td className="px-4 py-3 tabular-nums text-slate-500">
                     {doc.page_count ?? '—'}
+                  </td>
+                  <td className="px-4 py-3 tabular-nums text-slate-500">
+                    {doc.chunk_count ?? 0}
+                  </td>
+                  <td className="px-4 py-3">
+                    <label
+                      className={[
+                        'relative inline-flex h-5 w-9 cursor-pointer items-center',
+                        switchBusy ? 'pointer-events-none opacity-60' : '',
+                      ].join(' ')}
+                      title={enabled ? '禁用后不参与检索' : '启用以参与检索'}
+                    >
+                      <input
+                        type="checkbox"
+                        role="switch"
+                        aria-label={enabled ? `禁用 ${doc.title}` : `启用 ${doc.title}`}
+                        checked={enabled}
+                        disabled={switchBusy || patchDoc.isPending}
+                        onChange={(e) => {
+                          void onToggleEnabled(doc.id, e.target.checked, doc.title);
+                        }}
+                        className="peer sr-only"
+                      />
+                      <span
+                        className={[
+                          'absolute inset-0 rounded-full transition-colors',
+                          enabled ? 'bg-indigo-500' : 'bg-slate-300',
+                        ].join(' ')}
+                      />
+                      <span
+                        className={[
+                          'absolute left-0.5 top-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform',
+                          enabled ? 'translate-x-4' : 'translate-x-0',
+                        ].join(' ')}
+                      />
+                    </label>
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex flex-wrap items-center gap-2">

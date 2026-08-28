@@ -37,9 +37,32 @@ export interface DocumentItem {
   status: string;
   error_code: string | null;
   error_detail: string | null;
+  enabled: boolean;
+  chunk_count: number;
+  metadata?: Record<string, unknown>;
   created_at: string;
   updated_at: string;
 }
+
+export type DocumentUpdatePayload = {
+  enabled?: boolean | null;
+  metadata?: Record<string, unknown> | null;
+};
+
+export type DocumentBatchAction = 'delete' | 'reingest';
+
+export type DocumentBatchRequest = {
+  action: DocumentBatchAction;
+  document_ids: string[];
+};
+
+export type DocumentBatchResponse = {
+  accepted: number;
+  job_ids: Record<string, string | null>;
+};
+
+/** 批量操作单次上限（与后端 DocumentBatchRequest 一致） */
+export const BATCH_DOCUMENTS_MAX = 50;
 
 export interface DocumentCreated {
   document_id: string;
@@ -126,6 +149,20 @@ export function reingestDocument(docId: string): Promise<DocumentCreated> {
 
 export function deleteDocument(docId: string): Promise<void> {
   return api.delete(`/documents/${docId}`);
+}
+
+export function patchDocument(
+  docId: string,
+  payload: DocumentUpdatePayload,
+): Promise<DocumentItem> {
+  return api.patch(`/documents/${docId}`, payload);
+}
+
+export function batchDocuments(
+  kbId: string,
+  payload: DocumentBatchRequest,
+): Promise<DocumentBatchResponse> {
+  return api.post(`/knowledge-bases/${kbId}/documents/batch`, payload);
 }
 
 /** 经 API 中转的 multipart 上传（≤32MB），避免浏览器直传 MinIO 的 CORS 问题。 */
