@@ -14,7 +14,7 @@ type Props = {
 
 export function Tabs({ tabs, active, onChange, className }: Props) {
   return (
-    <div className={cn('flex flex-wrap gap-1 border-b border-line', className)}>
+    <div className={cn('flex flex-wrap gap-1 border-b border-slate-200', className)}>
       {tabs.map((tab) => {
         const isActive = tab.id === active;
         return (
@@ -25,8 +25,8 @@ export function Tabs({ tabs, active, onChange, className }: Props) {
             className={cn(
               '-mb-px border-b-2 px-3 py-2.5 text-sm transition-colors duration-150',
               isActive
-                ? 'border-accent font-medium text-accent'
-                : 'border-transparent text-ink-muted hover:text-ink',
+                ? 'border-indigo-600 font-medium text-indigo-600'
+                : 'border-transparent text-slate-500 hover:text-slate-800',
             )}
           >
             {tab.label}

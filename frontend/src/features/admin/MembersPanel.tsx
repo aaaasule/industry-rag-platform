@@ -105,27 +105,27 @@ export function MembersPanel({ enabled }: { enabled: boolean }) {
 
   return (
     <div className="space-y-5">
-      <p className="text-sm text-ink-muted">
+      <p className="text-sm text-slate-500">
         按邮箱添加成员：若账号不存在将自动创建（无邮件），请妥善保存返回的初始口令。admin
         不能变更或移除 owner；不能移除自己。
       </p>
 
       {error ? (
-        <p className="rounded-md border border-danger/30 bg-danger/5 px-3 py-2 text-sm text-danger">
+        <p className="rounded-md border border-danger/30 bg-danger/5 px-3 py-2 text-sm text-red-600">
           {error}
         </p>
       ) : null}
 
       {inviteCred ? (
-        <div className="rounded-md border border-brand-500/30 bg-brand-50 px-4 py-3 text-sm text-ink">
+        <div className="rounded-md border border-indigo-500/30 bg-indigo-50 px-4 py-3 text-sm text-slate-800">
           <p className="font-medium">新用户初始口令（仅显示一次）</p>
-          <p className="mt-1 text-ink-muted">{inviteCred.email}</p>
-          <code className="mt-2 block select-all rounded bg-canvas px-2 py-1.5 font-mono text-sm">
+          <p className="mt-1 text-slate-500">{inviteCred.email}</p>
+          <code className="mt-2 block select-all rounded bg-slate-50 px-2 py-1.5 font-mono text-sm">
             {inviteCred.temporary_password}
           </code>
           <button
             type="button"
-            className="mt-2 text-xs text-brand-700 hover:underline"
+            className="mt-2 text-xs text-indigo-600 hover:underline"
             onClick={() => {
               void navigator.clipboard.writeText(inviteCred.temporary_password);
               toast.success('已复制口令');
@@ -183,7 +183,7 @@ export function MembersPanel({ enabled }: { enabled: boolean }) {
       ) : (
         <div className="table-scroll panel">
           <table className="w-full text-left text-sm">
-            <thead className="border-b border-line text-xs text-ink-muted">
+            <thead className="border-b border-slate-200 text-xs text-slate-500">
               <tr>
                 <th className="px-4 py-3 font-medium">成员</th>
                 <th className="px-4 py-3 font-medium">角色</th>
@@ -191,20 +191,20 @@ export function MembersPanel({ enabled }: { enabled: boolean }) {
                 <th className="px-4 py-3 font-medium">操作</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-line">
+            <tbody className="divide-y divide-slate-200">
               {items.map((m) => {
                 const editable = canChangeRole(m.role, m.user_id);
                 const removable = canRemove(m.role, m.user_id);
                 return (
                   <tr key={m.user_id}>
                     <td className="px-4 py-3">
-                      <div className="font-medium text-ink">{m.display_name}</div>
-                      <div className="text-xs text-ink-muted">{m.email}</div>
+                      <div className="font-medium text-slate-800">{m.display_name}</div>
+                      <div className="text-xs text-slate-500">{m.email}</div>
                     </td>
                     <td className="px-4 py-3">
                       {editable ? (
                         <select
-                          className="rounded-md border border-line px-2 py-1 text-sm"
+                          className="rounded-md border border-slate-200 px-2 py-1 text-sm"
                           value={m.role}
                           disabled={roleM.isPending}
                           onChange={(e) =>
@@ -224,14 +224,14 @@ export function MembersPanel({ enabled }: { enabled: boolean }) {
                         <span>{roleLabel(m.role)}</span>
                       )}
                     </td>
-                    <td className="px-4 py-3 text-ink-muted">
+                    <td className="px-4 py-3 text-slate-500">
                       {new Date(m.created_at).toLocaleString('zh-CN')}
                     </td>
                     <td className="px-4 py-3">
                       <button
                         type="button"
                         disabled={!removable || removeM.isPending}
-                        className="text-xs text-danger hover:underline disabled:cursor-not-allowed disabled:text-ink-faint"
+                        className="text-xs text-red-600 hover:underline disabled:cursor-not-allowed disabled:text-slate-400"
                         onClick={() => void onRemove(m.user_id, m.display_name)}
                       >
                         移除

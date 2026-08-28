@@ -34,10 +34,10 @@ export function AdminPage() {
 
   if (!canView) {
     return (
-      <div className="mx-auto max-w-lg panel border-dashed p-10 text-center">
-        <h1 className="text-lg font-medium text-ink">无权访问运营</h1>
-        <p className="mt-2 text-sm text-ink-muted">运营管理仅对租户 owner / admin 开放。</p>
-        <Link to="/" className="mt-4 inline-block text-sm text-accent hover:underline">
+      <div className="mx-auto max-w-lg panel border-dashed border-slate-200 p-10 text-center">
+        <h1 className="text-lg font-medium text-slate-900">无权访问运营</h1>
+        <p className="mt-2 text-sm text-slate-500">运营管理仅对租户 owner / admin 开放。</p>
+        <Link to="/" className="mt-4 inline-block text-sm text-indigo-600 hover:underline">
           返回概览
         </Link>
       </div>

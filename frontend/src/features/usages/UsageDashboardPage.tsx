@@ -63,10 +63,10 @@ export function UsageDashboardPage() {
 
   if (!canView) {
     return (
-      <div className="mx-auto max-w-lg panel border-dashed p-10 text-center">
-        <h1 className="text-lg font-medium text-ink">无权查看用量</h1>
-        <p className="mt-2 text-sm text-ink-muted">用量仪表盘仅对租户 owner / admin 开放。</p>
-        <Link to="/" className="mt-4 inline-block text-sm text-accent hover:underline">
+      <div className="mx-auto max-w-lg panel border-dashed border-slate-200 p-10 text-center">
+        <h1 className="text-lg font-medium text-slate-900">无权查看用量</h1>
+        <p className="mt-2 text-sm text-slate-500">用量仪表盘仅对租户 owner / admin 开放。</p>
+        <Link to="/" className="mt-4 inline-block text-sm text-indigo-600 hover:underline">
           返回概览
         </Link>
       </div>
@@ -78,9 +78,9 @@ export function UsageDashboardPage() {
 
   if (forbidden) {
     return (
-      <div className="mx-auto max-w-lg rounded-lg border border-danger/30 bg-danger/5 p-8 text-center">
-        <h1 className="text-lg font-medium text-ink">无法加载用量</h1>
-        <p className="mt-2 text-sm text-danger">{forbidden.message}</p>
+      <div className="mx-auto max-w-lg rounded-lg border border-red-200 bg-red-50 p-8 text-center">
+        <h1 className="text-lg font-medium text-slate-900">无法加载用量</h1>
+        <p className="mt-2 text-sm text-red-600">{forbidden.message}</p>
       </div>
     );
   }
@@ -130,7 +130,7 @@ export function UsageDashboardPage() {
 
       {preset === 'custom' ? (
         <div className="panel flex flex-wrap gap-3 p-4">
-          <label className="text-sm text-ink-muted">
+          <label className="text-sm text-slate-500">
             从
             <input
               type="datetime-local"
@@ -139,7 +139,7 @@ export function UsageDashboardPage() {
               onChange={(e) => setCustomFrom(e.target.value)}
             />
           </label>
-          <label className="text-sm text-ink-muted">
+          <label className="text-sm text-slate-500">
             到
             <input
               type="datetime-local"
@@ -221,7 +221,7 @@ export function UsageDashboardPage() {
 
       <div className="space-y-3">
         <div className="flex flex-wrap items-center gap-2">
-          <span className="text-sm text-ink-muted">排行维度</span>
+          <span className="text-sm text-slate-500">排行维度</span>
           <Chip active={topDim === 'user'} onClick={() => setTopDim('user')}>
             用户
           </Chip>
@@ -248,21 +248,21 @@ function SummaryCard({
 }) {
   const deltaTone =
     !delta || delta === '—' || delta === '0.0%' || delta === '+0.0%'
-      ? 'text-ink-faint'
+      ? 'text-slate-400'
       : delta.startsWith('+')
-        ? 'text-ok'
+        ? 'text-emerald-600'
         : delta.startsWith('-')
-          ? 'text-danger'
-          : 'text-ink-muted';
+          ? 'text-red-600'
+          : 'text-slate-500';
 
   return (
     <div className="panel p-4 transition-shadow duration-150 hover:shadow-elevated">
-      <p className="text-xs font-medium text-ink-faint">{label}</p>
-      <p className="mt-1 text-2xl font-semibold tabular-nums text-ink">{value}</p>
+      <p className="text-xs font-medium text-slate-400">{label}</p>
+      <p className="mt-1 text-2xl font-semibold tabular-nums text-slate-900">{value}</p>
       {delta && delta !== '—' ? (
         <p className={`mt-1 text-xs ${deltaTone}`}>环比 {delta}</p>
       ) : null}
-      {sub ? <p className="mt-1 text-xs text-ink-muted">{sub}</p> : null}
+      {sub ? <p className="mt-1 text-xs text-slate-500">{sub}</p> : null}
     </div>
   );
 }

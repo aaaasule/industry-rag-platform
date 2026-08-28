@@ -168,7 +168,7 @@ export function ConnectionsPanel({ enabled }: { enabled: boolean }) {
   return (
     <div className="space-y-5">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="text-sm text-ink-muted">
+        <p className="text-sm text-slate-500">
           管理租户模型接入点。平台接入点只读；凭证只写不回显。priority 越小越优先。
         </p>
         <button type="button" className="btn-primary" onClick={() => setShowCreate((v) => !v)}>
@@ -177,7 +177,7 @@ export function ConnectionsPanel({ enabled }: { enabled: boolean }) {
       </div>
 
       {error ? (
-        <p className="rounded-md border border-danger/30 bg-danger/5 px-3 py-2 text-sm text-danger">
+        <p className="rounded-md border border-danger/30 bg-danger/5 px-3 py-2 text-sm text-red-600">
           {error}
         </p>
       ) : null}
@@ -187,7 +187,7 @@ export function ConnectionsPanel({ enabled }: { enabled: boolean }) {
           onSubmit={(e) => void onCreate(e)}
           className="space-y-3 panel p-4"
         >
-          <h3 className="text-sm font-medium text-ink">新建接入点</h3>
+          <h3 className="text-sm font-medium text-slate-800">新建接入点</h3>
           <div className="grid gap-3 sm:grid-cols-2">
             <Field label="名称">
               <input
@@ -250,7 +250,7 @@ export function ConnectionsPanel({ enabled }: { enabled: boolean }) {
             value={form.purposes}
             onChange={(purposes) => setForm({ ...form, purposes })}
           />
-          <label className="flex items-center gap-2 text-sm text-ink">
+          <label className="flex items-center gap-2 text-sm text-slate-800">
             <input
               type="checkbox"
               checked={form.enabled}
@@ -265,7 +265,7 @@ export function ConnectionsPanel({ enabled }: { enabled: boolean }) {
       ) : null}
 
       {listQ.isLoading ? (
-        <p className="text-sm text-ink-faint">加载中…</p>
+        <p className="text-sm text-slate-400">加载中…</p>
       ) : rows.length === 0 ? (
         <div className="panel border-dashed">
           <EmptyState
@@ -288,7 +288,7 @@ export function ConnectionsPanel({ enabled }: { enabled: boolean }) {
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
-                      <h3 className="text-sm font-semibold text-ink">{c.name}</h3>
+                      <h3 className="text-sm font-semibold text-slate-800">{c.name}</h3>
                       <HealthStatusBadge health={c.health} />
                       <StatusBadge
                         label={c.scope === 'platform' ? '平台' : '租户'}
@@ -296,20 +296,20 @@ export function ConnectionsPanel({ enabled }: { enabled: boolean }) {
                       />
                       {!c.enabled ? <StatusBadge label="已停用" tone="neutral" /> : null}
                     </div>
-                    <p className="mt-1.5 font-mono text-xs text-ink-muted">
+                    <p className="mt-1.5 font-mono text-xs text-slate-500">
                       {c.provider_type} · {c.model} · priority {c.priority}
                     </p>
-                    <p className="mt-1 text-xs text-ink-faint">
+                    <p className="mt-1 text-xs text-slate-400">
                       用途：{c.purposes.join(', ')} · 凭证 {c.credential_masked}
                     </p>
                     {testMsg[c.id] ? (
-                      <p className="mt-1 text-xs text-ink-muted">{testMsg[c.id]}</p>
+                      <p className="mt-1 text-xs text-slate-500">{testMsg[c.id]}</p>
                     ) : null}
                   </div>
                   <div className="flex flex-wrap gap-2">
                     <button
                       type="button"
-                      className="rounded-md border border-line px-2.5 py-1 text-xs text-ink hover:bg-canvas"
+                      className="rounded-md border border-slate-200 px-2.5 py-1 text-xs text-slate-800 hover:bg-slate-50"
                       onClick={() => void onTest(c.id)}
                       disabled={testM.isPending}
                     >
@@ -319,14 +319,14 @@ export function ConnectionsPanel({ enabled }: { enabled: boolean }) {
                       <>
                         <button
                           type="button"
-                          className="rounded-md border border-line px-2.5 py-1 text-xs text-ink hover:bg-canvas"
+                          className="rounded-md border border-slate-200 px-2.5 py-1 text-xs text-slate-800 hover:bg-slate-50"
                           onClick={() => startEdit(c)}
                         >
                           编辑
                         </button>
                         <button
                           type="button"
-                          className="rounded-md border border-danger/30 px-2.5 py-1 text-xs text-danger hover:bg-danger/5"
+                          className="rounded-md border border-danger/30 px-2.5 py-1 text-xs text-red-600 hover:bg-danger/5"
                           onClick={() => void onDelete(c)}
                         >
                           删除
@@ -337,7 +337,7 @@ export function ConnectionsPanel({ enabled }: { enabled: boolean }) {
                 </div>
 
                 {editing ? (
-                  <div className="mt-4 space-y-3 border-t border-line pt-4">
+                  <div className="mt-4 space-y-3 border-t border-slate-200 pt-4">
                     <div className="grid gap-3 sm:grid-cols-2">
                       <Field label="名称">
                         <input
@@ -394,7 +394,7 @@ export function ConnectionsPanel({ enabled }: { enabled: boolean }) {
                       </button>
                       <button
                         type="button"
-                        className="rounded-md border border-line px-3 py-2 text-sm"
+                        className="rounded-md border border-slate-200 px-3 py-2 text-sm"
                         onClick={() => {
                           setEditId(null);
                           setEditDraft(null);
@@ -403,7 +403,7 @@ export function ConnectionsPanel({ enabled }: { enabled: boolean }) {
                         取消
                       </button>
                     </div>
-                    <div className="flex flex-wrap items-end gap-2 border-t border-line pt-3">
+                    <div className="flex flex-wrap items-end gap-2 border-t border-slate-200 pt-3">
                       <Field label="更新 API Key（只写）">
                         <input
                           type="password"
@@ -434,12 +434,12 @@ export function ConnectionsPanel({ enabled }: { enabled: boolean }) {
       )}
 
       <section className="panel p-4">
-        <h3 className="text-sm font-medium text-ink">用途路由（当前命中）</h3>
+        <h3 className="text-sm font-medium text-slate-800">用途路由（当前命中）</h3>
         {routesQ.isLoading ? (
-          <p className="mt-3 text-sm text-ink-faint">加载中…</p>
+          <p className="mt-3 text-sm text-slate-400">加载中…</p>
         ) : (
           <table className="mt-3 w-full text-left text-sm">
-            <thead className="text-xs text-ink-muted">
+            <thead className="text-xs text-slate-500">
               <tr>
                 <th className="pb-2 font-medium">用途</th>
                 <th className="pb-2 font-medium">来源</th>
@@ -447,15 +447,15 @@ export function ConnectionsPanel({ enabled }: { enabled: boolean }) {
                 <th className="pb-2 font-medium">模型</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-line">
+            <tbody className="divide-y divide-slate-200">
               {(routesQ.data?.items ?? []).map((r) => (
                 <tr key={r.purpose}>
                   <td className="py-2 pr-2">{r.purpose}</td>
                   <td className="py-2 pr-2">
                     <SourceBadge source={r.source} />
                   </td>
-                  <td className="py-2 pr-2 text-ink">{r.name ?? '—'}</td>
-                  <td className="py-2 text-ink-muted">{r.model}</td>
+                  <td className="py-2 pr-2 text-slate-800">{r.name ?? '—'}</td>
+                  <td className="py-2 text-slate-500">{r.model}</td>
                 </tr>
               ))}
             </tbody>
@@ -489,7 +489,7 @@ function PurposePicker({
         {PURPOSES.map((p) => {
           const checked = value.includes(p);
           return (
-            <label key={p} className="flex items-center gap-1.5 text-sm text-ink">
+            <label key={p} className="flex items-center gap-1.5 text-sm text-slate-800">
               <input
                 type="checkbox"
                 checked={checked}
@@ -513,5 +513,5 @@ function PurposePicker({
 
 function SourceBadge({ source }: { source: string }) {
   const label = source === 'env' ? '环境变量' : source === 'platform' ? '平台' : '租户';
-  return <span className="text-ink">{label}</span>;
+  return <span className="text-slate-800">{label}</span>;
 }

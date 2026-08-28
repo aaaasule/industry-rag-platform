@@ -24,7 +24,7 @@ import { HealthStatusBadge } from '@/components/StatusBadge';
 import type { BreakdownItem, ModelConnection, SeriesGroup } from './api';
 import { mergeSeriesPoints } from './api';
 
-const COLORS = ['#2F6F7E', '#3D6B4F', '#B8792A', '#5C6570', '#A33B2B', '#275A66', '#8A929A'];
+const COLORS = ['#4f46e5', '#6366f1', '#818cf8', '#64748b', '#10b981', '#f59e0b', '#ef4444'];
 
 function ChartShell({
   title,
@@ -44,8 +44,8 @@ function ChartShell({
   return (
     <section className="flex min-h-[280px] flex-col panel p-4">
       <div className="mb-3 flex items-start justify-between gap-2">
-        <h3 className="text-sm font-medium text-ink">{title}</h3>
-        {hint ? <span className="text-xs text-ink-faint">{hint}</span> : null}
+        <h3 className="text-sm font-medium text-slate-800">{title}</h3>
+        {hint ? <span className="text-xs text-slate-400">{hint}</span> : null}
       </div>
       <div className="flex min-h-0 flex-1 flex-col">
         {loading ? (
@@ -100,16 +100,16 @@ export function TokenTrendChart({
             type="monotone"
             dataKey="prompt"
             stackId="1"
-            stroke="#2F6F7E"
-            fill="#C8E0E5"
+            stroke="#4f46e5"
+            fill="#c7d2fe"
             name="prompt"
           />
           <Area
             type="monotone"
             dataKey="completion"
             stackId="1"
-            stroke="#275A66"
-            fill="#E4F0F2"
+            stroke="#6366f1"
+            fill="#e0e7ff"
             name="completion"
           />
         </AreaChart>
@@ -147,7 +147,7 @@ export function CostTrendChart({
           <Line
             type="monotone"
             dataKey="cost"
-            stroke="#B8792A"
+            stroke="#f59e0b"
             strokeWidth={2}
             dot={false}
             name="USD"
@@ -227,7 +227,7 @@ export function PurposeBarChart({
           <XAxis dataKey="name" tick={{ fontSize: 11 }} />
           <YAxis tick={{ fontSize: 11 }} />
           <Tooltip />
-          <Bar dataKey="value" fill="#2F6F7E" name="USD" radius={[4, 4, 0, 0]} />
+          <Bar dataKey="value" fill="#4f46e5" name="USD" radius={[4, 4, 0, 0]} />
         </BarChart>
       </ResponsiveContainer>
     </ChartShell>
@@ -264,7 +264,7 @@ export function SuccessRateChart({
           <Line
             type="monotone"
             dataKey="rate"
-            stroke="#3D6B4F"
+            stroke="#10b981"
             strokeWidth={2}
             dot={false}
             name="成功率 %"
@@ -299,7 +299,7 @@ export function TopConsumersChart({
           <XAxis type="number" tick={{ fontSize: 11 }} />
           <YAxis type="category" dataKey="name" width={96} tick={{ fontSize: 11 }} />
           <Tooltip />
-          <Bar dataKey="value" fill="#275A66" name="USD" radius={[0, 4, 4, 0]} />
+          <Bar dataKey="value" fill="#6366f1" name="USD" radius={[0, 4, 4, 0]} />
         </BarChart>
       </ResponsiveContainer>
     </ChartShell>
@@ -332,7 +332,7 @@ export function ConnectionHealthPanel({
     >
       <div className="overflow-auto">
         <table className="w-full text-left text-sm">
-          <thead className="text-xs text-ink-muted">
+          <thead className="text-xs text-slate-500">
             <tr>
               <th className="pb-2 font-medium">名称</th>
               <th className="pb-2 font-medium">模型</th>
@@ -340,15 +340,15 @@ export function ConnectionHealthPanel({
               <th className="pb-2 font-medium">P95 (ms)</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-line">
+          <tbody className="divide-y divide-slate-200">
             {rows.map((c) => (
               <tr key={c.id}>
-                <td className="py-2 pr-2 text-ink">{c.name}</td>
-                <td className="py-2 pr-2 text-ink-muted">{c.model}</td>
+                <td className="py-2 pr-2 text-slate-800">{c.name}</td>
+                <td className="py-2 pr-2 text-slate-500">{c.model}</td>
                 <td className="py-2 pr-2">
                   <HealthStatusBadge health={c.health} />
                 </td>
-                <td className="py-2 text-ink">
+                <td className="py-2 text-slate-800">
                   {latestLatency.get(c.id) != null ? latestLatency.get(c.id) : '—'}
                 </td>
               </tr>
@@ -367,7 +367,7 @@ export function ConnectionHealthPanel({
               <Line
                 type="monotone"
                 dataKey="p95"
-                stroke="#2F6F7E"
+                stroke="#4f46e5"
                 strokeWidth={2}
                 dot={false}
                 name="P95 ms"

@@ -19,7 +19,7 @@ export function ProfileOpsFields({
 
   return (
     <div className="space-y-5">
-      <label className="block text-xs text-ink-muted">
+      <label className="block text-xs text-slate-500">
         术语表（一行一词，写入 jieba 用户词典）
         <textarea
           className="field-input mt-1 min-h-[88px] font-mono text-xs"
@@ -39,7 +39,7 @@ export function ProfileOpsFields({
       </label>
 
       <fieldset className="space-y-2">
-        <legend className="text-xs font-medium text-ink-muted">同义词（查询侧替换）</legend>
+        <legend className="text-xs font-medium text-slate-500">同义词（查询侧替换）</legend>
         {synonyms.map(([alias, canonical], i) => (
           <div key={`syn-${i}`} className="flex gap-2">
             <input
@@ -48,7 +48,7 @@ export function ProfileOpsFields({
               value={alias}
               onChange={(e) => onParseRules({ ...parseRules, synonyms: rowsToMap(replacePair(synonyms, i, e.target.value, canonical)) })}
             />
-            <span className="self-center text-ink-faint">→</span>
+            <span className="self-center text-slate-400">→</span>
             <input
               className="field-input flex-1"
               placeholder="规范词，如 泵"
@@ -66,7 +66,7 @@ export function ProfileOpsFields({
         ))}
         <button
           type="button"
-          className="text-xs text-brand-700 hover:underline"
+          className="text-xs text-indigo-600 hover:underline"
           onClick={() => onParseRules({ ...parseRules, synonyms: rowsToMap([...synonyms, ['', '']]) })}
         >
           + 添加同义词
@@ -74,7 +74,7 @@ export function ProfileOpsFields({
       </fieldset>
 
       <fieldset className="space-y-2">
-        <legend className="text-xs font-medium text-ink-muted">文档元数据字段</legend>
+        <legend className="text-xs font-medium text-slate-500">文档元数据字段</legend>
         {fields.map(([key, spec], i) => {
           const s = spec && typeof spec === 'object' && !Array.isArray(spec) ? (spec as Record<string, unknown>) : {};
           const typ = typeof s.type === 'string' ? s.type : 'string';
@@ -103,7 +103,7 @@ export function ProfileOpsFields({
                   </option>
                 ))}
               </select>
-              <label className="flex items-center gap-1 text-xs text-ink-muted">
+              <label className="flex items-center gap-1 text-xs text-slate-500">
                 <input
                   type="checkbox"
                   checked={required}
@@ -132,7 +132,7 @@ export function ProfileOpsFields({
         })}
         <button
           type="button"
-          className="text-xs text-brand-700 hover:underline"
+          className="text-xs text-indigo-600 hover:underline"
           onClick={() => {
             const name = unusedKey(metadataSchema);
             onMetadataSchema({ ...metadataSchema, [name]: { type: 'string', required: false } });

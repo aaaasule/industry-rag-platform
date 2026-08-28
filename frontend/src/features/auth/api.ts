@@ -1,44 +1,25 @@
 /**
- * auth 域的接口调用与类型。
- *
- * 类型现在手写；M1 接入 openapi-typescript 后改为从 openapi.gen.ts 派生，
- * 保持"后端改字段、前端编译报错"的约束。
+ * auth 域的接口调用与类型（由 OpenAPI 派生，后端改字段时前端编译报错）。
  */
 
 import { api, tokenStore } from '@/lib/http';
+import type { components } from '@/types/openapi.gen';
 
-export interface TokenPair {
-  access_token: string;
-  refresh_token: string;
-  token_type: string;
-  expires_at: string;
-}
+export type TokenPair = components['schemas']['TokenPair'];
+export type UserProfile = components['schemas']['UserProfile'];
+export type LoginPayload = components['schemas']['LoginRequest'];
+export type UpdateProfilePayload = components['schemas']['UpdateProfileRequest'];
+export type ChangePasswordPayload = components['schemas']['ChangePasswordRequest'];
 
-export interface TenantBrief {
-  id: string;
-  slug: string;
-  name: string;
-  role: 'owner' | 'admin' | 'member';
-}
-
-export interface UserProfile {
-  id: string;
-  email: string;
-  display_name: string;
-  status: string;
-}
-
-export interface SessionInfo {
-  user: UserProfile;
+/** OpenAPI 将 role 标为 string；前端导航/RBAC 需要字面量联合 */
+export type TenantRole = 'owner' | 'admin' | 'member';
+export type TenantBrief = Omit<components['schemas']['TenantBrief'], 'role'> & {
+  role: TenantRole;
+};
+export type SessionInfo = Omit<components['schemas']['SessionInfo'], 'current_tenant' | 'tenants'> & {
   current_tenant: TenantBrief;
   tenants: TenantBrief[];
-}
-
-export interface LoginPayload {
-  email: string;
-  password: string;
-  tenant_slug?: string;
-}
+};
 
 export async function login(payload: LoginPayload): Promise<TokenPair> {
   const pair = await api.post<TokenPair>('/auth/login', payload);
@@ -65,13 +46,10 @@ export async function logout(): Promise<void> {
   }
 }
 
-export function updateProfile(payload: { display_name: string }): Promise<SessionInfo> {
+export function updateProfile(payload: UpdateProfilePayload): Promise<SessionInfo> {
   return api.patch('/auth/me', payload);
 }
 
-export function changePassword(payload: {
-  current_password: string;
-  new_password: string;
-}): Promise<void> {
+export function changePassword(payload: ChangePasswordPayload): Promise<void> {
   return api.post('/auth/change-password', payload);
 }

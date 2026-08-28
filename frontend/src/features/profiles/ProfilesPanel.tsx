@@ -83,10 +83,10 @@ export function ProfilesPanel({ enabled }: { enabled: boolean }) {
 
   return (
     <div className="space-y-4">
-      <p className="text-sm text-ink-muted">
+      <p className="text-sm text-slate-500">
         内置模板只读；派生后可编辑分块、检索、术语表、同义词与元数据字段。
       </p>
-      <label className="flex items-center gap-2 text-sm text-ink-muted">
+      <label className="flex items-center gap-2 text-sm text-slate-500">
         <input
           type="checkbox"
           checked={showDeleted}
@@ -94,12 +94,12 @@ export function ProfilesPanel({ enabled }: { enabled: boolean }) {
         />
         显示已删除
       </label>
-      {error ? <p className="text-sm text-danger">{error}</p> : null}
-      {listQ.isLoading ? <p className="text-sm text-ink-muted">加载中…</p> : null}
+      {error ? <p className="text-sm text-red-600">{error}</p> : null}
+      {listQ.isLoading ? <p className="text-sm text-slate-500">加载中…</p> : null}
 
       <div className="table-scroll panel">
         <table className="w-full text-left text-sm">
-          <thead className="border-b border-line bg-canvas text-xs uppercase tracking-wider text-ink-faint">
+          <thead className="border-b border-slate-200 bg-slate-50 text-xs uppercase tracking-wider text-slate-400">
             <tr>
               <th className="px-4 py-3 font-medium">code</th>
               <th className="px-4 py-3 font-medium">名称</th>
@@ -111,18 +111,18 @@ export function ProfilesPanel({ enabled }: { enabled: boolean }) {
             {rows.map((p) => (
               <tr
                 key={p.id}
-                className="border-b border-line/60 transition-colors last:border-0 hover:bg-brand-50/40"
+                className="border-b border-slate-200/60 transition-colors last:border-0 hover:bg-indigo-50/40"
               >
-                <td className="px-4 py-3 font-mono text-xs text-ink">{p.code}</td>
-                <td className="px-4 py-3 text-ink">{p.name}</td>
-                <td className="px-4 py-3 text-ink-muted">
+                <td className="px-4 py-3 font-mono text-xs text-slate-800">{p.code}</td>
+                <td className="px-4 py-3 text-slate-800">{p.name}</td>
+                <td className="px-4 py-3 text-slate-500">
                   {p.is_builtin ? '内置' : p.deleted_at ? '已删除' : '自定义'}
                 </td>
                 <td className="px-4 py-3">
                   {!p.deleted_at ? (
                     <button
                       type="button"
-                      className="mr-3 text-brand-700 hover:underline"
+                      className="mr-3 text-indigo-600 hover:underline"
                       onClick={() => {
                         setEdit(null);
                         setDeriveFrom(p);
@@ -138,7 +138,7 @@ export function ProfilesPanel({ enabled }: { enabled: boolean }) {
                     <>
                       <button
                         type="button"
-                        className="mr-3 text-brand-700 hover:underline"
+                        className="mr-3 text-indigo-600 hover:underline"
                         onClick={() => {
                           setDeriveFrom(null);
                           setEdit(p);
@@ -149,7 +149,7 @@ export function ProfilesPanel({ enabled }: { enabled: boolean }) {
                       </button>
                       <button
                         type="button"
-                        className="text-danger hover:underline"
+                        className="text-red-600 hover:underline"
                         onClick={() => void onDelete(p)}
                       >
                         删除
@@ -159,7 +159,7 @@ export function ProfilesPanel({ enabled }: { enabled: boolean }) {
                   {p.deleted_at ? (
                     <button
                       type="button"
-                      className="text-brand-700 hover:underline"
+                      className="text-indigo-600 hover:underline"
                       onClick={() => void onRestore(p)}
                     >
                       恢复
@@ -170,7 +170,7 @@ export function ProfilesPanel({ enabled }: { enabled: boolean }) {
             ))}
             {!listQ.isLoading && rows.length === 0 ? (
               <tr>
-                <td colSpan={4} className="px-4 py-8 text-center text-sm text-ink-muted">
+                <td colSpan={4} className="px-4 py-8 text-center text-sm text-slate-500">
                   暂无模板，请先完成 seed 初始化
                 </td>
               </tr>
@@ -181,8 +181,8 @@ export function ProfilesPanel({ enabled }: { enabled: boolean }) {
 
       {deriveFrom ? (
         <form onSubmit={(e) => void onDerive(e)} className="panel space-y-3 p-4">
-          <h2 className="text-sm font-medium text-ink">从 {deriveFrom.code} 派生</h2>
-          <label className="block text-xs text-ink-muted">
+          <h2 className="text-sm font-medium text-slate-800">从 {deriveFrom.code} 派生</h2>
+          <label className="block text-xs text-slate-500">
             新 code
             <input
               required
@@ -192,7 +192,7 @@ export function ProfilesPanel({ enabled }: { enabled: boolean }) {
               className="field-input mt-1 font-mono"
             />
           </label>
-          <label className="block text-xs text-ink-muted">
+          <label className="block text-xs text-slate-500">
             名称
             <input
               value={newName}

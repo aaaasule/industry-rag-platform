@@ -51,7 +51,7 @@ export function AuditPanel({ enabled }: { enabled: boolean }) {
 
   return (
     <div className="space-y-5">
-      <p className="text-sm text-ink-muted">
+      <p className="text-sm text-slate-500">
         审计记录按时间倒序。`to` 为开区间（不含终点）。操作者名称来自成员列表映射。
       </p>
 
@@ -114,7 +114,7 @@ export function AuditPanel({ enabled }: { enabled: boolean }) {
       ) : (
         <div className="table-scroll panel">
           <table className="w-full text-left text-sm">
-            <thead className="border-b border-line text-xs text-ink-muted">
+            <thead className="border-b border-slate-200 text-xs text-slate-500">
               <tr>
                 <th className="px-4 py-3 font-medium">时间</th>
                 <th className="px-4 py-3 font-medium">操作者</th>
@@ -123,25 +123,25 @@ export function AuditPanel({ enabled }: { enabled: boolean }) {
                 <th className="px-4 py-3 font-medium">IP</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-line">
+            <tbody className="divide-y divide-slate-200">
               {items.map((row) => (
                 <tr key={row.id}>
-                  <td className="whitespace-nowrap px-4 py-3 text-ink-muted">
+                  <td className="whitespace-nowrap px-4 py-3 text-slate-500">
                     {new Date(row.created_at).toLocaleString('zh-CN')}
                   </td>
                   <td className="px-4 py-3">
                     {row.actor_id ? (nameById.get(row.actor_id) ?? shortId(row.actor_id)) : '系统'}
                   </td>
-                  <td className="px-4 py-3 font-mono text-xs text-ink">{row.action}</td>
-                  <td className="px-4 py-3 text-ink-muted">
+                  <td className="px-4 py-3 font-mono text-xs text-slate-800">{row.action}</td>
+                  <td className="px-4 py-3 text-slate-500">
                     {row.target_type}
                     {row.target_id ? (
-                      <span className="ml-1 font-mono text-xs text-ink-faint">
+                      <span className="ml-1 font-mono text-xs text-slate-400">
                         {shortId(row.target_id)}
                       </span>
                     ) : null}
                   </td>
-                  <td className="px-4 py-3 text-ink-muted">{row.ip ?? '—'}</td>
+                  <td className="px-4 py-3 text-slate-500">{row.ip ?? '—'}</td>
                 </tr>
               ))}
             </tbody>
@@ -149,14 +149,14 @@ export function AuditPanel({ enabled }: { enabled: boolean }) {
         </div>
       )}
 
-      <div className="flex items-center justify-between text-sm text-ink-muted">
+      <div className="flex items-center justify-between text-sm text-slate-500">
         <span>
           共 {total} 条 · 第 {page + 1}/{pageCount} 页
         </span>
         <div className="flex gap-2">
           <button
             type="button"
-            className="rounded-md border border-line px-3 py-1.5 disabled:opacity-40"
+            className="rounded-md border border-slate-200 px-3 py-1.5 disabled:opacity-40"
             disabled={page <= 0}
             onClick={() => setPage((p) => Math.max(0, p - 1))}
           >
@@ -164,7 +164,7 @@ export function AuditPanel({ enabled }: { enabled: boolean }) {
           </button>
           <button
             type="button"
-            className="rounded-md border border-line px-3 py-1.5 disabled:opacity-40"
+            className="rounded-md border border-slate-200 px-3 py-1.5 disabled:opacity-40"
             disabled={(page + 1) * PAGE_SIZE >= total}
             onClick={() => setPage((p) => p + 1)}
           >

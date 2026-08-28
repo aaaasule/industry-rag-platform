@@ -7,11 +7,45 @@
 
 | 项     | 值                                                                                        |
 | ----- | ---------------------------------------------------------------------------------------- |
-| 阶段    | **M0–M5 + P1（A→D）完成**；真实语料 E2E **已通过**；前端视觉 P1/P2 **已合入**                          |
-| 下一里程碑 | **M6 待定**（按产品优先级从路线图演进项中挑选）                                                                |
-| 已落地   | 摄取/检索/问答/溯源/多租户/模型运营/Profile；P1：多格式+SSE、授权邀请、重新生成与非 PDF 预览、术语归一与软删恢复；**Cobalt+Slate 前端改版**（Sidebar、共享 UI、登录/概览/知识库/问答/运营/用量/预览）；**modelops 平台接入点 test 与 RLS 对齐** |
-| 阻塞项   | 无                                                                                        |
+| 阶段    | **M0–M5 + P1（A→D）完成**；真实语料 E2E **已通过**；DeepSeek 浅色壳层 + P1/P2 体验收口 **已合入** |
+| 下一里程碑 | **M6 待定**（按产品优先级从路线图演进项中挑选） |
+| 已落地   | 摄取/检索/问答/溯源/多租户/模型运营/Profile；P1：多格式+SSE、授权邀请、重新生成与非 PDF 预览、术语归一与软删恢复；**DeepSeek 浅色前端**（侧栏折叠、会话搜索分组、个人资料页、Lucide 全站、运营/用量视觉对齐）；**modelops 平台接入点 test 与 RLS 对齐** |
+| 阻塞项   | 无 |
 
+---
+
+## 2026-08-28（日进度 · 壳层改版与 P1/P2 收口）
+
+### 结论
+
+PR [#29](https://github.com/aaaasule/industry-rag-platform/pull/29)（个人资料、浅色壳层、会话搜索）与 PR [#30](https://github.com/aaaasule/industry-rag-platform/pull/30)（Lucide 统一、概览/登录/知识库对齐、「更早」分组、帮助链接）已合入 `main`。P2 工程质量项（OpenAPI auth 类型、`make beat`、运营/用量视觉、进展文档）在本日收尾。
+
+### 当日完成
+
+| # | 事项 | 说明 |
+| --- | --- | --- |
+| 1 | 个人资料 + 壳层 | PR #29：DeepSeek 风格侧栏（折叠记忆、底部用户区）；`PATCH /auth/me`、`POST /auth/change-password`；会话列表搜索 + 时间分组 |
+| 2 | P1 视觉统一 | PR #30：全站 Lucide；概览/登录/知识库对齐浅色壳层；「更早」分组；侧栏帮助文档外链 |
+| 3 | P2 运营/用量 | Admin / UsageDashboard / 共享 Tabs·Chip·PageHeader 对齐 Indigo+Slate；图表色板更新 |
+| 4 | P2 工程质量 | `auth/api.ts` 改从 `openapi.gen.ts` 派生类型；OpenAPI 同步 PATCH/change-password；`Makefile` 新增 `make beat` |
+| 5 | 用量数据链路 | 本地需同时跑 `make worker` + `make beat`，Redis 缓冲 → flush（60s）→ hourlies（3600s）后仪表盘才有数据 |
+
+### 本地联调（用量仪表盘）
+
+```bash
+make up && make migrate && make seed
+make api          # 终端 1
+make worker       # 终端 2（ingest / embed / stats 队列）
+make beat         # 终端 3（用量 flush + hourlies 预聚合）
+make web          # 终端 4
+# 登录 owner/admin → 用量：产生 chat/search 调用后约 1 分钟内可见
+```
+
+### 下一步（待产品拍板）
+
+1. 首发行业与语料、部署形态（内网/云）、是否 SSO / 跨租户复用
+2. 有痛点再开工程：页级 Celery chord、查询改写/指代消解、golden 固化、暗色主题等
+3. 路线图 M6 演进项（重排默认开、图谱、Agent…）仅在触发条件成立时启动
 
 ---
 
