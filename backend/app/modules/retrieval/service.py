@@ -198,9 +198,7 @@ class RetrievalService:
         if opts.rerank and self._rerank is not None and candidates:
             rr_t0 = time.perf_counter()
             docs = [c.content for c in candidates]
-            scored = await self._rerank.rerank(
-                rewritten_query, docs, top_n=min(top_k, len(docs))
-            )
+            scored = await self._rerank.rerank(rewritten_query, docs, top_n=min(top_k, len(docs)))
             rerank_ms = (time.perf_counter() - rr_t0) * 1000
             await self._record_usage(
                 tenant_id=tenant_id,

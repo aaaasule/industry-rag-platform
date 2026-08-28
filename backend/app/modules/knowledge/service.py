@@ -496,9 +496,7 @@ class KnowledgeService:
     async def list_documents(self, claims: TokenClaims, kb_id: uuid.UUID) -> list[DocumentOut]:
         await self._require_kb(claims, kb_id, PERM_READ)
         rows = await self._repo.list_documents(claims.tenant_id, kb_id)
-        counts = await self._repo.chunk_counts_for_documents(
-            claims.tenant_id, [r.id for r in rows]
-        )
+        counts = await self._repo.chunk_counts_for_documents(claims.tenant_id, [r.id for r in rows])
         return [self._document_out(r, chunk_count=counts.get(r.id, 0)) for r in rows]
 
     async def get_document(self, claims: TokenClaims, doc_id: uuid.UUID) -> DocumentOut:

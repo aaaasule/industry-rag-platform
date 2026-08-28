@@ -79,8 +79,10 @@ async def test_batch_delete_soft_deletes_documents(
         tenant_id=fixture_data.primary_tenant_id, user_id=fixture_data.user_id
     ) as session:
         rows = (
-            await session.execute(select(Document).where(Document.id.in_([doc_a, doc_b])))
-        ).scalars().all()
+            (await session.execute(select(Document).where(Document.id.in_([doc_a, doc_b]))))
+            .scalars()
+            .all()
+        )
         assert len(rows) == 2
         assert all(r.deleted_at is not None for r in rows)
 
