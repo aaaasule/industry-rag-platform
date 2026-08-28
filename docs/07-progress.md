@@ -7,9 +7,9 @@
 
 | 项     | 值                                                                                        |
 | ----- | ---------------------------------------------------------------------------------------- |
-| 阶段    | **M0–M5 + P1（A→D）完成**；真实语料 E2E **已通过**；DeepSeek 浅色壳层 + P1/P2 体验收口 **已合入** |
+| 阶段    | **M0–M5 + P1（A→D）完成**；真实语料 E2E **已通过**；DeepSeek 浅色壳层 + P1/P2 体验收口 + **知识库四 Tab 工作台** + **文档连续滑动预览** **已合入** |
 | 下一里程碑 | **M6 待定**（按产品优先级从路线图演进项中挑选） |
-| 已落地   | 摄取/检索/问答/溯源/多租户/模型运营/Profile；P1：多格式+SSE、授权邀请、重新生成与非 PDF 预览、术语归一与软删恢复；**DeepSeek 浅色前端**（侧栏折叠、会话搜索分组、个人资料页、Lucide 全站、运营/用量视觉对齐）；**modelops 平台接入点 test 与 RLS 对齐** |
+| 已落地   | 摄取/检索/问答/溯源/多租户/模型运营/Profile；P1：多格式+SSE、授权邀请、重新生成与非 PDF 预览、术语归一与软删恢复；**DeepSeek 浅色前端**（侧栏折叠、会话搜索分组、个人资料页、Lucide 全站、运营/用量视觉对齐）；**知识库工作台**（文件/检索/日志/配置四 Tab）；**PDF 连续纵向滑动预览**；**modelops 平台接入点 test 与 RLS 对齐** |
 | 阻塞项   | 无 |
 
 ---
@@ -18,7 +18,7 @@
 
 ### 结论
 
-PR [#29](https://github.com/aaaasule/industry-rag-platform/pull/29)（个人资料、浅色壳层、会话搜索）与 PR [#30](https://github.com/aaaasule/industry-rag-platform/pull/30)（Lucide 统一、概览/登录/知识库对齐、「更早」分组、帮助链接）已合入 `main`。P2 工程质量项（OpenAPI auth 类型、`make beat`、运营/用量视觉、进展文档）在本日收尾。
+PR [#29](https://github.com/aaaasule/industry-rag-platform/pull/29)（个人资料、浅色壳层、会话搜索）、PR [#30](https://github.com/aaaasule/industry-rag-platform/pull/30)（Lucide 统一、概览/登录/知识库对齐）、PR [#31](https://github.com/aaaasule/industry-rag-platform/pull/31)（P2 运营/用量视觉与工程质量）、PR [#32](https://github.com/aaaasule/industry-rag-platform/pull/32)（知识库四 Tab 工作台）、PR [#33](https://github.com/aaaasule/industry-rag-platform/pull/33)（文档连续滑动预览）已合入 `main`。
 
 ### 当日完成
 
@@ -29,6 +29,8 @@ PR [#29](https://github.com/aaaasule/industry-rag-platform/pull/29)（个人资�
 | 3 | P2 运营/用量 | Admin / UsageDashboard / 共享 Tabs·Chip·PageHeader 对齐 Indigo+Slate；图表色板更新 |
 | 4 | P2 工程质量 | `auth/api.ts` 改从 `openapi.gen.ts` 派生类型；OpenAPI 同步 PATCH/change-password；`Makefile` 新增 `make beat` |
 | 5 | 用量数据链路 | 本地需同时跑 `make worker` + `make beat`，Redis 缓冲 → flush（60s）→ hourlies（3600s）后仪表盘才有数据 |
+| 6 | 知识库工作台 | PR #32：路由 `/knowledge/:kbId/{files|retrieval|logs|settings}`；侧栏四 Tab；检索测试 POST `/search`；审计日志过滤；配置页名称/描述/模板/授权；设计书 [`2026-08-28-knowledge-module-redesign-design.md`](./superpowers/specs/2026-08-28-knowledge-module-redesign-design.md) |
+| 7 | 文档滑动预览 | PR #33：`PdfHighlightViewer` 全页纵向连续滚动 + IntersectionObserver 同步页码；点击分块 `scrollIntoView` 高亮；文本预览滚动布局对齐 |
 
 ### 本地联调（用量仪表盘）
 
