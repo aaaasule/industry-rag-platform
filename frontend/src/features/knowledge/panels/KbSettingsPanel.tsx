@@ -111,15 +111,17 @@ export function KbSettingsPanel() {
     rerank: 'default',
     query_expand: false,
   });
+  const [seededKbId, setSeededKbId] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!kb) return;
+    if (!kb || seededKbId === kb.id) return;
     setKbName(kb.name);
     setKbDescription(kb.description ?? '');
     const next = rulesFromKb(kb);
     setChunk(next.chunk);
     setRetrieval(next.retrieval);
-  }, [kb]);
+    setSeededKbId(kb.id);
+  }, [kb, seededKbId]);
 
   useEffect(() => {
     if (!kb?.profile_id) {
