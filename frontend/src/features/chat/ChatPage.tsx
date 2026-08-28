@@ -215,6 +215,8 @@ export function ChatPage() {
               citations: [],
               used_citations: [],
               feedback: undefined,
+              took_ms: null,
+              token_usage: null,
             }
           : m,
       ),
@@ -351,7 +353,29 @@ function toUi(m: ChatMessage): UiMessage {
     citations: m.citations,
     used_citations: m.used_citations,
     feedback: m.feedback,
+    token_usage: m.token_usage ?? null,
+    took_ms: m.took_ms ?? null,
   };
+}
+
+function parseTokenUsage(raw: unknown): UiMessage['token_usage'] {
+  if (!raw || typeof raw !== 'object') return null;
+  const obj = raw as Record<string, unknown>;
+  const prompt = Number(obj.prompt_tokens ?? 0);
+  const completion = Number(obj.completion_tokens ?? 0);
+  if (!Number.isFinite(prompt) && !Number.isFinite(completion)) return null;
+  return {
+    prompt_tokens: Number.isFinite(prompt) ? prompt : 0,
+    completion_tokens: Number.isFinite(completion) ? completion : 0,
+  };
+}
+
+function parseTookMs(raw: unknown): number | null {
+  if (typeof raw === 'number' && Number.isFinite(raw)) return Math.max(0, Math.round(raw));
+  if (typeof raw === 'string' && raw.trim() !== '' && Number.isFinite(Number(raw))) {
+    return Math.max(0, Math.round(Number(raw)));
+  }
+  return null;
 }
 
 async function consumeAssistantStream(
@@ -385,6 +409,7 @@ async function consumeAssistantStream(
       );
     } else if (ev.event === 'no_answer') {
       const reason = asString(data.reason) || 'no_relevant_evidence';
+      const tookMs = parseTookMs(data.took_ms);
       ctx.setLiveMessages((prev) =>
         prev.map((m, i) =>
           i === prev.length - 1
@@ -392,6 +417,8 @@ async function consumeAssistantStream(
                 ...m,
                 content: '未找到足够相关的资料，请换一种问法或补充上传文档。',
                 status: 'completed',
+                took_ms: tookMs,
+                token_usage: null,
               }
             : m,
         ),
@@ -401,10 +428,18 @@ async function consumeAssistantStream(
       const used = Array.isArray(data.used_citations)
         ? (data.used_citations as number[])
         : [];
+      const tookMs = parseTookMs(data.took_ms);
+      const tokenUsage = parseTokenUsage(data.usage);
       ctx.setLiveMessages((prev) =>
         prev.map((m, i) =>
           i === prev.length - 1
-            ? { ...m, status: 'completed', used_citations: used }
+            ? {
+                ...m,
+                status: 'completed',
+                used_citations: used,
+                took_ms: tookMs,
+                token_usage: tokenUsage ?? null,
+              }
             : m,
         ),
       );

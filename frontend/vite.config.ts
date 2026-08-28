@@ -20,6 +20,20 @@ export default defineConfig({
       '/api': {
         target: 'http://localhost:8000',
         changeOrigin: true,
+        // SSE / 长连接：避免代理缓冲，问答流式才能边到边渲染
+        timeout: 0,
+        proxyTimeout: 0,
+        configure: (proxy) => {
+          proxy.on('proxyRes', (proxyRes) => {
+            const ct = proxyRes.headers['content-type'] ?? '';
+            if (String(ct).includes('text/event-stream')) {
+              proxyRes.headers['cache-control'] = 'no-cache';
+              proxyRes.headers['x-accel-buffering'] = 'no';
+              // Node http 默认可能缓冲；禁用 content-length 以便分块转发
+              delete proxyRes.headers['content-length'];
+            }
+          });
+        },
       },
     },
   },

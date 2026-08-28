@@ -20,6 +20,11 @@ export interface Citation {
   score: number;
 }
 
+export interface TokenUsage {
+  prompt_tokens?: number;
+  completion_tokens?: number;
+}
+
 export interface ChatMessage {
   id: string;
   role: string;
@@ -28,6 +33,8 @@ export interface ChatMessage {
   citations: Citation[];
   used_citations?: number[];
   feedback?: { rating: 'up' | 'down'; reason?: string | null; comment?: string | null } | null;
+  token_usage?: TokenUsage | null;
+  took_ms?: number | null;
   created_at: string;
 }
 

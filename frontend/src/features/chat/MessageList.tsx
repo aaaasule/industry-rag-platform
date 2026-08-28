@@ -5,7 +5,12 @@ import { Chip } from '@/components/ui/Chip';
 
 import { MessageFeedback } from './MessageFeedback';
 import { RichText } from './RichText';
-import { EXAMPLE_QUESTIONS, type UiMessage } from './types';
+import {
+  EXAMPLE_QUESTIONS,
+  formatTokenUsage,
+  formatTookMs,
+  type UiMessage,
+} from './types';
 
 type Props = {
   messages: UiMessage[];
@@ -86,6 +91,12 @@ export function MessageList({
               {m.role === 'assistant' && (m.status === 'completed' || lastAssistant) && (
                 <div className="mt-2 flex flex-wrap items-center gap-2 border-t border-line/60 pt-2">
                   {m.status === 'completed' && (
+                    <MessageMeta
+                      tookMs={m.took_ms ?? null}
+                      tokenUsage={m.token_usage ?? null}
+                    />
+                  )}
+                  {m.status === 'completed' && (
                     <MessageFeedback messageId={m.id} initial={m.feedback} disabled={streaming} />
                   )}
                   {lastAssistant && (
@@ -106,5 +117,25 @@ export function MessageList({
       })}
       <div ref={bottomRef} />
     </div>
+  );
+}
+
+function MessageMeta({
+  tookMs,
+  tokenUsage,
+}: {
+  tookMs?: number | null;
+  tokenUsage?: UiMessage['token_usage'];
+}) {
+  const took =
+    typeof tookMs === 'number' && Number.isFinite(tookMs) && tookMs >= 0
+      ? formatTookMs(tookMs)
+      : null;
+  const tokens = formatTokenUsage(tokenUsage);
+  if (!took && !tokens) return null;
+  return (
+    <p className="mr-auto text-[11px] tabular-nums text-ink-faint">
+      {[took ? `耗时 ${took}` : null, tokens].filter(Boolean).join(' · ')}
+    </p>
   );
 }
