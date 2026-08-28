@@ -84,7 +84,7 @@ export function KnowledgePage() {
           return (
           <Link
             key={kb.id}
-            to={`/knowledge/${kb.id}`}
+            to={`/knowledge/${kb.id}/files`}
             className="panel group block p-5 transition-all duration-200 hover:border-indigo-200 hover:shadow-md"
           >
             <div className="flex items-start gap-3">

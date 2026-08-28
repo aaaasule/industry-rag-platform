@@ -145,7 +145,7 @@ export function DocumentDetailPage() {
     <div className="page-fill flex-col gap-4">
       <header>
         <Link
-          to={kbId ? `/knowledge/${kbId}` : '/knowledge'}
+          to={kbId ? `/knowledge/${kbId}/files` : '/knowledge'}
           className="inline-flex items-center gap-1.5 text-sm text-ink-muted transition-colors hover:text-accent"
         >
           <ArrowLeft className="h-4 w-4" strokeWidth={1.5} />

@@ -33,8 +33,11 @@ export function useKnowledgeBase(kbId: string) {
 export function useUpdateKnowledgeBase(kbId: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (payload: { profile_code?: string; name?: string }) =>
-      kbApi.updateKnowledgeBase(kbId, payload),
+    mutationFn: (payload: {
+      profile_code?: string;
+      name?: string;
+      description?: string;
+    }) => kbApi.updateKnowledgeBase(kbId, payload),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ['knowledge-bases', kbId] });
       void qc.invalidateQueries({ queryKey: KB_LIST_KEY });
@@ -83,6 +86,13 @@ export function useDeleteDocument(kbId: string) {
       void qc.invalidateQueries({ queryKey: ['documents', kbId] });
       void qc.invalidateQueries({ queryKey: KB_LIST_KEY });
     },
+  });
+}
+
+export function useKbSearch(kbId: string) {
+  return useMutation({
+    mutationFn: (payload: { query: string; top_k?: number; rerank?: boolean }) =>
+      kbApi.searchKnowledgeBase(kbId, payload),
   });
 }
 
