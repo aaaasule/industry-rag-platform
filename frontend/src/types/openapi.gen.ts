@@ -360,6 +360,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/knowledge-bases/{kb_id}/documents/batch": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Batch Documents */
+        post: operations["batch_documents_api_v1_knowledge_bases__kb_id__documents_batch_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/documents/{doc_id}": {
         parameters: {
             query?: never;
@@ -920,6 +937,25 @@ export interface components {
         CredentialUpdate: {
             /** Api Key */
             api_key: string;
+        };
+        /** DocumentBatchRequest */
+        DocumentBatchRequest: {
+            /**
+             * Action
+             * @enum {string}
+             */
+            action: "delete" | "reingest";
+            /** Document Ids */
+            document_ids: string[];
+        };
+        /** DocumentBatchResponse */
+        DocumentBatchResponse: {
+            /** Accepted */
+            accepted: number;
+            /** Job Ids */
+            job_ids: {
+                [key: string]: string | null;
+            };
         };
         /** DocumentCreated */
         DocumentCreated: {
@@ -2675,6 +2711,41 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["DocumentCreated"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    batch_documents_api_v1_knowledge_bases__kb_id__documents_batch_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                kb_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DocumentBatchRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DocumentBatchResponse"];
                 };
             };
             /** @description Validation Error */

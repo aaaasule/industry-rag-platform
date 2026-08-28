@@ -13,6 +13,8 @@ from app.modules.ingestion.events import iter_document_events
 from app.modules.knowledge.repository import KnowledgeRepository
 from app.modules.knowledge.schemas import (
     ChunkOut,
+    DocumentBatchRequest,
+    DocumentBatchResponse,
     DocumentCreated,
     DocumentOut,
     DocumentPageOut,
@@ -229,6 +231,19 @@ async def list_documents(
     kb_id: uuid.UUID, claims: ClaimsDep, service: KnowledgeService = ServiceDep
 ) -> list[DocumentOut]:
     return await service.list_documents(claims, kb_id)
+
+
+@router.post(
+    "/knowledge-bases/{kb_id}/documents/batch",
+    response_model=DocumentBatchResponse,
+)
+async def batch_documents(
+    kb_id: uuid.UUID,
+    payload: DocumentBatchRequest,
+    claims: ClaimsDep,
+    service: KnowledgeService = ServiceDep,
+) -> DocumentBatchResponse:
+    return await service.batch_documents(claims, kb_id, payload)
 
 
 @router.get("/documents/{doc_id}", response_model=DocumentOut)

@@ -1328,6 +1328,64 @@
         }
       }
     },
+    "/api/v1/knowledge-bases/{kb_id}/documents/batch": {
+      "post": {
+        "tags": [
+          "knowledge"
+        ],
+        "summary": "Batch Documents",
+        "operationId": "batch_documents_api_v1_knowledge_bases__kb_id__documents_batch_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "kb_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Kb Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DocumentBatchRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DocumentBatchResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/documents/{doc_id}": {
       "get": {
         "tags": [
@@ -3246,6 +3304,63 @@
           "api_key"
         ],
         "title": "CredentialUpdate"
+      },
+      "DocumentBatchRequest": {
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "delete",
+              "reingest"
+            ],
+            "title": "Action"
+          },
+          "document_ids": {
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "type": "array",
+            "maxItems": 50,
+            "minItems": 1,
+            "title": "Document Ids"
+          }
+        },
+        "type": "object",
+        "required": [
+          "action",
+          "document_ids"
+        ],
+        "title": "DocumentBatchRequest"
+      },
+      "DocumentBatchResponse": {
+        "properties": {
+          "accepted": {
+            "type": "integer",
+            "title": "Accepted"
+          },
+          "job_ids": {
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "type": "object",
+            "title": "Job Ids"
+          }
+        },
+        "type": "object",
+        "required": [
+          "accepted",
+          "job_ids"
+        ],
+        "title": "DocumentBatchResponse"
       },
       "DocumentCreated": {
         "properties": {

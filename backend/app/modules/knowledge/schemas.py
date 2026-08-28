@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -92,6 +92,16 @@ class DocumentCreated(BaseModel):
     document_id: uuid.UUID
     status: str
     job_id: uuid.UUID | None = None
+
+
+class DocumentBatchRequest(BaseModel):
+    action: Literal["delete", "reingest"]
+    document_ids: list[uuid.UUID] = Field(min_length=1, max_length=50)
+
+
+class DocumentBatchResponse(BaseModel):
+    accepted: int
+    job_ids: dict[str, uuid.UUID | None]
 
 
 class IndustryProfileCreate(BaseModel):

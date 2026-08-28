@@ -22,6 +22,8 @@ from app.modules.knowledge.models import Document, IndustryProfile, KbGrant, Kno
 from app.modules.knowledge.repository import KnowledgeRepository
 from app.modules.knowledge.schemas import (
     ChunkOut,
+    DocumentBatchRequest,
+    DocumentBatchResponse,
     DocumentCreated,
     DocumentOut,
     DocumentPageOut,
@@ -529,6 +531,41 @@ class KnowledgeService:
 
         job_id = await enqueue_ingest(doc.id, claims.tenant_id, self._repo._session, force=True)
         return DocumentCreated(document_id=doc.id, status=doc.status, job_id=job_id)
+
+    async def batch_documents(
+        self, claims: TokenClaims, kb_id: uuid.UUID, payload: DocumentBatchRequest
+    ) -> DocumentBatchResponse:
+        """批量删除或重新解析；任一 id 非本库/已软删则整批 404，避免探测与误删。"""
+        await self._require_kb(claims, kb_id, PERM_WRITE)
+        docs: list[Document] = []
+        for doc_id in payload.document_ids:
+            doc = await self._repo.get_document(claims.tenant_id, doc_id)
+            if doc is None or doc.kb_id != kb_id:
+                raise NotFound("文档不存在")
+            docs.append(doc)
+
+        job_ids: dict[str, uuid.UUID | None] = {}
+        if payload.action == "delete":
+            for doc in docs:
+                await self.delete_document(claims, doc.id)
+                job_ids[str(doc.id)] = None
+        else:
+            for doc in docs:
+                created = await self.reingest(claims, doc.id)
+                job_ids[str(doc.id)] = created.job_id
+            await AuditService(self._repo._session).record(
+                tenant_id=claims.tenant_id,
+                actor_id=claims.user_id,
+                action="document.reingest",
+                target_type="knowledge_base",
+                target_id=kb_id,
+                payload={
+                    "kb_id": str(kb_id),
+                    "document_ids": [str(d.id) for d in docs],
+                },
+            )
+
+        return DocumentBatchResponse(accepted=len(docs), job_ids=job_ids)
 
     async def preview_url(self, claims: TokenClaims, doc_id: uuid.UUID) -> PreviewUrlOut:
         doc = await self._require_doc(claims, doc_id, PERM_READ)
