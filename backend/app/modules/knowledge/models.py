@@ -136,6 +136,7 @@ class Document(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         "metadata", JSONColumn, nullable=False, default=dict
     )
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     uploaded_by: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id"), nullable=False)
 
     knowledge_base: Mapped[KnowledgeBase] = relationship(back_populates="documents")

@@ -76,6 +76,7 @@ class DocumentOut(BaseModel):
     status: str
     error_code: str | None
     error_detail: str | None
+    enabled: bool = True
     created_at: datetime
     updated_at: datetime
 
