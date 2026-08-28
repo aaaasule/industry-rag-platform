@@ -94,6 +94,10 @@ class FakeLLMProvider:
 
     @staticmethod
     def _compose(messages: list[Message]) -> str:
+        system = next((m.content for m in messages if m.role == "system"), "")
+        # 指代消解 / 查询扩展：返回固定可断言字符串，避免测试依赖真实改写
+        if "指代" in system:
+            return "HYD-2201的检修周期是多少？"
         question = next(
             (m.content for m in reversed(messages) if m.role == "user"),
             "",
