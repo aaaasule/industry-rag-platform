@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
-import { Buildings, Key, UserCircle } from '@phosphor-icons/react';
+import { Building2, Key, UserCircle } from 'lucide-react';
 
 import { useToast } from '@/components/toast/useToast';
 import { Badge, Button, Card, Input, PageHeader } from '@/components/ui';
@@ -104,7 +104,7 @@ export function ProfilePage() {
       <Card padding={false} className="p-6 sm:p-8">
         <div className="mb-5 flex items-center gap-2">
           <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-accent-soft text-accent">
-            <UserCircle size={18} weight="bold" />
+            <UserCircle className="h-4 w-4" strokeWidth={1.5} />
           </span>
           <h2 className="text-sm font-semibold text-ink">基本资料</h2>
         </div>
@@ -143,7 +143,7 @@ export function ProfilePage() {
       <Card padding={false} className="p-6 sm:p-8">
         <div className="mb-5 flex items-center gap-2">
           <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-accent-soft text-accent">
-            <Key size={18} weight="bold" />
+            <Key className="h-4 w-4" strokeWidth={1.5} />
           </span>
           <h2 className="text-sm font-semibold text-ink">修改密码</h2>
         </div>
@@ -191,7 +191,7 @@ export function ProfilePage() {
       <Card padding={false} className="p-6 sm:p-8">
         <div className="mb-5 flex items-center gap-2">
           <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-accent-soft text-accent">
-            <Buildings size={18} weight="bold" />
+            <Building2 className="h-4 w-4" strokeWidth={1.5} />
           </span>
           <h2 className="text-sm font-semibold text-ink">我的租户</h2>
         </div>

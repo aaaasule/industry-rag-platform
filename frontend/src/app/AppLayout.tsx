@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { BrainCircuit, Menu, PanelLeftClose, PanelLeft } from 'lucide-react';
+import { BrainCircuit, CircleHelp, Menu, PanelLeftClose, PanelLeft } from 'lucide-react';
 import { Outlet } from 'react-router-dom';
 
 import { SideSheet } from '@/components/SideSheet';
@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/Button';
 import { SidebarNav } from '@/components/ui/SidebarNav';
 import { cn } from '@/components/ui/cn';
 import { useLogout, useSession, useSwitchTenant } from '@/features/auth/hooks';
+import { DOCS_URL } from '@/lib/docs';
 
 const COLLAPSE_KEY = 'irp.sidebar.collapsed';
 
@@ -98,7 +99,22 @@ export function AppLayout() {
           <SidebarNav role={role} collapsed={collapsed} />
         </div>
 
-        <div className="shrink-0 border-t border-slate-100 p-2.5">{userBlock}</div>
+        <div className="shrink-0 space-y-1 border-t border-slate-100 px-2.5 py-2">
+          <a
+            href={DOCS_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            title={collapsed ? '帮助文档' : undefined}
+            className={cn(
+              'flex h-9 items-center rounded-lg text-sm text-slate-500 transition-all duration-200 hover:bg-slate-100 hover:text-slate-700',
+              collapsed ? 'justify-center px-0' : 'gap-3 px-3',
+            )}
+          >
+            <CircleHelp className="h-4 w-4 shrink-0" strokeWidth={1.5} aria-hidden />
+            {!collapsed && '帮助文档'}
+          </a>
+          {userBlock}
+        </div>
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
@@ -144,6 +160,17 @@ export function AppLayout() {
           </div>
           <div className="flex-1">
             <SidebarNav role={role} onNavigate={() => setNavOpen(false)} />
+          </div>
+          <div className="mt-auto space-y-1 border-t border-slate-100 pt-2">
+            <a
+              href={DOCS_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex h-9 items-center gap-3 rounded-lg px-3 text-sm text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700"
+            >
+              <CircleHelp className="h-4 w-4" strokeWidth={1.5} />
+              帮助文档
+            </a>
           </div>
           {session ? (
             <div className="sticky bottom-0 -mx-3 mt-auto border-t border-line/70 bg-canvas px-3 pt-2">

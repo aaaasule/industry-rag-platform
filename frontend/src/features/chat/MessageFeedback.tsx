@@ -1,5 +1,7 @@
 import { useState } from 'react';
-import { ThumbsDown, ThumbsUp } from '@phosphor-icons/react';
+import { ThumbsDown, ThumbsUp } from 'lucide-react';
+
+import { cn } from '@/components/ui/cn';
 
 import * as chatApi from './api';
 import type { FeedbackReason } from './api';
@@ -43,35 +45,39 @@ export function MessageFeedback({ messageId, initial, disabled }: Props) {
   }
 
   return (
-    <div className="flex flex-wrap items-center gap-1.5 text-xs text-ink-muted">
+    <div className="flex flex-wrap items-center gap-1.5 text-xs text-slate-500">
       <button
         type="button"
         disabled={disabled || busy}
         onClick={() => void submit('up')}
-        className={[
-          'inline-flex h-7 w-7 items-center justify-center rounded-full transition-all duration-200 hover:bg-elevated',
-          rating === 'up' ? 'bg-ok/10 text-ok ring-1 ring-ok/25' : 'text-ink-faint hover:text-ink',
-        ].join(' ')}
+        className={cn(
+          'inline-flex h-7 w-7 items-center justify-center rounded-full transition-all duration-200 hover:bg-slate-100',
+          rating === 'up' ? 'bg-emerald-50 text-emerald-600 ring-1 ring-emerald-200' : 'text-slate-400',
+        )}
         title="有用"
       >
-        <ThumbsUp size={14} weight={rating === 'up' ? 'fill' : 'regular'} />
+        <ThumbsUp
+          className={cn('h-3.5 w-3.5', rating === 'up' && 'fill-current')}
+          strokeWidth={1.5}
+        />
       </button>
       <button
         type="button"
         disabled={disabled || busy}
         onClick={() => setPicking((v) => !v)}
-        className={[
-          'inline-flex h-7 w-7 items-center justify-center rounded-full transition-all duration-200 hover:bg-elevated',
-          rating === 'down'
-            ? 'bg-danger/10 text-danger ring-1 ring-danger/25'
-            : 'text-ink-faint hover:text-ink',
-        ].join(' ')}
+        className={cn(
+          'inline-flex h-7 w-7 items-center justify-center rounded-full transition-all duration-200 hover:bg-slate-100',
+          rating === 'down' ? 'bg-red-50 text-red-600 ring-1 ring-red-200' : 'text-slate-400',
+        )}
         title="没用"
       >
-        <ThumbsDown size={14} weight={rating === 'down' ? 'fill' : 'regular'} />
+        <ThumbsDown
+          className={cn('h-3.5 w-3.5', rating === 'down' && 'fill-current')}
+          strokeWidth={1.5}
+        />
       </button>
       {rating === 'down' && reason && !picking && (
-        <span className="rounded-full bg-elevated px-2 py-0.5 text-ink-faint">
+        <span className="rounded-full bg-slate-100 px-2 py-0.5 text-slate-500">
           {REASONS.find((r) => r.value === reason)?.label ?? reason}
         </span>
       )}
@@ -81,7 +87,7 @@ export function MessageFeedback({ messageId, initial, disabled }: Props) {
             <button
               key={r.value}
               type="button"
-              className="rounded-full border border-line bg-surface px-2.5 py-0.5 transition-all duration-200 hover:border-accent/40 hover:bg-accent-soft hover:text-accent"
+              className="rounded-full border border-slate-200 bg-white px-2.5 py-0.5 transition-all duration-200 hover:border-indigo-200 hover:bg-indigo-50 hover:text-indigo-600"
               onClick={() => void submit('down', r.value)}
             >
               {r.label}

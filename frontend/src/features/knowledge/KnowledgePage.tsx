@@ -1,4 +1,4 @@
-import { Plus, Books } from '@phosphor-icons/react';
+import { Library, Plus } from 'lucide-react';
 import { useState, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
 
@@ -48,7 +48,7 @@ export function KnowledgePage() {
         description="上传文档、跟踪摄取进度，为问答准备语料。"
         actions={
           <Button onClick={() => setSheetOpen(true)}>
-            <Plus size={18} weight="bold" />
+            <Plus className="h-4 w-4" strokeWidth={1.5} />
             新建知识库
           </Button>
         }
@@ -70,7 +70,7 @@ export function KnowledgePage() {
               description="创建第一个知识库，然后上传设备手册或工艺文档"
               action={
                 <Button onClick={() => setSheetOpen(true)}>
-                  <Plus size={18} weight="bold" />
+                  <Plus className="h-4 w-4" strokeWidth={1.5} />
                   新建知识库
                 </Button>
               }
@@ -85,14 +85,14 @@ export function KnowledgePage() {
           <Link
             key={kb.id}
             to={`/knowledge/${kb.id}`}
-            className="panel group block p-5 transition-all duration-150 hover:border-accent hover:shadow-elevated"
+            className="panel group block p-5 transition-all duration-200 hover:border-indigo-200 hover:shadow-md"
           >
             <div className="flex items-start gap-3">
-              <span className="inline-flex rounded-lg bg-accent-soft p-2 text-accent">
-                <Books size={20} weight="duotone" aria-hidden />
+              <span className="inline-flex rounded-lg bg-indigo-50 p-2 text-indigo-600">
+                <Library className="h-5 w-5" strokeWidth={1.5} aria-hidden />
               </span>
               <div className="min-w-0 flex-1">
-                <h2 className="truncate font-semibold text-ink group-hover:text-accent">
+                <h2 className="truncate font-semibold text-slate-800 group-hover:text-indigo-600">
                   {kb.name}
                 </h2>
                 {kb.description ? (

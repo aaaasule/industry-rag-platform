@@ -1,4 +1,4 @@
-import { ArrowLeft, CloudArrowUp } from '@phosphor-icons/react';
+import { ArrowLeft, CloudUpload } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 
@@ -71,7 +71,7 @@ export function KbDetailPage() {
           to="/knowledge"
           className="inline-flex items-center gap-1.5 text-sm text-ink-muted transition-colors hover:text-accent"
         >
-          <ArrowLeft size={16} weight="bold" />
+          <ArrowLeft className="h-4 w-4" strokeWidth={1.5} />
           知识库
         </Link>
         <div className="mt-3 flex flex-wrap items-start justify-between gap-4">
@@ -147,7 +147,7 @@ export function KbDetailPage() {
         ].join(' ')}
       >
         <span className="mx-auto inline-flex rounded-full bg-accent-soft p-3 text-accent">
-          <CloudArrowUp size={28} weight="duotone" />
+          <CloudUpload className="h-7 w-7" strokeWidth={1.5} />
         </span>
         <p className="mt-4 text-sm font-semibold text-ink">
           {upload.isPending ? '上传中…' : '拖拽文件到此处，或点击选择'}

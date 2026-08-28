@@ -23,7 +23,7 @@ export function StatTile({ label, value, hint, to, tone = 'default' }: Props) {
   return (
     <Link
       to={to}
-      className="panel block p-4 transition-all duration-150 hover:border-accent hover:shadow-elevated"
+      className="panel block p-4 transition-all duration-200 hover:border-indigo-200 hover:shadow-md"
     >
       <p className="text-xs font-medium text-ink-faint">{label}</p>
       <p className={cn('mt-1 text-2xl font-semibold tabular-nums', toneClass[tone])}>{value}</p>

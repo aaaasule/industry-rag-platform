@@ -1,6 +1,6 @@
 import type { Conversation } from './api';
 
-export type ConversationGroupKey = 'today' | 'yesterday' | 'week' | 'month';
+export type ConversationGroupKey = 'today' | 'yesterday' | 'week' | 'month' | 'older';
 
 export type ConversationGroup = {
   key: ConversationGroupKey;
@@ -8,13 +8,20 @@ export type ConversationGroup = {
   items: Conversation[];
 };
 
-const GROUP_ORDER: ConversationGroupKey[] = ['today', 'yesterday', 'week', 'month'];
+const GROUP_ORDER: ConversationGroupKey[] = [
+  'today',
+  'yesterday',
+  'week',
+  'month',
+  'older',
+];
 
 const GROUP_LABELS: Record<ConversationGroupKey, string> = {
   today: '今天',
   yesterday: '昨天',
   week: '7天内',
   month: '30天内',
+  older: '更早',
 };
 
 function startOfDay(d: Date): Date {
@@ -25,7 +32,7 @@ function daysBetween(from: Date, to: Date): number {
   return Math.floor((startOfDay(to).getTime() - startOfDay(from).getTime()) / 86_400_000);
 }
 
-/** 按创建日归入今天 / 昨天 / 7天内 / 30天内；超过 30 天不展示 */
+/** 按创建日分组；无效日期返回 null */
 export function classifyConversationDay(
   createdAt: string,
   now = new Date(),
@@ -38,7 +45,7 @@ export function classifyConversationDay(
   if (diff === 1) return 'yesterday';
   if (diff >= 2 && diff <= 7) return 'week';
   if (diff >= 8 && diff <= 30) return 'month';
-  return null;
+  return 'older';
 }
 
 export function filterConversationsByTitle(
@@ -62,6 +69,7 @@ export function groupConversations(
     yesterday: [],
     week: [],
     month: [],
+    older: [],
   };
 
   for (const c of filtered) {
