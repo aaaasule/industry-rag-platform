@@ -271,7 +271,9 @@ async def test_patch_metadata_unknown_key_422(
         headers=auth_headers,
         json={
             "document_id": str(document_id),
-            "storage_key": f"tenants/{fixture_data.primary_tenant_id}/documents/{document_id}/a.pdf",
+            "storage_key": (
+                f"tenants/{fixture_data.primary_tenant_id}/documents/{document_id}/a.pdf"
+            ),
             "title": "样例",
             "checksum": "sha256:" + "b" * 64,
             "file_size": 10,

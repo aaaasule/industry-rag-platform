@@ -23,8 +23,10 @@ from tests.conftest import Fixture
 
 
 @pytest.fixture(autouse=True)
-async def _dispose_db_engine_after_integration(request: pytest.FixtureRequest) -> AsyncIterator[None]:
-    """RetrievalService.search 会触发多路 session；测试结束后释放连接池，避免 asyncpg 跨 event loop。"""
+async def _dispose_db_engine_after_integration(
+    request: pytest.FixtureRequest,
+) -> AsyncIterator[None]:
+    """search 多路 session 后释放连接池，避免 asyncpg 跨 event loop。"""
     yield
     if "fixture_data" in request.fixturenames:
         from app.platform.db import dispose_engine
@@ -109,7 +111,7 @@ async def _seed_chunk_kb(
 def _silence_usage_recording(monkeypatch: pytest.MonkeyPatch) -> None:
     """避免 search 内 _record_usage 额外开 session，导致 asyncpg 跨 event loop 复用连接。"""
 
-    async def _noop(self, **kwargs):  # noqa: ANN001, ANN003
+    async def _noop(self, **kwargs):
         return None
 
     monkeypatch.setattr(RetrievalService, "_record_usage", _noop)
@@ -161,7 +163,7 @@ async def test_expand_query_failure_returns_none() -> None:
     class Boom:
         name = "boom"
 
-        async def chat(self, messages, **opts):  # noqa: ANN001, ANN003
+        async def chat(self, messages, **opts):
             raise RuntimeError("upstream down")
 
     assert await expand_query(Boom(), query="x") is None  # type: ignore[arg-type]
@@ -210,7 +212,7 @@ async def test_search_query_expand_disabled_keeps_normalized_query(
     class BoomLLM:
         name = "boom"
 
-        async def chat(self, messages, **opts):  # noqa: ANN001, ANN003
+        async def chat(self, messages, **opts):
             raise AssertionError("query_expand=False 时不应调用 LLM")
 
     async with session_scope(
@@ -242,7 +244,7 @@ async def test_search_query_expand_second_channel_failure_keeps_first_result(
     q_norm = normalize(query)
     calls = {"n": 0}
 
-    async def patched_channel(self, **kwargs):  # noqa: ANN001, ANN003
+    async def patched_channel(self, **kwargs):
         calls["n"] += 1
         if calls["n"] == 1:
             vec = [RankedHit(chunk_id=chunk_id, score=0.3)]
