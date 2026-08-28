@@ -12,6 +12,10 @@ golden.jsonl 每行 JSON：
   kb_id (可选，覆盖 CLI)
   expected_document_ids (uuid 列表，优先)
   expected_document_titles (标题子串匹配，次选)
+
+行业占位语料（evals/golden.discrete.jsonl / golden.process.jsonl）：
+  文件内 # 注释说明如何把 PLACEHOLDER UUID 换成本地 seed 后的真实 kb/doc id；
+  勿绑入 CI；仅本地 `evaluate.py --golden ...` 使用。
 """
 
 from __future__ import annotations

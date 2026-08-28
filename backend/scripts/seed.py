@@ -75,7 +75,7 @@ BUILTIN_PROFILES: list[dict[str, Any]] = [
         "chunk_rules": {
             "max_tokens": 512,
             "min_tokens": 80,
-            "overlap_tokens": 64,
+            "overlap_tokens": 128,
             "clause_mode": False,
             "keep_heading_prefix": True,
         },
@@ -94,7 +94,7 @@ BUILTIN_PROFILES: list[dict[str, Any]] = [
             "clause_mode": True,
             "keep_heading_prefix": True,
         },
-        "parse_rules": {},
+        "parse_rules": {"dictionary": ["GB/T", "AQ/T"]},
         "metadata_schema": {"standard_no": {"type": "string"}},
         "prompt_overrides": {
             "system": (

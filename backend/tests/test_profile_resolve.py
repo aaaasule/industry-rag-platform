@@ -85,6 +85,31 @@ def test_general_vs_process_industry_clause_mode_distinguishable() -> None:
     assert len(process_drafts) > len(general_drafts)
 
 
+def test_discrete_vs_general_overlap_distinguishable() -> None:
+    """builtin 种子语义：discrete_manufacturing overlap 128 高于 general 64。"""
+    general = merge_chunk_rules(
+        profile_rules={
+            "max_tokens": 512,
+            "min_tokens": 80,
+            "overlap_tokens": 64,
+            "clause_mode": False,
+        },
+        kb_settings=None,
+    )
+    discrete = merge_chunk_rules(
+        profile_rules={
+            "max_tokens": 512,
+            "min_tokens": 80,
+            "overlap_tokens": 128,
+            "clause_mode": False,
+        },
+        kb_settings=None,
+    )
+    assert general.overlap_tokens == 64
+    assert discrete.overlap_tokens == 128
+    assert discrete.overlap_tokens > general.overlap_tokens
+
+
 def test_to_ingestion_chunk_rules_maps_fields() -> None:
     cfg = ChunkRulesConfig(
         max_tokens=100,

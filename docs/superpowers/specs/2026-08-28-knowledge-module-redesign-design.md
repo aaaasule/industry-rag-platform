@@ -145,8 +145,11 @@
 
 ## 8. 后续演进
 
-- KB 级 `settings` PATCH，覆盖 chunk/retrieval 而不改全局 Profile
-- 文档级 enable 开关 + 检索过滤
-- 摄取/删除写审计
-- 向量/全文权重与相似度阈值（检索引擎扩展）
-- 批量文档操作
+> **M6 进行中**（见 [`2026-08-28-m6-knowledge-ops-retrieval-design.md`](./2026-08-28-m6-knowledge-ops-retrieval-design.md)）：下列多项已在 W1–W4 落地或推进中。
+
+- KB 级 `settings` PATCH，覆盖 chunk/retrieval 而不改全局 Profile（M6 W2）
+- 文档级 enable 开关 + 检索过滤（M6 W1）
+- 摄取/删除写审计（M6 W1）
+- 向量/全文权重与相似度阈值（检索引擎扩展）— 仍后置
+- 批量文档操作（M6 W1）
+- 查询改写 / 查询扩展（M6 W3）；行业模板与 golden 占位（M6 W4）
