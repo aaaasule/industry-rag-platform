@@ -14,11 +14,12 @@ from app.modules.ingestion.chunkers.tsv import build_tsv
 from app.modules.ingestion.parsers.normalize import normalize
 from app.modules.retrieval.base import SearchHit, SearchOptions, SearchResult
 from app.modules.retrieval.expand import expand_hits, load_document_titles
+from app.modules.retrieval.query_expand import expand_query, should_expand
 from app.modules.retrieval.repository import RetrievalRepository
 from app.modules.retrieval.rrf import rrf_fuse
 from app.modules.retrieval.synonyms import apply_synonyms, coerce_synonyms
 from app.platform.errors import NotFound
-from app.platform.llm.base import EmbeddingProvider, RerankProvider
+from app.platform.llm.base import EmbeddingProvider, LLMProvider, RerankProvider
 
 
 class RetrievalService:
@@ -29,11 +30,62 @@ class RetrievalService:
         *,
         repo: RetrievalRepository | None = None,
         rerank: RerankProvider | None = None,
+        llm: LLMProvider | None = None,
     ) -> None:
         self._session = session
         self._embedding = embedding
         self._repo = repo or RetrievalRepository(session)
         self._rerank = rerank
+        self._llm = llm
+
+    async def _channel_search(
+        self,
+        *,
+        tenant_id: uuid.UUID,
+        user_id: uuid.UUID,
+        resolved: list[uuid.UUID],
+        q_norm: str,
+        dictionary: Sequence[str] | None,
+        candidate_n: int,
+    ) -> tuple[list, list, list[tuple[str, float]], float, float]:
+        """单次向量+全文+RRF，返回 (vec_hits, ft_hits, fused, vector_ms, fulltext_ms)。"""
+        tsv_q = build_tsv(q_norm, dictionary=dictionary)
+
+        emb_t0 = time.perf_counter()
+        vectors = await self._embedding.embed([q_norm], input_type="query")
+        emb_ms = int((time.perf_counter() - emb_t0) * 1000)
+        await self._record_usage(
+            tenant_id=tenant_id,
+            user_id=user_id,
+            purpose="embedding",
+            texts=[q_norm],
+            latency_ms=emb_ms,
+            success=True,
+            kb_id=resolved[0] if resolved else None,
+        )
+        query_vec = vectors[0]
+        vec_hits = await self._repo.vector_search(
+            tenant_id=tenant_id,
+            kb_ids=resolved,
+            query_vec=query_vec,
+            limit=candidate_n,
+        )
+        vector_ms = (time.perf_counter() - emb_t0) * 1000
+
+        ft_t0 = time.perf_counter()
+        ft_hits = await self._repo.fulltext_search(
+            tenant_id=tenant_id,
+            kb_ids=resolved,
+            tsv_query=tsv_q,
+            limit=candidate_n,
+        )
+        fulltext_ms = (time.perf_counter() - ft_t0) * 1000
+
+        fused = rrf_fuse(
+            [[str(h.chunk_id) for h in vec_hits], [str(h.chunk_id) for h in ft_hits]],
+            k=60,
+        )
+        return vec_hits, ft_hits, fused, vector_ms, fulltext_ms
 
     async def search(
         self,
@@ -47,8 +99,10 @@ class RetrievalService:
         options: SearchOptions | None = None,
         dictionary: Sequence[str] | None = None,
         synonyms: Any = None,
+        llm: LLMProvider | None = None,
     ) -> SearchResult:
         opts = options or SearchOptions()
+        active_llm = llm if llm is not None else self._llm
         t0 = time.perf_counter()
 
         visible = await visible_kb_ids(
@@ -69,44 +123,53 @@ class RetrievalService:
 
         q_norm = normalize(query)
         q_norm = apply_synonyms(q_norm, coerce_synonyms(synonyms))
-        tsv_q = build_tsv(q_norm, dictionary=dictionary)
+        rewritten_query = q_norm
 
-        emb_t0 = time.perf_counter()
-        vectors = await self._embedding.embed([q_norm], input_type="query")
-        emb_ms = int((time.perf_counter() - emb_t0) * 1000)
-        await self._record_usage(
+        vec_hits, ft_hits, fused, vector_ms, fulltext_ms = await self._channel_search(
             tenant_id=tenant_id,
             user_id=user_id,
-            purpose="embedding",
-            texts=[q_norm],
-            latency_ms=emb_ms,
-            success=True,
-            kb_id=resolved[0] if resolved else None,
+            resolved=resolved,
+            q_norm=q_norm,
+            dictionary=dictionary,
+            candidate_n=opts.candidate_n,
         )
-        query_vec = vectors[0]
-        vec_hits = await self._repo.vector_search(
-            tenant_id=tenant_id,
-            kb_ids=resolved,
-            query_vec=query_vec,
-            limit=opts.candidate_n,
-        )
-        vector_ms = (time.perf_counter() - emb_t0) * 1000
 
-        ft_t0 = time.perf_counter()
-        ft_hits = await self._repo.fulltext_search(
-            tenant_id=tenant_id,
-            kb_ids=resolved,
-            tsv_query=tsv_q,
-            limit=opts.candidate_n,
-        )
-        fulltext_ms = (time.perf_counter() - ft_t0) * 1000
+        expand_enabled = opts.query_expand is True
+        if should_expand(enabled=expand_enabled, fused=fused) and active_llm is not None:
+            alt = await expand_query(active_llm, query=q_norm)
+            if alt:
+                alt_norm = normalize(alt)
+                alt_norm = apply_synonyms(alt_norm, coerce_synonyms(synonyms))
+                if alt_norm and alt_norm != q_norm:
+                    try:
+                        vec2, ft2, fused2, v_ms2, ft_ms2 = await self._channel_search(
+                            tenant_id=tenant_id,
+                            user_id=user_id,
+                            resolved=resolved,
+                            q_norm=alt_norm,
+                            dictionary=dictionary,
+                            candidate_n=opts.candidate_n,
+                        )
+                        fused = rrf_fuse(
+                            [
+                                [cid for cid, _ in fused],
+                                [cid for cid, _ in fused2],
+                            ],
+                            k=60,
+                        )
+                        seen_vec = {h.chunk_id for h in vec_hits}
+                        seen_ft = {h.chunk_id for h in ft_hits}
+                        vec_hits = list(vec_hits) + [h for h in vec2 if h.chunk_id not in seen_vec]
+                        ft_hits = list(ft_hits) + [h for h in ft2 if h.chunk_id not in seen_ft]
+                        vector_ms += v_ms2
+                        fulltext_ms += ft_ms2
+                        rewritten_query = alt_norm
+                    except Exception:
+                        # 二次召回失败：保留第一次融合结果
+                        pass
 
         vec_scores = {str(h.chunk_id): h.score for h in vec_hits}
         ft_scores = {str(h.chunk_id): h.score for h in ft_hits}
-        fused = rrf_fuse(
-            [[str(h.chunk_id) for h in vec_hits], [str(h.chunk_id) for h in ft_hits]],
-            k=60,
-        )
         rrf_scores = {cid: score for cid, score in fused}
         top_ids = [uuid.UUID(cid) for cid, _ in fused[:30]]
 
@@ -135,13 +198,15 @@ class RetrievalService:
         if opts.rerank and self._rerank is not None and candidates:
             rr_t0 = time.perf_counter()
             docs = [c.content for c in candidates]
-            scored = await self._rerank.rerank(q_norm, docs, top_n=min(top_k, len(docs)))
+            scored = await self._rerank.rerank(
+                rewritten_query, docs, top_n=min(top_k, len(docs))
+            )
             rerank_ms = (time.perf_counter() - rr_t0) * 1000
             await self._record_usage(
                 tenant_id=tenant_id,
                 user_id=user_id,
                 purpose="rerank",
-                texts=[q_norm, *docs],
+                texts=[rewritten_query, *docs],
                 latency_ms=int(rerank_ms),
                 success=True,
                 kb_id=resolved[0] if resolved else None,
@@ -198,7 +263,7 @@ class RetrievalService:
                 "rerank_ms": round(rerank_ms, 2),
                 "total_ms": round(total_ms, 2),
             },
-            rewritten_query=q_norm,
+            rewritten_query=rewritten_query,
         )
 
     async def _record_usage(

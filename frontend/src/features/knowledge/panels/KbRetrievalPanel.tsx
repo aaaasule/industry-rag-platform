@@ -123,8 +123,8 @@ export function KbRetrievalPanel() {
           </label>
 
           <p className="text-xs leading-relaxed text-slate-400">
-            混合检索（向量 + 全文 + RRF）由生效规则控制；查询扩展将以 options.query_expand
-            传入（后端 W3 启用前可能被忽略）。相似度阈值与向量/全文权重暂不支持在线调节。
+            混合检索（向量 + 全文 + RRF）由生效规则控制；勾选查询扩展后以 options.query_expand
+            覆盖本次请求。弱召回时会 LLM 改写并二次融合，结果区展示 rewritten_query。
           </p>
 
           <div className="border-t border-slate-100 pt-4">
@@ -163,9 +163,10 @@ export function KbRetrievalPanel() {
             ) : null}
           </div>
 
-          {rewritten && rewritten !== query.trim() ? (
+          {rewritten ? (
             <p className="mb-3 text-xs text-slate-500">
-              改写后查询：<span className="font-medium text-slate-700">{rewritten}</span>
+              改写后查询（rewritten_query）：
+              <span className="font-medium text-slate-700">{rewritten}</span>
             </p>
           ) : null}
 

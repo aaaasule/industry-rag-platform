@@ -47,7 +47,7 @@ def _service(
     rerank: ResolvedRerankDep,
 ) -> ChatService:
     retrieval = RetrievalService(
-        session, embedding, repo=RetrievalRepository(session), rerank=rerank
+        session, embedding, repo=RetrievalRepository(session), rerank=rerank, llm=llm
     )
     return ChatService(session, retrieval, llm, repo=ChatRepository(session))
 

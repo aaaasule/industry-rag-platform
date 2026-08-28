@@ -98,6 +98,8 @@ class FakeLLMProvider:
         # 指代消解 / 查询扩展：返回固定可断言字符串，避免测试依赖真实改写
         if "指代" in system:
             return "HYD-2201的检修周期是多少？"
+        if "扩展" in system:
+            return "液压泵HYD-2201的额定工作压力是多少？"
         question = next(
             (m.content for m in reversed(messages) if m.role == "user"),
             "",

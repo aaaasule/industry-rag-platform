@@ -366,7 +366,10 @@ class ChatService:
                 query=search_query,
                 kb_ids=list(conv.kb_ids),
                 top_k=effective.retrieval_rules.top_k,
-                options=SearchOptions(rerank=rerank),
+                options=SearchOptions(
+                    rerank=rerank,
+                    query_expand=effective.retrieval_rules.query_expand,
+                ),
                 dictionary=effective.parse_rules.get("dictionary"),
                 synonyms=effective.parse_rules.get("synonyms"),
             )
