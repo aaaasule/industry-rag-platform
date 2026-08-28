@@ -31,6 +31,13 @@ export function ChatPage() {
   const [rightMode, setRightMode] = useState<'list' | 'preview'>('list');
   const [evidenceOpen, setEvidenceOpen] = useState(false);
   const [sessionsOpen, setSessionsOpen] = useState(false);
+  const [evidenceCollapsed, setEvidenceCollapsed] = useState(() => {
+    try {
+      return localStorage.getItem('irp.chat.evidenceCollapsed') === '1';
+    } catch {
+      return false;
+    }
+  });
   const abortRef = useRef<AbortController | null>(null);
   const bottomRef = useRef<HTMLDivElement | null>(null);
 
@@ -76,6 +83,17 @@ export function ChatPage() {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [displayMessages, streaming]);
 
+  useEffect(() => {
+    try {
+      localStorage.setItem('irp.chat.evidenceCollapsed', evidenceCollapsed ? '1' : '0');
+    } catch {
+      /* ignore */
+    }
+  }, [evidenceCollapsed]);
+
+  const activeConversationTitle =
+    conversations.find((c) => c.id === conversationId)?.title ?? null;
+
   function toggleKb(id: string) {
     setSelectedKbIds((prev) =>
       prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
@@ -115,6 +133,7 @@ export function ChatPage() {
     setActiveCitation(n);
     setRightMode('preview');
     setEvidenceOpen(true);
+    setEvidenceCollapsed(false);
   }
 
   function stopStreaming() {
@@ -251,8 +270,8 @@ export function ChatPage() {
   );
 
   return (
-    <div className="page-fill gap-3 xl:gap-4">
-      <aside className="panel hidden h-full min-h-0 w-52 shrink-0 overflow-hidden sm:block xl:w-60">
+    <div className="page-fill gap-0 overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-sm">
+      <aside className="hidden h-full min-h-0 w-64 shrink-0 overflow-hidden border-r border-slate-200/60 sm:block xl:w-72">
         <ConversationList
           conversations={conversations}
           activeId={conversationId}
@@ -263,15 +282,17 @@ export function ChatPage() {
         />
       </aside>
 
-      <section className="panel flex min-w-0 flex-1 flex-col overflow-hidden">
+      <section className="flex min-w-0 flex-1 flex-col overflow-hidden bg-white">
         <ChatToolbar
           bases={bases}
           kbLoading={kbLoading}
           selectedKbIds={selectedKbIds}
           conversationId={conversationId}
+          conversationTitle={activeConversationTitle}
           streaming={streaming}
           conversationsCount={conversations.length}
           citationsCount={panelCitations.length}
+          evidenceCollapsed={evidenceCollapsed}
           onToggleKb={toggleKb}
           onOpenSessions={() => {
             setEvidenceOpen(false);
@@ -282,6 +303,7 @@ export function ChatPage() {
             setRightMode('list');
             setEvidenceOpen(true);
           }}
+          onToggleEvidencePanel={() => setEvidenceCollapsed((v) => !v)}
           onNewChat={startNewChat}
         />
 
@@ -310,9 +332,11 @@ export function ChatPage() {
         />
       </section>
 
-      <div className="panel hidden h-full min-h-0 w-72 shrink-0 overflow-hidden lg:block xl:w-80">
-        {evidencePanel}
-      </div>
+      {!evidenceCollapsed && (
+        <div className="hidden h-full min-h-0 w-72 shrink-0 overflow-hidden border-l border-slate-200/60 bg-white lg:block xl:w-80">
+          {evidencePanel}
+        </div>
+      )}
 
       <SideSheet
         open={sessionsOpen}

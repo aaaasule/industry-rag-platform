@@ -17,9 +17,9 @@ export function EvidencePanel({
 }: Props) {
   if (citations.length === 0) {
     return (
-      <aside className="flex h-full flex-col overflow-hidden panel">
-        <div className="border-b border-line px-4 py-3">
-          <h2 className="text-sm font-medium text-ink">证据</h2>
+      <aside className="flex h-full flex-col overflow-hidden">
+        <div className="border-b border-line/70 px-4 py-3.5">
+          <h2 className="text-sm font-semibold text-ink">证据</h2>
         </div>
         <EmptyState
           className="flex-1"
@@ -34,11 +34,11 @@ export function EvidencePanel({
     usedCitations && usedCitations.length > 0 ? new Set(usedCitations) : null;
 
   return (
-    <aside className="flex h-full flex-col overflow-hidden panel">
-      <div className="border-b border-line bg-elevated/60 px-4 py-3">
+    <aside className="flex h-full flex-col overflow-hidden">
+      <div className="border-b border-line/70 bg-gradient-to-b from-elevated/70 to-transparent px-4 py-3.5">
         <h2 className="text-sm font-semibold text-ink">证据（{citations.length}）</h2>
       </div>
-      <ul className="flex-1 space-y-2 overflow-auto p-3">
+      <ul className="flex-1 space-y-2.5 overflow-auto p-3">
         {citations.map((c) => {
           const active = activeIndex === c.index_no;
           const unused = usedSet !== null && !usedSet.has(c.index_no);
@@ -48,28 +48,39 @@ export function EvidencePanel({
                 type="button"
                 onClick={() => onSelect(c.index_no)}
                 className={[
-                  'w-full rounded-md border px-3 py-2 text-left transition-colors duration-150',
+                  'w-full rounded-xl border px-3.5 py-3 text-left shadow-sm transition-all duration-200',
                   active
-                    ? 'border-accent bg-accent-soft shadow-panel'
-                    : 'border-line bg-surface hover:border-accent/40',
+                    ? 'border-accent/40 bg-accent-soft shadow-md ring-1 ring-accent/15'
+                    : 'border-line/80 bg-surface hover:-translate-y-0.5 hover:border-accent/30 hover:shadow-md',
                   unused ? 'opacity-45' : '',
                 ].join(' ')}
               >
-                <div className="flex items-center gap-2 text-xs text-ink-muted">
+                <div className="flex items-center gap-2">
                   <span
                     className={[
-                      'inline-flex h-5 min-w-5 items-center justify-center rounded px-1 font-medium',
-                      active ? 'bg-accent text-white' : 'bg-elevated text-ink',
+                      'inline-flex h-6 min-w-6 items-center justify-center rounded-full px-1.5 text-xs font-semibold',
+                      active
+                        ? 'bg-gradient-to-br from-indigo-500 to-violet-600 text-white'
+                        : 'bg-elevated text-ink-muted',
                     ].join(' ')}
                   >
                     {c.index_no}
                   </span>
-                  <span className="truncate">
-                    {c.document_title || '文档'} · p.{c.page_start}
+                  <span className="min-w-0 flex-1 truncate text-xs font-semibold text-ink">
+                    {c.document_title || '文档'}
                   </span>
-                  {unused && <span className="shrink-0 text-[10px] text-ink-faint">未引用</span>}
+                  <span className="shrink-0 rounded-full bg-elevated px-2 py-0.5 text-[10px] font-medium text-ink-faint">
+                    p.{c.page_start}
+                  </span>
+                  {unused && (
+                    <span className="shrink-0 rounded-full bg-elevated px-2 py-0.5 text-[10px] text-ink-faint">
+                      未引用
+                    </span>
+                  )}
                 </div>
-                <p className="mt-1.5 line-clamp-4 text-sm text-ink">{c.quote}</p>
+                <p className="mt-2 line-clamp-4 text-sm leading-relaxed text-ink-muted">
+                  {c.quote}
+                </p>
               </button>
             </li>
           );

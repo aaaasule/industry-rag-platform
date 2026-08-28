@@ -11,7 +11,7 @@ export function BrandMark({ className = '', size = 28 }: Props) {
     <span
       aria-hidden
       className={[
-        'inline-flex shrink-0 items-center justify-center rounded-lg bg-accent text-white shadow-elevated',
+        'inline-flex shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 text-white shadow-sm',
         className,
       ].join(' ')}
       style={{ width: size, height: size }}

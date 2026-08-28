@@ -2,6 +2,7 @@ import { createBrowserRouter, Navigate } from 'react-router-dom';
 
 import { AdminPage } from '@/features/admin/AdminPage';
 import { LoginPage } from '@/features/auth/LoginPage';
+import { ProfilePage } from '@/features/auth/ProfilePage';
 import { ChatPage } from '@/features/chat/ChatPage';
 import { DocumentDetailPage } from '@/features/knowledge/DocumentDetailPage';
 import { KbDetailPage } from '@/features/knowledge/KbDetailPage';
@@ -29,6 +30,7 @@ export const router = createBrowserRouter([
       { path: 'chat', element: <ChatPage /> },
       { path: 'usages', element: <UsageDashboardPage /> },
       { path: 'admin', element: <AdminPage /> },
+      { path: 'settings/profile', element: <ProfilePage /> },
       { path: 'modelops', element: <Navigate to="/admin?tab=connections" replace /> },
     ],
   },

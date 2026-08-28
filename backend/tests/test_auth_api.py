@@ -186,6 +186,73 @@ class TestSwitchTenant:
         assert resp.status_code == 403
 
 
+class TestProfile:
+    async def test_update_display_name(
+        self, client: AsyncClient, fixture_data: Fixture, auth_headers: dict[str, str]
+    ) -> None:
+        resp = await client.patch(
+            "/api/v1/auth/me",
+            headers=auth_headers,
+            json={"display_name": "  新显示名  "},
+        )
+        assert resp.status_code == 200, resp.text
+        assert resp.json()["user"]["display_name"] == "新显示名"
+
+        me = await client.get("/api/v1/auth/me", headers=auth_headers)
+        assert me.json()["user"]["display_name"] == "新显示名"
+
+    async def test_change_password_and_login(
+        self, client: AsyncClient, fixture_data: Fixture, auth_headers: dict[str, str]
+    ) -> None:
+        new_password = "New-Passw0rd!2026"
+        bad = await client.post(
+            "/api/v1/auth/change-password",
+            headers=auth_headers,
+            json={"current_password": "Definitely-Wrong-1", "new_password": new_password},
+        )
+        assert bad.status_code == 401
+
+        same = await client.post(
+            "/api/v1/auth/change-password",
+            headers=auth_headers,
+            json={
+                "current_password": fixture_data.password,
+                "new_password": fixture_data.password,
+            },
+        )
+        assert same.status_code == 422
+
+        ok = await client.post(
+            "/api/v1/auth/change-password",
+            headers=auth_headers,
+            json={
+                "current_password": fixture_data.password,
+                "new_password": new_password,
+            },
+        )
+        assert ok.status_code == 204, ok.text
+
+        old_login = await client.post(
+            "/api/v1/auth/login",
+            json={"email": fixture_data.email, "password": fixture_data.password},
+        )
+        assert old_login.status_code == 401
+
+        new_login = await client.post(
+            "/api/v1/auth/login",
+            json={"email": fixture_data.email, "password": new_password},
+        )
+        assert new_login.status_code == 200
+
+        # 恢复夹具口令，避免影响同会话后续用例
+        restore = await client.post(
+            "/api/v1/auth/change-password",
+            headers={"Authorization": f"Bearer {new_login.json()['access_token']}"},
+            json={"current_password": new_password, "new_password": fixture_data.password},
+        )
+        assert restore.status_code == 204
+
+
 class TestSystem:
     async def test_healthz(self, client: AsyncClient) -> None:
         resp = await client.get("/healthz")

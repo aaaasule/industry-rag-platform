@@ -21,7 +21,7 @@ from app.modules.identity.schemas import (
     UserProfile,
 )
 from app.platform.db import set_rls_context
-from app.platform.errors import Forbidden, Unauthenticated
+from app.platform.errors import Forbidden, Unauthenticated, UnprocessableState
 from app.platform.logging import get_logger
 from app.platform.security import (
     TokenClaims,
@@ -120,6 +120,26 @@ class IdentityService:
             current_tenant=_brief(current),
             tenants=[_brief(m) for m in memberships if m.tenant.is_active],
         )
+
+    async def update_profile(self, claims: TokenClaims, display_name: str) -> SessionInfo:
+        user, _ = await self._load_active_context(claims.user_id, claims.tenant_id)
+        name = display_name.strip()
+        if not name:
+            raise UnprocessableState("显示名不能为空", code="validation_error")
+        await self._repo.update_display_name(user, name[:128])
+        logger.info("profile_updated", user_id=str(user.id))
+        return await self.session_info(claims)
+
+    async def change_password(
+        self, claims: TokenClaims, current_password: str, new_password: str
+    ) -> None:
+        user, _ = await self._load_active_context(claims.user_id, claims.tenant_id)
+        if not user.password_hash or not verify_password(current_password, user.password_hash):
+            raise Unauthenticated("当前密码不正确")
+        if current_password == new_password:
+            raise UnprocessableState("新密码不能与当前密码相同", code="validation_error")
+        await self._repo.update_password_hash(user, hash_password(new_password))
+        logger.info("password_changed", user_id=str(user.id))
 
     async def visible_kb_ids(
         self, claims: TokenClaims, permission: str = PERM_READ

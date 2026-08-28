@@ -95,3 +95,7 @@ class IdentityRepository:
     async def update_password_hash(self, user: User, password_hash: str) -> None:
         user.password_hash = password_hash
         await self._session.flush()
+
+    async def update_display_name(self, user: User, display_name: str) -> None:
+        user.display_name = display_name
+        await self._session.flush()

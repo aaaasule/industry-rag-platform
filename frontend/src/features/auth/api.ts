@@ -64,3 +64,14 @@ export async function logout(): Promise<void> {
     tokenStore.clear();
   }
 }
+
+export function updateProfile(payload: { display_name: string }): Promise<SessionInfo> {
+  return api.patch('/auth/me', payload);
+}
+
+export function changePassword(payload: {
+  current_password: string;
+  new_password: string;
+}): Promise<void> {
+  return api.post('/auth/change-password', payload);
+}

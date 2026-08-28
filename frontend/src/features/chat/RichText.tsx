@@ -186,7 +186,7 @@ function InlineText({
               className={[
                 'mx-0.5 inline-flex h-5 min-w-5 items-center justify-center rounded px-1 align-middle text-xs font-medium',
                 active
-                  ? 'bg-brand-600 text-white'
+                  ? 'bg-gradient-to-br from-indigo-500 to-violet-600 text-white'
                   : 'bg-brand-50 text-brand-700 ring-1 ring-brand-100',
               ].join(' ')}
             >
@@ -200,7 +200,7 @@ function InlineText({
           return (
             <code
               key={i}
-              className="rounded bg-canvas px-1 py-0.5 font-mono text-[12px] text-brand-700"
+              className="rounded-md bg-elevated px-1.5 py-0.5 font-mono text-[12px] text-accent"
             >
               {code[1]}
             </code>
