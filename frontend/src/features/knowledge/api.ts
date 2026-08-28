@@ -13,6 +13,25 @@ export interface IndustryProfile {
   metadata_schema?: Record<string, unknown>;
 }
 
+export type KbChunkRules = {
+  max_tokens?: number;
+  min_tokens?: number;
+  overlap_tokens?: number;
+  clause_mode?: boolean;
+  keep_heading_prefix?: boolean;
+};
+
+export type KbRetrievalRules = {
+  top_k?: number;
+  rerank_enabled?: boolean | null;
+  query_expand?: boolean;
+};
+
+export type KbSettings = {
+  chunk_rules?: KbChunkRules;
+  retrieval_rules?: KbRetrievalRules;
+};
+
 export interface KnowledgeBase {
   id: string;
   name: string;
@@ -23,6 +42,9 @@ export interface KnowledgeBase {
   doc_count: number;
   chunk_count: number;
   profile_id: string | null;
+  settings?: KbSettings;
+  effective_chunk_rules?: KbChunkRules;
+  effective_retrieval_rules?: KbRetrievalRules;
   created_at: string;
 }
 
@@ -97,6 +119,7 @@ export function updateKnowledgeBase(
     description?: string;
     visibility?: string;
     profile_code?: string;
+    settings?: KbSettings;
   },
 ): Promise<KnowledgeBase> {
   return api.patch(`/knowledge-bases/${kbId}`, payload);
@@ -239,6 +262,7 @@ export function searchKnowledgeBase(
     query: string;
     top_k?: number;
     rerank?: boolean;
+    query_expand?: boolean;
   },
 ): Promise<SearchResult> {
   return api.post('/search', {
@@ -247,6 +271,7 @@ export function searchKnowledgeBase(
     top_k: payload.top_k,
     options: {
       rerank: payload.rerank,
+      ...(payload.query_expand != null ? { query_expand: payload.query_expand } : {}),
     },
   });
 }

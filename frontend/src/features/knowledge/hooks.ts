@@ -37,6 +37,7 @@ export function useUpdateKnowledgeBase(kbId: string) {
       profile_code?: string;
       name?: string;
       description?: string;
+      settings?: kbApi.KbSettings;
     }) => kbApi.updateKnowledgeBase(kbId, payload),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ['knowledge-bases', kbId] });
@@ -120,8 +121,12 @@ export function useBatchDocuments(kbId: string) {
 
 export function useKbSearch(kbId: string) {
   return useMutation({
-    mutationFn: (payload: { query: string; top_k?: number; rerank?: boolean }) =>
-      kbApi.searchKnowledgeBase(kbId, payload),
+    mutationFn: (payload: {
+      query: string;
+      top_k?: number;
+      rerank?: boolean;
+      query_expand?: boolean;
+    }) => kbApi.searchKnowledgeBase(kbId, payload),
   });
 }
 
