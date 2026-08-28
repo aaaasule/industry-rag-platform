@@ -13,10 +13,13 @@ from app.modules.ingestion.events import iter_document_events
 from app.modules.knowledge.repository import KnowledgeRepository
 from app.modules.knowledge.schemas import (
     ChunkOut,
+    DocumentBatchRequest,
+    DocumentBatchResponse,
     DocumentCreated,
     DocumentOut,
     DocumentPageOut,
     DocumentRegisterRequest,
+    DocumentUpdate,
     GrantOut,
     GrantUpsert,
     IndustryProfileCreate,
@@ -230,11 +233,34 @@ async def list_documents(
     return await service.list_documents(claims, kb_id)
 
 
+@router.post(
+    "/knowledge-bases/{kb_id}/documents/batch",
+    response_model=DocumentBatchResponse,
+)
+async def batch_documents(
+    kb_id: uuid.UUID,
+    payload: DocumentBatchRequest,
+    claims: ClaimsDep,
+    service: KnowledgeService = ServiceDep,
+) -> DocumentBatchResponse:
+    return await service.batch_documents(claims, kb_id, payload)
+
+
 @router.get("/documents/{doc_id}", response_model=DocumentOut)
 async def get_document(
     doc_id: uuid.UUID, claims: ClaimsDep, service: KnowledgeService = ServiceDep
 ) -> DocumentOut:
     return await service.get_document(claims, doc_id)
+
+
+@router.patch("/documents/{doc_id}", response_model=DocumentOut)
+async def update_document(
+    doc_id: uuid.UUID,
+    payload: DocumentUpdate,
+    claims: ClaimsDep,
+    service: KnowledgeService = ServiceDep,
+) -> DocumentOut:
+    return await service.update_document(claims, doc_id, payload)
 
 
 @router.delete("/documents/{doc_id}", status_code=204)

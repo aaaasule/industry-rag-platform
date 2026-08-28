@@ -360,6 +360,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/knowledge-bases/{kb_id}/documents/batch": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Batch Documents */
+        post: operations["batch_documents_api_v1_knowledge_bases__kb_id__documents_batch_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/documents/{doc_id}": {
         parameters: {
             query?: never;
@@ -375,7 +392,8 @@ export interface paths {
         delete: operations["delete_document_api_v1_documents__doc_id__delete"];
         options?: never;
         head?: never;
-        patch?: never;
+        /** Update Document */
+        patch: operations["update_document_api_v1_documents__doc_id__patch"];
         trace?: never;
     };
     "/api/v1/documents/{doc_id}/reingest": {
@@ -920,6 +938,25 @@ export interface components {
             /** Api Key */
             api_key: string;
         };
+        /** DocumentBatchRequest */
+        DocumentBatchRequest: {
+            /**
+             * Action
+             * @enum {string}
+             */
+            action: "delete" | "reingest";
+            /** Document Ids */
+            document_ids: string[];
+        };
+        /** DocumentBatchResponse */
+        DocumentBatchResponse: {
+            /** Accepted */
+            accepted: number;
+            /** Job Ids */
+            job_ids: {
+                [key: string]: string | null;
+            };
+        };
         /** DocumentCreated */
         DocumentCreated: {
             /**
@@ -961,6 +998,20 @@ export interface components {
             /** Error Detail */
             error_detail: string | null;
             /**
+             * Enabled
+             * @default true
+             */
+            enabled: boolean;
+            /**
+             * Chunk Count
+             * @default 0
+             */
+            chunk_count: number;
+            /** Metadata */
+            metadata?: {
+                [key: string]: unknown;
+            };
+            /**
              * Created At
              * Format: date-time
              */
@@ -1001,6 +1052,15 @@ export interface components {
             metadata?: {
                 [key: string]: unknown;
             };
+        };
+        /** DocumentUpdate */
+        DocumentUpdate: {
+            /** Enabled */
+            enabled?: boolean | null;
+            /** Metadata */
+            metadata?: {
+                [key: string]: unknown;
+            } | null;
         };
         /** FeedbackCreate */
         FeedbackCreate: {
@@ -1212,6 +1272,18 @@ export interface components {
             chunk_count: number;
             /** Profile Id */
             profile_id: string | null;
+            /** Settings */
+            settings?: {
+                [key: string]: unknown;
+            };
+            /** Effective Chunk Rules */
+            effective_chunk_rules?: {
+                [key: string]: unknown;
+            };
+            /** Effective Retrieval Rules */
+            effective_retrieval_rules?: {
+                [key: string]: unknown;
+            };
             /**
              * Created At
              * Format: date-time
@@ -1231,6 +1303,13 @@ export interface components {
              * @description 改绑行业模板 code
              */
             profile_code?: string | null;
+            /**
+             * Settings
+             * @description KB 覆盖：chunk_rules / retrieval_rules 白名单
+             */
+            settings?: {
+                [key: string]: unknown;
+            } | null;
         };
         /** LoginRequest */
         LoginRequest: {
@@ -2664,6 +2743,41 @@ export interface operations {
             };
         };
     };
+    batch_documents_api_v1_knowledge_bases__kb_id__documents_batch_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                kb_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DocumentBatchRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DocumentBatchResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     get_document_api_v1_documents__doc_id__get: {
         parameters: {
             query?: never;
@@ -2712,6 +2826,41 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_document_api_v1_documents__doc_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                doc_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DocumentUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DocumentOut"];
+                };
             };
             /** @description Validation Error */
             422: {

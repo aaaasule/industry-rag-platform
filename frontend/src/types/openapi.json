@@ -1328,6 +1328,64 @@
         }
       }
     },
+    "/api/v1/knowledge-bases/{kb_id}/documents/batch": {
+      "post": {
+        "tags": [
+          "knowledge"
+        ],
+        "summary": "Batch Documents",
+        "operationId": "batch_documents_api_v1_knowledge_bases__kb_id__documents_batch_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "kb_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Kb Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DocumentBatchRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DocumentBatchResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/documents/{doc_id}": {
       "get": {
         "tags": [
@@ -1352,6 +1410,62 @@
             }
           }
         ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DocumentOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "knowledge"
+        ],
+        "summary": "Update Document",
+        "operationId": "update_document_api_v1_documents__doc_id__patch",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "doc_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Doc Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DocumentUpdate"
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -3191,6 +3305,63 @@
         ],
         "title": "CredentialUpdate"
       },
+      "DocumentBatchRequest": {
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "delete",
+              "reingest"
+            ],
+            "title": "Action"
+          },
+          "document_ids": {
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "type": "array",
+            "maxItems": 50,
+            "minItems": 1,
+            "title": "Document Ids"
+          }
+        },
+        "type": "object",
+        "required": [
+          "action",
+          "document_ids"
+        ],
+        "title": "DocumentBatchRequest"
+      },
+      "DocumentBatchResponse": {
+        "properties": {
+          "accepted": {
+            "type": "integer",
+            "title": "Accepted"
+          },
+          "job_ids": {
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "type": "object",
+            "title": "Job Ids"
+          }
+        },
+        "type": "object",
+        "required": [
+          "accepted",
+          "job_ids"
+        ],
+        "title": "DocumentBatchResponse"
+      },
       "DocumentCreated": {
         "properties": {
           "document_id": {
@@ -3286,6 +3457,21 @@
               }
             ],
             "title": "Error Detail"
+          },
+          "enabled": {
+            "type": "boolean",
+            "title": "Enabled",
+            "default": true
+          },
+          "chunk_count": {
+            "type": "integer",
+            "title": "Chunk Count",
+            "default": 0
+          },
+          "metadata": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Metadata"
           },
           "created_at": {
             "type": "string",
@@ -3386,6 +3572,35 @@
           "mime_type"
         ],
         "title": "DocumentRegisterRequest"
+      },
+      "DocumentUpdate": {
+        "properties": {
+          "enabled": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Enabled"
+          },
+          "metadata": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Metadata"
+          }
+        },
+        "type": "object",
+        "title": "DocumentUpdate"
       },
       "FeedbackCreate": {
         "properties": {
@@ -3961,6 +4176,21 @@
             ],
             "title": "Profile Id"
           },
+          "settings": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Settings"
+          },
+          "effective_chunk_rules": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Effective Chunk Rules"
+          },
+          "effective_retrieval_rules": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Effective Retrieval Rules"
+          },
           "created_at": {
             "type": "string",
             "format": "date-time",
@@ -4033,6 +4263,19 @@
             ],
             "title": "Profile Code",
             "description": "改绑行业模板 code"
+          },
+          "settings": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Settings",
+            "description": "KB 覆盖：chunk_rules / retrieval_rules 白名单"
           }
         },
         "type": "object",

@@ -22,10 +22,13 @@ from app.modules.knowledge.models import Document, IndustryProfile, KbGrant, Kno
 from app.modules.knowledge.repository import KnowledgeRepository
 from app.modules.knowledge.schemas import (
     ChunkOut,
+    DocumentBatchRequest,
+    DocumentBatchResponse,
     DocumentCreated,
     DocumentOut,
     DocumentPageOut,
     DocumentRegisterRequest,
+    DocumentUpdate,
     GrantOut,
     GrantUpsert,
     IndustryProfileCreate,
@@ -38,12 +41,14 @@ from app.modules.knowledge.schemas import (
     UploadUrlRequest,
     UploadUrlResponse,
 )
+from app.modules.knowledge.settings_validate import validate_kb_settings
 from app.modules.profile.schemas import (
     ChunkRulesConfig,
     ParseRulesConfig,
     PromptOverridesConfig,
     RetrievalRulesConfig,
 )
+from app.modules.profile.service import resolve_effective_profile
 from app.platform.config import Settings
 from app.platform.errors import AppError, Conflict, Forbidden, NotFound, UnprocessableState
 from app.platform.ids import uuid7
@@ -89,6 +94,17 @@ class KnowledgeService:
         self._repo = repo
         self._settings = settings
         self._store = store or S3ObjectStore(settings)
+
+    async def _kb_out(self, kb: KnowledgeBase) -> KnowledgeBaseOut:
+        effective = await resolve_effective_profile(self._repo._session, kb.id)
+        base = KnowledgeBaseOut.model_validate(kb)
+        return base.model_copy(
+            update={
+                "settings": dict(kb.settings or {}),
+                "effective_chunk_rules": effective.chunk_rules.model_dump(),
+                "effective_retrieval_rules": effective.retrieval_rules.model_dump(),
+            }
+        )
 
     async def list_profiles(
         self, tenant_id: uuid.UUID, *, include_deleted: bool = False
@@ -225,7 +241,7 @@ class KnowledgeService:
             permission=PERM_READ,
         )
         rows = await self._repo.list_knowledge_bases(claims.tenant_id, kb_ids=ids)
-        return [KnowledgeBaseOut.model_validate(r) for r in rows]
+        return [await self._kb_out(r) for r in rows]
 
     async def create_knowledge_base(
         self, claims: TokenClaims, payload: KnowledgeBaseCreate
@@ -245,11 +261,11 @@ class KnowledgeService:
             created_by=claims.user_id,
         )
         await self._repo.add_knowledge_base(kb)
-        return KnowledgeBaseOut.model_validate(kb)
+        return await self._kb_out(kb)
 
     async def get_knowledge_base(self, claims: TokenClaims, kb_id: uuid.UUID) -> KnowledgeBaseOut:
         kb = await self._require_kb(claims, kb_id, PERM_READ)
-        return KnowledgeBaseOut.model_validate(kb)
+        return await self._kb_out(kb)
 
     async def update_knowledge_base(
         self, claims: TokenClaims, kb_id: uuid.UUID, payload: KnowledgeBaseUpdate
@@ -266,8 +282,11 @@ class KnowledgeService:
             if profile is None:
                 raise UnprocessableState("行业模板不存在", code="profile_not_found")
             kb.profile_id = profile.id
+        if payload.settings is not None:
+            # 整体替换白名单域；不自动 reingest
+            kb.settings = validate_kb_settings(payload.settings)
         await self._repo._session.flush()
-        return KnowledgeBaseOut.model_validate(kb)
+        return await self._kb_out(kb)
 
     async def delete_knowledge_base(self, claims: TokenClaims, kb_id: uuid.UUID) -> None:
         kb = await self._require_kb(claims, kb_id, PERM_MANAGE)
@@ -418,6 +437,19 @@ class KnowledgeService:
         await self._repo.add_document(doc)
         kb.doc_count += 1
 
+        await AuditService(self._repo._session).record(
+            tenant_id=claims.tenant_id,
+            actor_id=claims.user_id,
+            action="document.upload",
+            target_type="document",
+            target_id=doc.id,
+            payload={
+                "kb_id": str(kb.id),
+                "title": doc.title,
+                "mime_type": doc.mime_type,
+            },
+        )
+
         from app.modules.ingestion.service import enqueue_ingest
 
         job_id = await enqueue_ingest(doc.id, claims.tenant_id, self._repo._session)
@@ -464,24 +496,105 @@ class KnowledgeService:
     async def list_documents(self, claims: TokenClaims, kb_id: uuid.UUID) -> list[DocumentOut]:
         await self._require_kb(claims, kb_id, PERM_READ)
         rows = await self._repo.list_documents(claims.tenant_id, kb_id)
-        return [DocumentOut.model_validate(r) for r in rows]
+        counts = await self._repo.chunk_counts_for_documents(claims.tenant_id, [r.id for r in rows])
+        return [self._document_out(r, chunk_count=counts.get(r.id, 0)) for r in rows]
 
     async def get_document(self, claims: TokenClaims, doc_id: uuid.UUID) -> DocumentOut:
         doc = await self._require_doc(claims, doc_id, PERM_READ)
-        return DocumentOut.model_validate(doc)
+        counts = await self._repo.chunk_counts_for_documents(claims.tenant_id, [doc.id])
+        return self._document_out(doc, chunk_count=counts.get(doc.id, 0))
+
+    async def update_document(
+        self, claims: TokenClaims, doc_id: uuid.UUID, payload: DocumentUpdate
+    ) -> DocumentOut:
+        doc = await self._require_doc(claims, doc_id, PERM_WRITE)
+        data = payload.model_dump(exclude_unset=True)
+        if "enabled" in data and data["enabled"] is not None:
+            doc.enabled = bool(data["enabled"])
+        if "metadata" in data and data["metadata"] is not None:
+            from app.modules.knowledge.metadata_validate import validate_document_metadata
+            from app.modules.profile.service import resolve_effective_profile
+
+            effective = await resolve_effective_profile(self._repo._session, doc.kb_id)
+            validate_document_metadata(data["metadata"], effective.metadata_schema)
+            doc.meta = data["metadata"]
+        await self._repo._session.flush()
+        await self._repo._session.refresh(doc)
+        counts = await self._repo.chunk_counts_for_documents(claims.tenant_id, [doc.id])
+        return self._document_out(doc, chunk_count=counts.get(doc.id, 0))
 
     async def delete_document(self, claims: TokenClaims, doc_id: uuid.UUID) -> None:
         doc = await self._require_doc(claims, doc_id, PERM_WRITE)
+        title = doc.title
+        kb_id = doc.kb_id
         doc.deleted_at = datetime.now(UTC)
-        kb = await self._require_kb(claims, doc.kb_id, PERM_WRITE)
+        kb = await self._require_kb(claims, kb_id, PERM_WRITE)
         kb.doc_count = max(0, kb.doc_count - 1)
+        await AuditService(self._repo._session).record(
+            tenant_id=claims.tenant_id,
+            actor_id=claims.user_id,
+            action="document.delete",
+            target_type="document",
+            target_id=doc_id,
+            payload={"kb_id": str(kb_id), "title": title},
+        )
 
-    async def reingest(self, claims: TokenClaims, doc_id: uuid.UUID) -> DocumentCreated:
+    async def reingest(
+        self,
+        claims: TokenClaims,
+        doc_id: uuid.UUID,
+        *,
+        record_audit: bool = True,
+    ) -> DocumentCreated:
         doc = await self._require_doc(claims, doc_id, PERM_WRITE)
         from app.modules.ingestion.service import enqueue_ingest
 
         job_id = await enqueue_ingest(doc.id, claims.tenant_id, self._repo._session, force=True)
+        if record_audit:
+            await AuditService(self._repo._session).record(
+                tenant_id=claims.tenant_id,
+                actor_id=claims.user_id,
+                action="document.reingest",
+                target_type="document",
+                target_id=doc.id,
+                payload={"kb_id": str(doc.kb_id), "title": doc.title},
+            )
         return DocumentCreated(document_id=doc.id, status=doc.status, job_id=job_id)
+
+    async def batch_documents(
+        self, claims: TokenClaims, kb_id: uuid.UUID, payload: DocumentBatchRequest
+    ) -> DocumentBatchResponse:
+        """批量删除或重新解析；任一 id 非本库/已软删则整批 404，避免探测与误删。"""
+        await self._require_kb(claims, kb_id, PERM_WRITE)
+        docs: list[Document] = []
+        for doc_id in payload.document_ids:
+            doc = await self._repo.get_document(claims.tenant_id, doc_id)
+            if doc is None or doc.kb_id != kb_id:
+                raise NotFound("文档不存在")
+            docs.append(doc)
+
+        job_ids: dict[str, uuid.UUID | None] = {}
+        if payload.action == "delete":
+            for doc in docs:
+                await self.delete_document(claims, doc.id)
+                job_ids[str(doc.id)] = None
+        else:
+            for doc in docs:
+                created = await self.reingest(claims, doc.id, record_audit=False)
+                job_ids[str(doc.id)] = created.job_id
+            await AuditService(self._repo._session).record(
+                tenant_id=claims.tenant_id,
+                actor_id=claims.user_id,
+                action="document.reingest",
+                target_type="knowledge_base",
+                target_id=kb_id,
+                payload={
+                    "kb_id": str(kb_id),
+                    "document_ids": [str(d.id) for d in docs],
+                },
+            )
+
+        return DocumentBatchResponse(accepted=len(docs), job_ids=job_ids)
 
     async def preview_url(self, claims: TokenClaims, doc_id: uuid.UUID) -> PreviewUrlOut:
         doc = await self._require_doc(claims, doc_id, PERM_READ)
@@ -543,3 +656,24 @@ class KnowledgeService:
             raise NotFound("文档不存在")
         await self._require_kb(claims, doc.kb_id, permission)
         return doc
+
+    @staticmethod
+    def _document_out(doc: Document, *, chunk_count: int = 0) -> DocumentOut:
+        """在 service 组装 DocumentOut，避免 ORM `metadata` 保留字坑。"""
+        return DocumentOut(
+            id=doc.id,
+            kb_id=doc.kb_id,
+            title=doc.title,
+            mime_type=doc.mime_type,
+            file_size=doc.file_size,
+            checksum=doc.checksum,
+            page_count=doc.page_count,
+            status=doc.status,
+            error_code=doc.error_code,
+            error_detail=doc.error_detail,
+            enabled=doc.enabled,
+            chunk_count=chunk_count,
+            metadata=dict(doc.meta or {}),
+            created_at=doc.created_at,
+            updated_at=doc.updated_at,
+        )

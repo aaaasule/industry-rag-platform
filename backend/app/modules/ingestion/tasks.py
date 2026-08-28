@@ -47,6 +47,27 @@ from app.worker import celery_app
 logger = get_logger(__name__)
 
 
+async def _audit_ingest_fail(
+    session: Any,
+    *,
+    tenant_id: uuid.UUID,
+    document_id: uuid.UUID,
+    kb_id: uuid.UUID,
+    error_code: str,
+) -> None:
+    """Worker 标 failed 时尽力写审计；actor_id 为 None。"""
+    from app.modules.audit.service import AuditService
+
+    await AuditService(session).record(
+        tenant_id=tenant_id,
+        actor_id=None,
+        action="ingest.fail",
+        target_type="document",
+        target_id=document_id,
+        payload={"kb_id": str(kb_id), "error_code": error_code},
+    )
+
+
 def _run(coro: Any) -> Any:
     return asyncio.run(coro)
 
@@ -203,6 +224,13 @@ async def _parse_document(document_id: uuid.UUID, tenant_id: uuid.UUID, job_id: 
                 error_code="parse_failed",
                 error_detail=str(exc)[:500],
                 retryable=True,
+            )
+            await _audit_ingest_fail(
+                session,
+                tenant_id=tenant_id,
+                document_id=document_id,
+                kb_id=doc.kb_id,
+                error_code="parse_failed",
             )
             return "failed"
 
@@ -428,6 +456,13 @@ async def _embed_document(document_id: uuid.UUID, tenant_id: uuid.UUID, job_id: 
                     error_code="embed_failed",
                     error_detail=str(exc)[:500],
                     retryable=True,
+                )
+                await _audit_ingest_fail(
+                    session,
+                    tenant_id=tenant_id,
+                    document_id=document_id,
+                    kb_id=doc.kb_id,
+                    error_code="embed_failed",
                 )
                 return "failed"
         finally:

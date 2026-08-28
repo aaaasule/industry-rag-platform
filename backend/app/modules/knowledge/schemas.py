@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -23,6 +23,9 @@ class KnowledgeBaseUpdate(BaseModel):
     profile_code: str | None = Field(
         default=None, min_length=1, max_length=100, description="改绑行业模板 code"
     )
+    settings: dict[str, Any] | None = Field(
+        default=None, description="KB 覆盖：chunk_rules / retrieval_rules 白名单"
+    )
 
 
 class KnowledgeBaseOut(BaseModel):
@@ -37,6 +40,9 @@ class KnowledgeBaseOut(BaseModel):
     doc_count: int
     chunk_count: int
     profile_id: uuid.UUID | None
+    settings: dict[str, Any] = Field(default_factory=dict)
+    effective_chunk_rules: dict[str, Any] = Field(default_factory=dict)
+    effective_retrieval_rules: dict[str, Any] = Field(default_factory=dict)
     created_at: datetime
 
 
@@ -63,6 +69,11 @@ class DocumentRegisterRequest(BaseModel):
     metadata: dict[str, Any] = Field(default_factory=dict)
 
 
+class DocumentUpdate(BaseModel):
+    enabled: bool | None = None
+    metadata: dict[str, Any] | None = None
+
+
 class DocumentOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -76,6 +87,9 @@ class DocumentOut(BaseModel):
     status: str
     error_code: str | None
     error_detail: str | None
+    enabled: bool = True
+    chunk_count: int = 0
+    metadata: dict[str, Any] = Field(default_factory=dict)
     created_at: datetime
     updated_at: datetime
 
@@ -84,6 +98,16 @@ class DocumentCreated(BaseModel):
     document_id: uuid.UUID
     status: str
     job_id: uuid.UUID | None = None
+
+
+class DocumentBatchRequest(BaseModel):
+    action: Literal["delete", "reingest"]
+    document_ids: list[uuid.UUID] = Field(min_length=1, max_length=50)
+
+
+class DocumentBatchResponse(BaseModel):
+    accepted: int
+    job_ids: dict[str, uuid.UUID | None]
 
 
 class IndustryProfileCreate(BaseModel):

@@ -1,5 +1,5 @@
 import { Zap } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 
 import { EmptyState } from '@/components/EmptyState';
@@ -7,20 +7,47 @@ import { Button } from '@/components/ui/Button';
 import { useToast } from '@/components/toast/useToast';
 import { ApiError } from '@/lib/http';
 import type { SearchHit } from '../api';
-import { useKbSearch } from '../hooks';
+import { useKnowledgeBase, useKbSearch } from '../hooks';
 
 const TOP_K_OPTIONS = [5, 8, 10, 15, 20];
+
+function pickTopK(value: unknown, fallback = 8): number {
+  return typeof value === 'number' && Number.isFinite(value) && value > 0 ? value : fallback;
+}
+
+function pickRerank(value: unknown, fallback = true): boolean {
+  if (value === true) return true;
+  if (value === false) return false;
+  return fallback;
+}
 
 export function KbRetrievalPanel() {
   const { kbId = '' } = useParams();
   const toast = useToast();
+  const { data: kb } = useKnowledgeBase(kbId);
   const search = useKbSearch(kbId);
   const [query, setQuery] = useState('');
   const [topK, setTopK] = useState(8);
   const [rerank, setRerank] = useState(true);
+  const [queryExpand, setQueryExpand] = useState(false);
+  const [seededKbId, setSeededKbId] = useState<string | null>(null);
   const [results, setResults] = useState<SearchHit[]>([]);
   const [rewritten, setRewritten] = useState<string | null>(null);
   const [stats, setStats] = useState<{ total_ms: number } | null>(null);
+
+  useEffect(() => {
+    if (!kb || seededKbId === kb.id) return;
+    const rules = kb.effective_retrieval_rules ?? {};
+    setTopK(pickTopK(rules.top_k, 8));
+    setRerank(pickRerank(rules.rerank_enabled, true));
+    setQueryExpand(rules.query_expand === true);
+    setSeededKbId(kb.id);
+  }, [kb, seededKbId]);
+
+  const topKOptions = useMemo(() => {
+    if (TOP_K_OPTIONS.includes(topK)) return TOP_K_OPTIONS;
+    return [...TOP_K_OPTIONS, topK].sort((a, b) => a - b);
+  }, [topK]);
 
   async function runSearch() {
     const q = query.trim();
@@ -29,7 +56,12 @@ export function KbRetrievalPanel() {
       return;
     }
     try {
-      const resp = await search.mutateAsync({ query: q, top_k: topK, rerank });
+      const resp = await search.mutateAsync({
+        query: q,
+        top_k: topK,
+        rerank,
+        query_expand: queryExpand,
+      });
       setResults(resp.results);
       setRewritten(resp.query);
       setStats(resp.stats);
@@ -43,7 +75,7 @@ export function KbRetrievalPanel() {
       <header>
         <h2 className="text-lg font-semibold text-slate-900">知识检索测试</h2>
         <p className="mt-1 text-sm text-slate-500">
-          测试当前知识库与行业模板下的召回效果。此处参数不会自动同步到问答页；改模板请前往
+          测试当前知识库生效召回规则。默认 Top-K / Rerank 取自 effective_retrieval_rules；改库级配置请前往
           <Link to={`/knowledge/${kbId}/settings`} className="mx-1 text-indigo-600 hover:underline">
             配置
           </Link>
@@ -62,7 +94,7 @@ export function KbRetrievalPanel() {
               value={topK}
               onChange={(e) => setTopK(Number(e.target.value))}
             >
-              {TOP_K_OPTIONS.map((k) => (
+              {topKOptions.map((k) => (
                 <option key={k} value={k}>
                   前 {k} 条
                 </option>
@@ -80,8 +112,19 @@ export function KbRetrievalPanel() {
             />
           </label>
 
+          <label className="flex items-center justify-between gap-3 text-sm text-slate-700">
+            <span>查询扩展</span>
+            <input
+              type="checkbox"
+              checked={queryExpand}
+              onChange={(e) => setQueryExpand(e.target.checked)}
+              className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500/30"
+            />
+          </label>
+
           <p className="text-xs leading-relaxed text-slate-400">
-            混合检索（向量 + 全文 + RRF）由行业模板控制；相似度阈值与向量/全文权重暂不支持在线调节。
+            混合检索（向量 + 全文 + RRF）由生效规则控制；勾选查询扩展后以 options.query_expand
+            覆盖本次请求。弱召回时会 LLM 改写并二次融合，结果区展示 rewritten_query。
           </p>
 
           <div className="border-t border-slate-100 pt-4">
@@ -120,9 +163,10 @@ export function KbRetrievalPanel() {
             ) : null}
           </div>
 
-          {rewritten && rewritten !== query.trim() ? (
+          {rewritten ? (
             <p className="mb-3 text-xs text-slate-500">
-              改写后查询：<span className="font-medium text-slate-700">{rewritten}</span>
+              改写后查询（rewritten_query）：
+              <span className="font-medium text-slate-700">{rewritten}</span>
             </p>
           ) : null}
 

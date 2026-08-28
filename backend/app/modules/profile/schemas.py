@@ -34,6 +34,7 @@ class PromptOverridesConfig(BaseModel):
 class RetrievalRulesConfig(BaseModel):
     top_k: int = 8
     rerank_enabled: bool | None = None
+    query_expand: bool = False
 
     model_config = {"extra": "allow"}
 

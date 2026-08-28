@@ -13,6 +13,25 @@ export interface IndustryProfile {
   metadata_schema?: Record<string, unknown>;
 }
 
+export type KbChunkRules = {
+  max_tokens?: number;
+  min_tokens?: number;
+  overlap_tokens?: number;
+  clause_mode?: boolean;
+  keep_heading_prefix?: boolean;
+};
+
+export type KbRetrievalRules = {
+  top_k?: number;
+  rerank_enabled?: boolean | null;
+  query_expand?: boolean;
+};
+
+export type KbSettings = {
+  chunk_rules?: KbChunkRules;
+  retrieval_rules?: KbRetrievalRules;
+};
+
 export interface KnowledgeBase {
   id: string;
   name: string;
@@ -23,6 +42,9 @@ export interface KnowledgeBase {
   doc_count: number;
   chunk_count: number;
   profile_id: string | null;
+  settings?: KbSettings;
+  effective_chunk_rules?: KbChunkRules;
+  effective_retrieval_rules?: KbRetrievalRules;
   created_at: string;
 }
 
@@ -37,9 +59,32 @@ export interface DocumentItem {
   status: string;
   error_code: string | null;
   error_detail: string | null;
+  enabled: boolean;
+  chunk_count: number;
+  metadata?: Record<string, unknown>;
   created_at: string;
   updated_at: string;
 }
+
+export type DocumentUpdatePayload = {
+  enabled?: boolean | null;
+  metadata?: Record<string, unknown> | null;
+};
+
+export type DocumentBatchAction = 'delete' | 'reingest';
+
+export type DocumentBatchRequest = {
+  action: DocumentBatchAction;
+  document_ids: string[];
+};
+
+export type DocumentBatchResponse = {
+  accepted: number;
+  job_ids: Record<string, string | null>;
+};
+
+/** 批量操作单次上限（与后端 DocumentBatchRequest 一致） */
+export const BATCH_DOCUMENTS_MAX = 50;
 
 export interface DocumentCreated {
   document_id: string;
@@ -74,6 +119,7 @@ export function updateKnowledgeBase(
     description?: string;
     visibility?: string;
     profile_code?: string;
+    settings?: KbSettings;
   },
 ): Promise<KnowledgeBase> {
   return api.patch(`/knowledge-bases/${kbId}`, payload);
@@ -126,6 +172,20 @@ export function reingestDocument(docId: string): Promise<DocumentCreated> {
 
 export function deleteDocument(docId: string): Promise<void> {
   return api.delete(`/documents/${docId}`);
+}
+
+export function patchDocument(
+  docId: string,
+  payload: DocumentUpdatePayload,
+): Promise<DocumentItem> {
+  return api.patch(`/documents/${docId}`, payload);
+}
+
+export function batchDocuments(
+  kbId: string,
+  payload: DocumentBatchRequest,
+): Promise<DocumentBatchResponse> {
+  return api.post(`/knowledge-bases/${kbId}/documents/batch`, payload);
 }
 
 /** 经 API 中转的 multipart 上传（≤32MB），避免浏览器直传 MinIO 的 CORS 问题。 */
@@ -202,6 +262,7 @@ export function searchKnowledgeBase(
     query: string;
     top_k?: number;
     rerank?: boolean;
+    query_expand?: boolean;
   },
 ): Promise<SearchResult> {
   return api.post('/search', {
@@ -210,6 +271,7 @@ export function searchKnowledgeBase(
     top_k: payload.top_k,
     options: {
       rerank: payload.rerank,
+      ...(payload.query_expand != null ? { query_expand: payload.query_expand } : {}),
     },
   });
 }

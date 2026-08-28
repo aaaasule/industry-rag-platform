@@ -185,3 +185,161 @@ async def test_membership_and_grant_audit_hooks(
         await session.execute(
             delete(AuditLog).where(AuditLog.tenant_id == fixture_data.primary_tenant_id)
         )
+
+
+async def test_document_upload_and_delete_audit(
+    client: AsyncClient, auth_headers: dict[str, str], fixture_data: Fixture
+) -> None:
+    kb = await client.post(
+        "/api/v1/knowledge-bases",
+        headers=auth_headers,
+        json={"name": "文档审计库"},
+    )
+    assert kb.status_code == 201, kb.text
+    kb_id = kb.json()["id"]
+
+    from app.platform.ids import uuid7
+
+    document_id = uuid7()
+    reg = await client.post(
+        f"/api/v1/knowledge-bases/{kb_id}/documents",
+        headers=auth_headers,
+        json={
+            "document_id": str(document_id),
+            "storage_key": (
+                f"tenants/{fixture_data.primary_tenant_id}/documents/{document_id}/aud.pdf"
+            ),
+            "title": "审计样例文档",
+            "checksum": "sha256:" + "c" * 64,
+            "file_size": 2048,
+            "mime_type": "application/pdf",
+            "metadata": {},
+        },
+    )
+    assert reg.status_code == 202, reg.text
+
+    uploads = await client.get(
+        "/api/v1/admin/audit-logs",
+        headers=auth_headers,
+        params={"action": "document.upload", "limit": 50},
+    )
+    assert uploads.status_code == 200, uploads.text
+    upload_items = uploads.json()["items"]
+    assert any(
+        i["action"] == "document.upload"
+        and i["target_id"] == str(document_id)
+        and i["payload"].get("kb_id") == kb_id
+        and i["payload"].get("title") == "审计样例文档"
+        and i["payload"].get("mime_type") == "application/pdf"
+        for i in upload_items
+    ), uploads.text
+
+    deleted = await client.delete(f"/api/v1/documents/{document_id}", headers=auth_headers)
+    assert deleted.status_code == 204, deleted.text
+
+    deletes = await client.get(
+        "/api/v1/admin/audit-logs",
+        headers=auth_headers,
+        params={"action": "document.delete", "limit": 50},
+    )
+    assert deletes.status_code == 200, deletes.text
+    assert any(
+        i["action"] == "document.delete"
+        and i["target_id"] == str(document_id)
+        and i["payload"].get("kb_id") == kb_id
+        and i["payload"].get("title") == "审计样例文档"
+        for i in deletes.json()["items"]
+    ), deletes.text
+
+
+async def test_document_reingest_writes_audit(
+    client: AsyncClient, auth_headers: dict[str, str], fixture_data: Fixture
+) -> None:
+    kb = await client.post(
+        "/api/v1/knowledge-bases",
+        headers=auth_headers,
+        json={"name": "重解析审计库"},
+    )
+    assert kb.status_code == 201, kb.text
+    kb_id = kb.json()["id"]
+
+    from app.platform.ids import uuid7
+
+    document_id = uuid7()
+    reg = await client.post(
+        f"/api/v1/knowledge-bases/{kb_id}/documents",
+        headers=auth_headers,
+        json={
+            "document_id": str(document_id),
+            "storage_key": (
+                f"tenants/{fixture_data.primary_tenant_id}/documents/{document_id}/re.pdf"
+            ),
+            "title": "重解析样例",
+            "checksum": "sha256:" + "d" * 64,
+            "file_size": 1024,
+            "mime_type": "application/pdf",
+            "metadata": {},
+        },
+    )
+    assert reg.status_code == 202, reg.text
+
+    re = await client.post(
+        f"/api/v1/documents/{document_id}/reingest",
+        headers=auth_headers,
+    )
+    assert re.status_code == 202, re.text
+
+    logs = await client.get(
+        "/api/v1/admin/audit-logs",
+        headers=auth_headers,
+        params={"action": "document.reingest", "limit": 50},
+    )
+    assert logs.status_code == 200, logs.text
+    assert any(
+        i["action"] == "document.reingest"
+        and i["target_type"] == "document"
+        and i["target_id"] == str(document_id)
+        and i["payload"].get("kb_id") == kb_id
+        and i["payload"].get("title") == "重解析样例"
+        for i in logs.json()["items"]
+    ), logs.text
+
+    # 软删文档，降低 teardown 与 ingest worker 争锁概率
+    deleted = await client.delete(f"/api/v1/documents/{document_id}", headers=auth_headers)
+    assert deleted.status_code == 204, deleted.text
+
+
+async def test_ingest_fail_audit_can_be_recorded(
+    client: AsyncClient, auth_headers: dict[str, str], fixture_data: Fixture
+) -> None:
+    """Worker 标 failed 时尽力写入 ingest.fail（actor_id 可为 None）。"""
+    from app.modules.audit.service import AuditService
+    from app.platform.ids import uuid7
+
+    doc_id = uuid7()
+    kb_id = uuid7()
+    async with session_scope(
+        tenant_id=fixture_data.primary_tenant_id, user_id=fixture_data.user_id
+    ) as session:
+        await AuditService(session).record(
+            tenant_id=fixture_data.primary_tenant_id,
+            actor_id=None,
+            action="ingest.fail",
+            target_type="document",
+            target_id=doc_id,
+            payload={"kb_id": str(kb_id), "error_code": "parse_failed"},
+        )
+
+    resp = await client.get(
+        "/api/v1/admin/audit-logs",
+        headers=auth_headers,
+        params={"action": "ingest.fail", "limit": 50},
+    )
+    assert resp.status_code == 200, resp.text
+    assert any(
+        i["action"] == "ingest.fail"
+        and i["target_id"] == str(doc_id)
+        and i["payload"].get("error_code") == "parse_failed"
+        and i["actor_id"] is None
+        for i in resp.json()["items"]
+    ), resp.text

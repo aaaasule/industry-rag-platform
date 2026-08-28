@@ -35,6 +35,7 @@ class RetrievalRepository:
                 Chunk.kb_id.in_(kb_ids),
                 Document.deleted_at.is_(None),
                 Document.status == "ready",
+                Document.enabled.is_(True),
             )
             .order_by(distance)
             .limit(limit)
@@ -62,6 +63,7 @@ class RetrievalRepository:
                 Chunk.kb_id.in_(kb_ids),
                 Document.deleted_at.is_(None),
                 Document.status == "ready",
+                Document.enabled.is_(True),
                 Chunk.tsv.op("@@")(ts_query),
             )
             .order_by(rank.desc())

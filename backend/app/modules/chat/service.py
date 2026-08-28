@@ -24,6 +24,7 @@ from app.modules.chat.models import (
 from app.modules.chat.prompts import build_messages
 from app.modules.chat.refuse import should_refuse
 from app.modules.chat.repository import ChatRepository
+from app.modules.chat.rewrite import resolve_query
 from app.modules.chat.schemas import (
     CitationOut,
     ConversationCreate,
@@ -349,15 +350,26 @@ class ChatService:
         )
 
         t0 = time.perf_counter()
+        rows = await self._repo.list_messages(claims.tenant_id, conv.id)
+        prior = [m for m in rows if m.status == MSG_COMPLETED and (m.content or "").strip()]
+        # 当前轮用户消息已落库为 completed，排除后再取最近 4 条
+        if prior and prior[-1].role == ROLE_USER:
+            prior = prior[:-1]
+        history = [(m.role, m.content) for m in prior[-4:]]
+        search_query = await resolve_query(self._llm, history=history, current=query)
+
         try:
             search = await self._retrieval.search(
                 tenant_id=claims.tenant_id,
                 user_id=claims.user_id,
                 role=claims.role,
-                query=query,
+                query=search_query,
                 kb_ids=list(conv.kb_ids),
                 top_k=effective.retrieval_rules.top_k,
-                options=SearchOptions(rerank=rerank),
+                options=SearchOptions(
+                    rerank=rerank,
+                    query_expand=effective.retrieval_rules.query_expand,
+                ),
                 dictionary=effective.parse_rules.get("dictionary"),
                 synonyms=effective.parse_rules.get("synonyms"),
             )

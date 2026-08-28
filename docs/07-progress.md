@@ -7,10 +7,47 @@
 
 | 项     | 值                                                                                        |
 | ----- | ---------------------------------------------------------------------------------------- |
-| 阶段    | **M0–M5 + P1（A→D）完成**；真实语料 E2E **已通过**；DeepSeek 浅色壳层 + P1/P2 体验收口 + **知识库四 Tab 工作台** + **文档连续滑动预览** **已合入** |
-| 下一里程碑 | **M6 待定**（按产品优先级从路线图演进项中挑选） |
-| 已落地   | 摄取/检索/问答/溯源/多租户/模型运营/Profile；P1：多格式+SSE、授权邀请、重新生成与非 PDF 预览、术语归一与软删恢复；**DeepSeek 浅色前端**（侧栏折叠、会话搜索分组、个人资料页、Lucide 全站、运营/用量视觉对齐）；**知识库工作台**（文件/检索/日志/配置四 Tab）；**PDF 连续纵向滑动预览**；**modelops 平台接入点 test 与 RLS 对齐** |
-| 阻塞项   | 无 |
+| 阶段    | **M0–M5 + P1 完成**；**M6 知识库运营与检索智能化进行中**（W1–W4：enabled/batch/settings/rewrite/expand/meta/seed） |
+| 下一里程碑 | **M6 收口**（行业 golden 换真实 UUID 后本地回归；W4 PR） |
+| 已落地   | 既有 M0–M5/P1/壳层/工作台；M6：文档启用与批量、KB settings、指代改写与查询扩展、元数据抽屉、行业种子与 golden 占位 |
+| 阻塞项   | 行业 golden 的 `kb_id` / `expected_document_ids` 仍为 PLACEHOLDER，需本地 seed 真实语料后替换（**不**绑入 CI） |
+
+---
+
+## 2026-08-29（日进度 · M6 W1–W4 交付备注）
+
+### 结论
+
+M6（设计书 [`2026-08-28-m6-knowledge-ops-retrieval-design.md`](./superpowers/specs/2026-08-28-m6-knowledge-ops-retrieval-design.md)）四周能力已落到分支 `feat/m6-knowledge-ops`：运营面（enabled/batch/审计）、KB 调参、查询理解、行业种子与评测占位。CI 仍只跑 `golden.ci.jsonl`，阈值不变。
+
+### W1–W4 交付一览
+
+| 周 | 主题 | 交付 |
+| --- | --- | --- |
+| W1 | 文档运营 | `documents.enabled` + 检索过滤；PATCH 单文档；`POST .../documents/batch`（≤50）；upload/delete/ingest 审计；文件表开关与批量 UI |
+| W2 | KB 调参 | KB `settings` PATCH（chunk/retrieval 覆盖 Profile）；配置页可编辑；检索测试读 effective 规则 |
+| W3 | 查询理解 | Chat 多轮指代改写（`rewrite`）；Profile/KB `retrieval_rules.query_expand` + Playground 单次覆盖；融合分过低时二次扩展 |
+| W4 | 行业打磨 | `discrete_manufacturing.overlap_tokens`→**128**；`process_industry` dictionary 增加 **`GB/T`、`AQ/T`**；元数据抽屉；`evals/golden.discrete.jsonl` / `golden.process.jsonl`（≥10 条，PLACEHOLDER UUID） |
+
+### 行业 golden 占位说明（替换真实 ID）
+
+1. `make seed` 后创建/选用对应行业模板的知识库，上传手册/规程至 `ready`。
+2. 在 `backend/evals/golden.discrete.jsonl`、`golden.process.jsonl` 中，将 `019d15c0-…` / `019f1000-…` 等 **PLACEHOLDER** 换为真实 `kb_id` 与 `expected_document_ids`（文件顶部 `#` 注释有示例命令）。
+3. 本地评测（**勿**改 CI / `golden.ci.jsonl`）：
+
+```bash
+cd backend && uv run python scripts/evaluate.py \
+  --base http://127.0.0.1:8000/api/v1 \
+  --email <email> --password '<pw>' --tenant <slug> \
+  --kb-id <真实-kb-uuid> --golden evals/golden.discrete.jsonl --k 10
+# process 同理换 --golden evals/golden.process.jsonl
+```
+
+4. 刷新内置模板规则：本地再跑一次 `make seed`（seed 会对 builtin profile refresh）。
+
+### 明确不做（本里程碑）
+
+RRF 权重调参、自动全库 reingest、图谱、SSO、HTML 解析、CI 绑定行业 golden 硬失败。
 
 ---
 
