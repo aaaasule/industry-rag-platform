@@ -6,11 +6,13 @@ from fastapi import APIRouter, Depends, Request, status
 
 from app.modules.identity.repository import IdentityRepository
 from app.modules.identity.schemas import (
+    ChangePasswordRequest,
     LoginRequest,
     RefreshRequest,
     SessionInfo,
     SwitchTenantRequest,
     TokenPair,
+    UpdateProfileRequest,
 )
 from app.modules.identity.service import IdentityService
 from app.platform.deps import ClaimsDep, SessionDep
@@ -60,6 +62,28 @@ async def switch_tenant(
 @router.get("/me", response_model=SessionInfo, summary="当前会话信息")
 async def me(claims: ClaimsDep, service: IdentityService = ServiceDep) -> SessionInfo:
     return await service.session_info(claims)
+
+
+@router.patch("/me", response_model=SessionInfo, summary="更新个人资料")
+async def update_me(
+    payload: UpdateProfileRequest,
+    claims: ClaimsDep,
+    service: IdentityService = ServiceDep,
+) -> SessionInfo:
+    return await service.update_profile(claims, payload.display_name)
+
+
+@router.post(
+    "/change-password",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="修改密码",
+)
+async def change_password(
+    payload: ChangePasswordRequest,
+    claims: ClaimsDep,
+    service: IdentityService = ServiceDep,
+) -> None:
+    await service.change_password(claims, payload.current_password, payload.new_password)
 
 
 @router.post("/logout", status_code=status.HTTP_204_NO_CONTENT, summary="登出")

@@ -148,12 +148,16 @@ class ChatService:
         msg: Message, titles: dict[uuid.UUID, str], user_id: uuid.UUID
     ) -> MessageOut:
         used: list[int] = []
+        took_ms: int | None = None
         if isinstance(msg.retrieval_meta, dict):
             raw = msg.retrieval_meta.get("used_citations")
             if isinstance(raw, list):
                 for x in raw:
                     if isinstance(x, (int, float)) or (isinstance(x, str) and x.isdigit()):
                         used.append(int(x))
+            raw_took = msg.retrieval_meta.get("took_ms")
+            if isinstance(raw_took, (int, float)):
+                took_ms = int(raw_took)
 
         feedback = None
         for fb in msg.feedbacks or []:
@@ -174,6 +178,7 @@ class ChatService:
             )
             for c in sorted(msg.citations, key=lambda x: x.index_no)
         ]
+        token_usage = msg.token_usage if isinstance(msg.token_usage, dict) else None
         return MessageOut(
             id=msg.id,
             role=msg.role,
@@ -182,6 +187,8 @@ class ChatService:
             citations=citations,
             used_citations=used,
             feedback=feedback,
+            token_usage=token_usage,
+            took_ms=took_ms,
             created_at=msg.created_at,
         )
 
@@ -374,17 +381,23 @@ class ChatService:
         reason = should_refuse(search.hits)
         if reason:
             text = "未找到足够相关的资料，请换一种问法或补充上传文档。"
+            total_ms = int((time.perf_counter() - t0) * 1000)
             asst.content = text
             asst.status = MSG_COMPLETED
             asst.retrieval_meta = {
                 "rewritten_query": search.rewritten_query,
                 "hit_count": len(search.hits),
                 "refuse_reason": reason,
+                "took_ms": total_ms,
             }
             await self._commit_keep_rls(claims)
             yield sse_event(
                 "no_answer",
-                {"reason": reason, "suggestions": ["缩小知识库范围", "换用文档中的术语提问"]},
+                {
+                    "reason": reason,
+                    "suggestions": ["缩小知识库范围", "换用文档中的术语提问"],
+                    "took_ms": total_ms,
+                },
             )
             return
 
@@ -441,12 +454,14 @@ class ChatService:
                     usage = delta.usage
             raw = "".join(buf)
             cleaned, used = validate_citations(raw, max_index=len(search.hits))
+            total_ms = int((time.perf_counter() - t0) * 1000)
             asst.content = cleaned
             asst.status = MSG_COMPLETED
             asst.retrieval_meta = {
                 "rewritten_query": search.rewritten_query,
                 "hit_count": len(search.hits),
                 "used_citations": used,
+                "took_ms": total_ms,
             }
             if usage is not None:
                 asst.token_usage = {
@@ -469,7 +484,7 @@ class ChatService:
                     "finish_reason": "stop",
                     "used_citations": used,
                     "usage": asst.token_usage or {},
-                    "took_ms": int((time.perf_counter() - t0) * 1000),
+                    "took_ms": total_ms,
                 },
             )
         except Exception as exc:

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { ThumbsDown, ThumbsUp } from '@phosphor-icons/react';
 
 import * as chatApi from './api';
 import type { FeedbackReason } from './api';
@@ -42,33 +43,35 @@ export function MessageFeedback({ messageId, initial, disabled }: Props) {
   }
 
   return (
-    <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-ink-muted">
+    <div className="flex flex-wrap items-center gap-1.5 text-xs text-ink-muted">
       <button
         type="button"
         disabled={disabled || busy}
         onClick={() => void submit('up')}
         className={[
-          'rounded px-1.5 py-0.5 hover:bg-surface/70',
-          rating === 'up' ? 'bg-surface text-ok ring-1 ring-emerald-200' : '',
+          'inline-flex h-7 w-7 items-center justify-center rounded-full transition-all duration-200 hover:bg-elevated',
+          rating === 'up' ? 'bg-ok/10 text-ok ring-1 ring-ok/25' : 'text-ink-faint hover:text-ink',
         ].join(' ')}
         title="有用"
       >
-        👍
+        <ThumbsUp size={14} weight={rating === 'up' ? 'fill' : 'regular'} />
       </button>
       <button
         type="button"
         disabled={disabled || busy}
         onClick={() => setPicking((v) => !v)}
         className={[
-          'rounded px-1.5 py-0.5 hover:bg-surface/70',
-          rating === 'down' ? 'bg-surface text-danger ring-1 ring-danger/30' : '',
+          'inline-flex h-7 w-7 items-center justify-center rounded-full transition-all duration-200 hover:bg-elevated',
+          rating === 'down'
+            ? 'bg-danger/10 text-danger ring-1 ring-danger/25'
+            : 'text-ink-faint hover:text-ink',
         ].join(' ')}
         title="没用"
       >
-        👎
+        <ThumbsDown size={14} weight={rating === 'down' ? 'fill' : 'regular'} />
       </button>
       {rating === 'down' && reason && !picking && (
-        <span className="text-ink-faint">
+        <span className="rounded-full bg-elevated px-2 py-0.5 text-ink-faint">
           {REASONS.find((r) => r.value === reason)?.label ?? reason}
         </span>
       )}
@@ -78,7 +81,7 @@ export function MessageFeedback({ messageId, initial, disabled }: Props) {
             <button
               key={r.value}
               type="button"
-              className="rounded border border-line bg-surface px-2 py-0.5 hover:border-brand-300"
+              className="rounded-full border border-line bg-surface px-2.5 py-0.5 transition-all duration-200 hover:border-accent/40 hover:bg-accent-soft hover:text-accent"
               onClick={() => void submit('down', r.value)}
             >
               {r.label}

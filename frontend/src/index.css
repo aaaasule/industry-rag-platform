@@ -3,23 +3,25 @@
 @tailwind utilities;
 
 :root {
-  --bg-canvas: #f1f5f9;
+  --bg-canvas: #f8fafc;
   --bg-surface: #ffffff;
-  --bg-elevated: #f8fafc;
+  --bg-elevated: #f1f5f9;
   --ink: #0f172a;
   --ink-muted: #64748b;
   --ink-faint: #94a3b8;
   --line: #e2e8f0;
-  --accent: #1d4ed8;
-  --accent-hover: #1e40af;
-  --accent-soft: #eff6ff;
+  --accent: #4f46e5;
+  --accent-hover: #4338ca;
+  --accent-soft: #eef2ff;
   --ok: #15803d;
   --warn: #b45309;
   --danger: #b91c1c;
-  --radius-sm: 6px;
-  --radius-md: 8px;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
   --shell-header-h: 3.5rem;
-  --sidebar-w: 15rem;
+  --sidebar-w: 16rem;
+  --sidebar-w-collapsed: 4rem;
   --workbench-pad-x: 1rem;
   --workbench-pad-y: 1rem;
 }
@@ -28,6 +30,7 @@
   :root {
     --workbench-pad-x: 1.5rem;
     --workbench-pad-y: 1.25rem;
+    --shell-header-h: 0px;
   }
 }
 
@@ -67,8 +70,8 @@
 
   .field-input {
     @apply w-full border border-line bg-surface px-3 py-2 text-sm text-ink outline-none
-      transition-colors duration-150 placeholder:text-ink-faint
-      focus:border-accent focus:ring-2 focus:ring-accent-soft
+      transition-all duration-200 placeholder:text-ink-faint
+      focus:border-accent focus:ring-2 focus:ring-accent/20
       disabled:bg-elevated disabled:text-ink-muted;
     border-radius: var(--radius-md);
   }
@@ -141,8 +144,8 @@
   }
 
   .panel {
-    @apply border border-line bg-surface shadow-panel;
-    border-radius: var(--radius-md);
+    @apply border border-line/80 bg-surface shadow-panel;
+    border-radius: var(--radius-lg);
   }
 
   .app-enter {

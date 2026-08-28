@@ -55,6 +55,8 @@ class MessageOut(BaseModel):
     citations: list[CitationOut] = Field(default_factory=list)
     used_citations: list[int] = Field(default_factory=list)
     feedback: FeedbackOut | None = None
+    token_usage: dict[str, Any] | None = None
+    took_ms: int | None = None
     created_at: datetime
 
 

@@ -58,3 +58,19 @@ export function useLogout() {
     queryClient.clear();
   }, [queryClient]);
 }
+
+export function useUpdateProfile() {
+  const queryClient = useQueryClient();
+  return useMutation<SessionInfo, ApiError, { display_name: string }>({
+    mutationFn: authApi.updateProfile,
+    onSuccess: (data) => {
+      queryClient.setQueryData(SESSION_KEY, data);
+    },
+  });
+}
+
+export function useChangePassword() {
+  return useMutation<void, ApiError, { current_password: string; new_password: string }>({
+    mutationFn: authApi.changePassword,
+  });
+}

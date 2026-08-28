@@ -1,81 +1,130 @@
-import { useState } from 'react';
-import { List } from '@phosphor-icons/react';
+import { useEffect, useState } from 'react';
+import { BrainCircuit, Menu, PanelLeftClose, PanelLeft } from 'lucide-react';
 import { Outlet } from 'react-router-dom';
 
-import { BrandMark } from '@/components/BrandMark';
 import { SideSheet } from '@/components/SideSheet';
+import { UserMenu } from '@/components/UserMenu';
 import { Button } from '@/components/ui/Button';
 import { SidebarNav } from '@/components/ui/SidebarNav';
+import { cn } from '@/components/ui/cn';
 import { useLogout, useSession, useSwitchTenant } from '@/features/auth/hooks';
+
+const COLLAPSE_KEY = 'irp.sidebar.collapsed';
+
+function readCollapsed(): boolean {
+  try {
+    return localStorage.getItem(COLLAPSE_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
 
 export function AppLayout() {
   const { session } = useSession();
   const switchTenant = useSwitchTenant();
   const logout = useLogout();
   const [navOpen, setNavOpen] = useState(false);
+  const [collapsed, setCollapsed] = useState(readCollapsed);
   const role = session?.current_tenant.role;
 
+  useEffect(() => {
+    try {
+      localStorage.setItem(COLLAPSE_KEY, collapsed ? '1' : '0');
+    } catch {
+      /* ignore quota / private mode */
+    }
+  }, [collapsed]);
+
+  const userBlock = session ? (
+    <UserMenu
+      session={session}
+      collapsed={collapsed}
+      switchPending={switchTenant.isPending}
+      onSwitchTenant={(id) => switchTenant.mutate(id)}
+      onLogout={() => void logout()}
+    />
+  ) : null;
+
   return (
-    <div className="flex h-full flex-col bg-canvas">
-      <header
-        className="app-enter flex shrink-0 items-center gap-3 border-b border-line bg-surface px-4 lg:px-6"
-        style={{ height: 'var(--shell-header-h)' }}
+    <div className="flex h-full bg-[#F9FAFB]">
+      <aside
+        className={cn(
+          'relative z-20 hidden shrink-0 flex-col border-r border-slate-200/60 bg-white transition-[width] duration-200 ease-in-out lg:flex',
+        )}
+        style={{
+          width: collapsed ? 'var(--sidebar-w-collapsed)' : 'var(--sidebar-w)',
+        }}
       >
-        <Button
-          variant="ghost"
-          className="!px-2 lg:hidden"
-          aria-label="打开导航"
-          onClick={() => setNavOpen(true)}
-        >
-          <List size={22} weight="bold" />
-        </Button>
-
-        <div className="flex min-w-0 items-center gap-2.5">
-          <BrandMark size={28} />
-          <span className="hidden truncate text-[15px] font-semibold tracking-tight text-ink sm:inline">
-            工业知识库平台
-          </span>
-        </div>
-
-        <div className="ml-auto flex shrink-0 items-center gap-3">
-          {session && session.tenants.length > 1 && (
-            <select
-              aria-label="切换租户"
-              value={session.current_tenant.id}
-              disabled={switchTenant.isPending}
-              onChange={(e) => switchTenant.mutate(e.target.value)}
-              className="field-input !w-auto !py-1.5 text-sm"
-            >
-              {session.tenants.map((tenant) => (
-                <option key={tenant.id} value={tenant.id}>
-                  {tenant.name}
-                </option>
-              ))}
-            </select>
+        <div
+          className={cn(
+            'flex shrink-0 items-center gap-2 border-b border-slate-100 px-3 py-3',
+            collapsed ? 'flex-col gap-2' : 'justify-between',
           )}
-
-          {session && (
-            <span className="hidden text-sm text-ink-muted md:inline">
-              {session.user.display_name}
-              <span className="ml-1.5 text-xs text-ink-faint">{roleLabel(role ?? '')}</span>
+        >
+          <div
+            className={cn(
+              'flex min-w-0 items-center gap-2.5',
+              collapsed && 'justify-center',
+            )}
+          >
+            <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 text-white shadow-sm">
+              <BrainCircuit className="h-5 w-5" strokeWidth={1.5} aria-hidden />
             </span>
-          )}
-
-          <Button variant="ghost" onClick={() => void logout()}>
-            登出
-          </Button>
+            {!collapsed && (
+              <div className="min-w-0">
+                <p className="truncate text-sm font-bold tracking-tight text-slate-900">
+                  工业知识库
+                </p>
+                <p className="truncate text-[11px] text-slate-400">v2.0 · 智能检索</p>
+              </div>
+            )}
+          </div>
+          <button
+            type="button"
+            aria-label={collapsed ? '展开导航' : '收起导航'}
+            aria-expanded={!collapsed}
+            onClick={() => setCollapsed((v) => !v)}
+            className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-slate-400 transition-all duration-200 hover:bg-slate-100 hover:text-slate-700"
+          >
+            {collapsed ? (
+              <PanelLeft className="h-4 w-4" strokeWidth={1.5} />
+            ) : (
+              <PanelLeftClose className="h-4 w-4" strokeWidth={1.5} />
+            )}
+          </button>
         </div>
-      </header>
 
-      <div className="flex min-h-0 flex-1">
-        <aside
-          className="hidden shrink-0 border-r border-line bg-elevated lg:block"
-          style={{ width: 'var(--sidebar-w)' }}
+        <div className="min-h-0 flex-1 overflow-y-auto">
+          <SidebarNav role={role} collapsed={collapsed} />
+        </div>
+
+        <div className="shrink-0 border-t border-slate-100 p-2.5">{userBlock}</div>
+      </aside>
+
+      <div className="flex min-w-0 flex-1 flex-col">
+        <header
+          className="sticky top-0 z-30 flex shrink-0 items-center gap-3 border-b border-slate-200/60 bg-white/90 px-4 backdrop-blur-md lg:hidden"
+          style={{ height: 'var(--shell-header-h)' }}
         >
-          <SidebarNav role={role} />
-        </aside>
+          <Button
+            variant="ghost"
+            className="!px-2"
+            aria-label="打开导航"
+            onClick={() => setNavOpen(true)}
+          >
+            <Menu className="h-5 w-5" strokeWidth={1.5} />
+          </Button>
+          <div className="flex min-w-0 items-center gap-2">
+            <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-indigo-500 to-violet-600 text-white">
+              <BrainCircuit className="h-4 w-4" strokeWidth={1.5} aria-hidden />
+            </span>
+            <span className="truncate text-[15px] font-semibold text-slate-800">
+              工业知识库
+            </span>
+          </div>
+        </header>
 
-        <main className="workbench app-enter min-h-0 flex-1 overflow-hidden [animation-delay:40ms]">
+        <main className="workbench app-enter min-h-0 flex-1 overflow-hidden">
           <div className="workbench-pad min-h-0 h-full overflow-auto">
             <Outlet />
           </div>
@@ -83,12 +132,32 @@ export function AppLayout() {
       </div>
 
       <SideSheet open={navOpen} onClose={() => setNavOpen(false)} title="导航" side="left">
-        <SidebarNav role={role} onNavigate={() => setNavOpen(false)} />
+        <div className="flex min-h-full flex-col">
+          <div className="mb-2 flex items-center gap-2.5 px-1 pb-3">
+            <span className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 text-white">
+              <BrainCircuit className="h-5 w-5" strokeWidth={1.5} aria-hidden />
+            </span>
+            <div>
+              <p className="text-sm font-semibold text-ink">工业知识库</p>
+              <p className="text-[11px] text-ink-faint">v2.0 · 智能检索</p>
+            </div>
+          </div>
+          <div className="flex-1">
+            <SidebarNav role={role} onNavigate={() => setNavOpen(false)} />
+          </div>
+          {session ? (
+            <div className="sticky bottom-0 -mx-3 mt-auto border-t border-line/70 bg-canvas px-3 pt-2">
+              <UserMenu
+                session={session}
+                collapsed={false}
+                switchPending={switchTenant.isPending}
+                onSwitchTenant={(id) => switchTenant.mutate(id)}
+                onLogout={() => void logout()}
+              />
+            </div>
+          ) : null}
+        </div>
       </SideSheet>
     </div>
   );
-}
-
-function roleLabel(role: string): string {
-  return { owner: '所有者', admin: '管理员', member: '成员' }[role] ?? role;
 }

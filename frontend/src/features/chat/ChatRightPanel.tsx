@@ -75,11 +75,11 @@ export function ChatRightPanel({
   const error = docError || previewError || pagesError;
 
   return (
-    <aside className="flex h-full flex-col overflow-hidden panel">
-      <div className="flex items-center justify-between gap-2 border-b border-line px-3 py-2">
+    <aside className="flex h-full flex-col overflow-hidden">
+      <div className="flex items-center justify-between gap-2 border-b border-line/70 px-3 py-2.5">
         <button
           type="button"
-          className="text-xs text-accent hover:underline"
+          className="rounded-full px-2 py-1 text-xs font-medium text-accent transition-all duration-200 hover:bg-accent-soft"
           onClick={onBackToList}
         >
           ← 返回证据
@@ -88,9 +88,9 @@ export function ChatRightPanel({
           [{active.index_no}] {active.document_title || '文档'} · p.{active.page_start}
         </div>
       </div>
-      <div className="border-b border-line px-3 py-1.5 text-right">
+      <div className="border-b border-line/70 px-3 py-1.5 text-right">
         <Link
-          className="text-xs text-ink-muted hover:text-accent"
+          className="rounded-full px-2 py-1 text-xs text-ink-muted transition-colors duration-200 hover:bg-accent-soft hover:text-accent"
           to={`/documents/${active.document_id}?page=${active.page_start}${
             active.chunk_id ? `&chunk=${active.chunk_id}` : ''
           }`}

@@ -31,6 +31,13 @@ export function ChatPage() {
   const [rightMode, setRightMode] = useState<'list' | 'preview'>('list');
   const [evidenceOpen, setEvidenceOpen] = useState(false);
   const [sessionsOpen, setSessionsOpen] = useState(false);
+  const [evidenceCollapsed, setEvidenceCollapsed] = useState(() => {
+    try {
+      return localStorage.getItem('irp.chat.evidenceCollapsed') === '1';
+    } catch {
+      return false;
+    }
+  });
   const abortRef = useRef<AbortController | null>(null);
   const bottomRef = useRef<HTMLDivElement | null>(null);
 
@@ -76,6 +83,17 @@ export function ChatPage() {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [displayMessages, streaming]);
 
+  useEffect(() => {
+    try {
+      localStorage.setItem('irp.chat.evidenceCollapsed', evidenceCollapsed ? '1' : '0');
+    } catch {
+      /* ignore */
+    }
+  }, [evidenceCollapsed]);
+
+  const activeConversationTitle =
+    conversations.find((c) => c.id === conversationId)?.title ?? null;
+
   function toggleKb(id: string) {
     setSelectedKbIds((prev) =>
       prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
@@ -115,6 +133,7 @@ export function ChatPage() {
     setActiveCitation(n);
     setRightMode('preview');
     setEvidenceOpen(true);
+    setEvidenceCollapsed(false);
   }
 
   function stopStreaming() {
@@ -215,6 +234,8 @@ export function ChatPage() {
               citations: [],
               used_citations: [],
               feedback: undefined,
+              took_ms: null,
+              token_usage: null,
             }
           : m,
       ),
@@ -249,8 +270,8 @@ export function ChatPage() {
   );
 
   return (
-    <div className="page-fill gap-3 xl:gap-4">
-      <aside className="panel hidden h-full min-h-0 w-52 shrink-0 overflow-hidden sm:block xl:w-60">
+    <div className="page-fill gap-0 overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-sm">
+      <aside className="hidden h-full min-h-0 w-64 shrink-0 overflow-hidden border-r border-slate-200/60 sm:block xl:w-72">
         <ConversationList
           conversations={conversations}
           activeId={conversationId}
@@ -261,15 +282,17 @@ export function ChatPage() {
         />
       </aside>
 
-      <section className="panel flex min-w-0 flex-1 flex-col overflow-hidden">
+      <section className="flex min-w-0 flex-1 flex-col overflow-hidden bg-white">
         <ChatToolbar
           bases={bases}
           kbLoading={kbLoading}
           selectedKbIds={selectedKbIds}
           conversationId={conversationId}
+          conversationTitle={activeConversationTitle}
           streaming={streaming}
           conversationsCount={conversations.length}
           citationsCount={panelCitations.length}
+          evidenceCollapsed={evidenceCollapsed}
           onToggleKb={toggleKb}
           onOpenSessions={() => {
             setEvidenceOpen(false);
@@ -280,6 +303,7 @@ export function ChatPage() {
             setRightMode('list');
             setEvidenceOpen(true);
           }}
+          onToggleEvidencePanel={() => setEvidenceCollapsed((v) => !v)}
           onNewChat={startNewChat}
         />
 
@@ -308,9 +332,11 @@ export function ChatPage() {
         />
       </section>
 
-      <div className="panel hidden h-full min-h-0 w-72 shrink-0 overflow-hidden lg:block xl:w-80">
-        {evidencePanel}
-      </div>
+      {!evidenceCollapsed && (
+        <div className="hidden h-full min-h-0 w-72 shrink-0 overflow-hidden border-l border-slate-200/60 bg-white lg:block xl:w-80">
+          {evidencePanel}
+        </div>
+      )}
 
       <SideSheet
         open={sessionsOpen}
@@ -351,7 +377,29 @@ function toUi(m: ChatMessage): UiMessage {
     citations: m.citations,
     used_citations: m.used_citations,
     feedback: m.feedback,
+    token_usage: m.token_usage ?? null,
+    took_ms: m.took_ms ?? null,
   };
+}
+
+function parseTokenUsage(raw: unknown): UiMessage['token_usage'] {
+  if (!raw || typeof raw !== 'object') return null;
+  const obj = raw as Record<string, unknown>;
+  const prompt = Number(obj.prompt_tokens ?? 0);
+  const completion = Number(obj.completion_tokens ?? 0);
+  if (!Number.isFinite(prompt) && !Number.isFinite(completion)) return null;
+  return {
+    prompt_tokens: Number.isFinite(prompt) ? prompt : 0,
+    completion_tokens: Number.isFinite(completion) ? completion : 0,
+  };
+}
+
+function parseTookMs(raw: unknown): number | null {
+  if (typeof raw === 'number' && Number.isFinite(raw)) return Math.max(0, Math.round(raw));
+  if (typeof raw === 'string' && raw.trim() !== '' && Number.isFinite(Number(raw))) {
+    return Math.max(0, Math.round(Number(raw)));
+  }
+  return null;
 }
 
 async function consumeAssistantStream(
@@ -385,6 +433,7 @@ async function consumeAssistantStream(
       );
     } else if (ev.event === 'no_answer') {
       const reason = asString(data.reason) || 'no_relevant_evidence';
+      const tookMs = parseTookMs(data.took_ms);
       ctx.setLiveMessages((prev) =>
         prev.map((m, i) =>
           i === prev.length - 1
@@ -392,6 +441,8 @@ async function consumeAssistantStream(
                 ...m,
                 content: '未找到足够相关的资料，请换一种问法或补充上传文档。',
                 status: 'completed',
+                took_ms: tookMs,
+                token_usage: null,
               }
             : m,
         ),
@@ -401,10 +452,18 @@ async function consumeAssistantStream(
       const used = Array.isArray(data.used_citations)
         ? (data.used_citations as number[])
         : [];
+      const tookMs = parseTookMs(data.took_ms);
+      const tokenUsage = parseTokenUsage(data.usage);
       ctx.setLiveMessages((prev) =>
         prev.map((m, i) =>
           i === prev.length - 1
-            ? { ...m, status: 'completed', used_citations: used }
+            ? {
+                ...m,
+                status: 'completed',
+                used_citations: used,
+                took_ms: tookMs,
+                token_usage: tokenUsage ?? null,
+              }
             : m,
         ),
       );

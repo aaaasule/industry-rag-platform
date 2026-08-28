@@ -33,6 +33,12 @@ from app.platform.rate_limit import RateLimiter
 
 router = APIRouter(tags=["chat"])
 
+_SSE_HEADERS = {
+    "Cache-Control": "no-cache",
+    "Connection": "keep-alive",
+    "X-Accel-Buffering": "no",
+}
+
 
 def _service(
     session: TenantSessionDep,
@@ -110,7 +116,11 @@ async def regenerate_message(
         finally:
             limiter.release_chat_slot(tenant_id=claims.tenant_id, lease_id=lease_id)
 
-    return StreamingResponse(_stream_with_lease(), media_type="text/event-stream")
+    return StreamingResponse(
+        _stream_with_lease(),
+        media_type="text/event-stream",
+        headers=_SSE_HEADERS,
+    )
 
 
 @router.post(
@@ -140,4 +150,8 @@ async def chat_completions(
         finally:
             limiter.release_chat_slot(tenant_id=claims.tenant_id, lease_id=lease_id)
 
-    return StreamingResponse(_stream_with_lease(), media_type="text/event-stream")
+    return StreamingResponse(
+        _stream_with_lease(),
+        media_type="text/event-stream",
+        headers=_SSE_HEADERS,
+    )

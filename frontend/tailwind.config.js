@@ -5,15 +5,15 @@ export default {
     extend: {
       colors: {
         brand: {
-          50: '#EFF6FF',
-          100: '#DBEAFE',
-          500: '#1D4ED8',
-          600: '#1D4ED8',
-          700: '#1E40AF',
+          50: '#EEF2FF',
+          100: '#E0E7FF',
+          500: '#4F46E5',
+          600: '#4F46E5',
+          700: '#4338CA',
         },
-        canvas: '#F1F5F9',
+        canvas: '#F8FAFC',
         surface: '#FFFFFF',
-        elevated: '#F8FAFC',
+        elevated: '#F1F5F9',
         ink: {
           DEFAULT: '#0F172A',
           muted: '#64748B',
@@ -21,9 +21,9 @@ export default {
         },
         line: '#E2E8F0',
         accent: {
-          DEFAULT: '#1D4ED8',
-          hover: '#1E40AF',
-          soft: '#EFF6FF',
+          DEFAULT: '#4F46E5',
+          hover: '#4338CA',
+          soft: '#EEF2FF',
         },
         ok: '#15803D',
         warn: '#B45309',
@@ -42,15 +42,18 @@ export default {
         mono: ['"IBM Plex Mono"', 'ui-monospace', 'SFMono-Regular', 'Menlo', 'monospace'],
       },
       borderRadius: {
-        sm: '6px',
-        DEFAULT: '8px',
-        md: '8px',
-        lg: '8px',
+        sm: '8px',
+        DEFAULT: '12px',
+        md: '12px',
+        lg: '16px',
+        xl: '16px',
+        '2xl': '20px',
         full: '9999px',
       },
       boxShadow: {
-        panel: '0 1px 0 rgba(15, 23, 42, 0.06)',
-        elevated: '0 1px 3px rgba(15, 23, 42, 0.08)',
+        panel: '0 1px 2px rgba(15, 23, 42, 0.04), 0 4px 12px rgba(15, 23, 42, 0.03)',
+        elevated: '0 4px 16px rgba(15, 23, 42, 0.08)',
+        composer: '0 8px 24px rgba(15, 23, 42, 0.06), 0 0 0 1px rgba(226, 232, 240, 0.8)',
       },
       keyframes: {
         'fade-up': {
