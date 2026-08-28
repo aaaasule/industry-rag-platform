@@ -24,6 +24,18 @@ def test_validate_kb_settings_rejects_unknown_nested() -> None:
     assert ei.value.code == "settings_invalid"
 
 
+def test_validate_kb_settings_rejects_invalid_chunk_value_type() -> None:
+    with pytest.raises(UnprocessableState) as ei:
+        validate_kb_settings({"chunk_rules": {"max_tokens": "abc"}})
+    assert ei.value.code == "settings_invalid"
+
+
+def test_validate_kb_settings_rejects_invalid_retrieval_value_type() -> None:
+    with pytest.raises(UnprocessableState) as ei:
+        validate_kb_settings({"retrieval_rules": {"top_k": "not-a-number"}})
+    assert ei.value.code == "settings_invalid"
+
+
 def test_validate_kb_settings_allows_whitelist() -> None:
     out = validate_kb_settings(
         {
@@ -94,3 +106,36 @@ async def test_patch_kb_settings_unknown_key_422(
     )
     assert bad.status_code == 422, bad.text
     assert bad.json()["error"]["code"] == "settings_invalid"
+
+
+async def test_patch_kb_settings_invalid_value_422_preserves_prior(
+    client: AsyncClient, auth_headers: dict[str, str], fixture_data: Fixture
+) -> None:
+    create = await client.post(
+        "/api/v1/knowledge-bases",
+        headers=auth_headers,
+        json={"name": "值类型校验库"},
+    )
+    assert create.status_code == 201, create.text
+    kb_id = create.json()["id"]
+
+    good = await client.patch(
+        f"/api/v1/knowledge-bases/{kb_id}",
+        headers=auth_headers,
+        json={"settings": {"chunk_rules": {"max_tokens": 256}}},
+    )
+    assert good.status_code == 200, good.text
+    assert good.json()["effective_chunk_rules"]["max_tokens"] == 256
+
+    bad = await client.patch(
+        f"/api/v1/knowledge-bases/{kb_id}",
+        headers=auth_headers,
+        json={"settings": {"chunk_rules": {"max_tokens": "abc"}}},
+    )
+    assert bad.status_code == 422, bad.text
+    assert bad.json()["error"]["code"] == "settings_invalid"
+
+    got = await client.get(f"/api/v1/knowledge-bases/{kb_id}", headers=auth_headers)
+    assert got.status_code == 200, got.text
+    assert got.json()["settings"]["chunk_rules"]["max_tokens"] == 256
+    assert got.json()["effective_chunk_rules"]["max_tokens"] == 256
