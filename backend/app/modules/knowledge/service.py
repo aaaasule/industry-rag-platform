@@ -41,12 +41,14 @@ from app.modules.knowledge.schemas import (
     UploadUrlRequest,
     UploadUrlResponse,
 )
+from app.modules.knowledge.settings_validate import validate_kb_settings
 from app.modules.profile.schemas import (
     ChunkRulesConfig,
     ParseRulesConfig,
     PromptOverridesConfig,
     RetrievalRulesConfig,
 )
+from app.modules.profile.service import resolve_effective_profile
 from app.platform.config import Settings
 from app.platform.errors import AppError, Conflict, Forbidden, NotFound, UnprocessableState
 from app.platform.ids import uuid7
@@ -92,6 +94,17 @@ class KnowledgeService:
         self._repo = repo
         self._settings = settings
         self._store = store or S3ObjectStore(settings)
+
+    async def _kb_out(self, kb: KnowledgeBase) -> KnowledgeBaseOut:
+        effective = await resolve_effective_profile(self._repo._session, kb.id)
+        base = KnowledgeBaseOut.model_validate(kb)
+        return base.model_copy(
+            update={
+                "settings": dict(kb.settings or {}),
+                "effective_chunk_rules": effective.chunk_rules.model_dump(),
+                "effective_retrieval_rules": effective.retrieval_rules.model_dump(),
+            }
+        )
 
     async def list_profiles(
         self, tenant_id: uuid.UUID, *, include_deleted: bool = False
@@ -228,7 +241,7 @@ class KnowledgeService:
             permission=PERM_READ,
         )
         rows = await self._repo.list_knowledge_bases(claims.tenant_id, kb_ids=ids)
-        return [KnowledgeBaseOut.model_validate(r) for r in rows]
+        return [await self._kb_out(r) for r in rows]
 
     async def create_knowledge_base(
         self, claims: TokenClaims, payload: KnowledgeBaseCreate
@@ -248,11 +261,11 @@ class KnowledgeService:
             created_by=claims.user_id,
         )
         await self._repo.add_knowledge_base(kb)
-        return KnowledgeBaseOut.model_validate(kb)
+        return await self._kb_out(kb)
 
     async def get_knowledge_base(self, claims: TokenClaims, kb_id: uuid.UUID) -> KnowledgeBaseOut:
         kb = await self._require_kb(claims, kb_id, PERM_READ)
-        return KnowledgeBaseOut.model_validate(kb)
+        return await self._kb_out(kb)
 
     async def update_knowledge_base(
         self, claims: TokenClaims, kb_id: uuid.UUID, payload: KnowledgeBaseUpdate
@@ -269,8 +282,11 @@ class KnowledgeService:
             if profile is None:
                 raise UnprocessableState("行业模板不存在", code="profile_not_found")
             kb.profile_id = profile.id
+        if payload.settings is not None:
+            # 整体替换白名单域；不自动 reingest
+            kb.settings = validate_kb_settings(payload.settings)
         await self._repo._session.flush()
-        return KnowledgeBaseOut.model_validate(kb)
+        return await self._kb_out(kb)
 
     async def delete_knowledge_base(self, claims: TokenClaims, kb_id: uuid.UUID) -> None:
         kb = await self._require_kb(claims, kb_id, PERM_MANAGE)

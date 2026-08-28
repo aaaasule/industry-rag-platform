@@ -4176,6 +4176,21 @@
             ],
             "title": "Profile Id"
           },
+          "settings": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Settings"
+          },
+          "effective_chunk_rules": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Effective Chunk Rules"
+          },
+          "effective_retrieval_rules": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Effective Retrieval Rules"
+          },
           "created_at": {
             "type": "string",
             "format": "date-time",
@@ -4248,6 +4263,19 @@
             ],
             "title": "Profile Code",
             "description": "改绑行业模板 code"
+          },
+          "settings": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Settings",
+            "description": "KB 覆盖：chunk_rules / retrieval_rules 白名单"
           }
         },
         "type": "object",

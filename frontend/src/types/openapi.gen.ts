@@ -1272,6 +1272,18 @@ export interface components {
             chunk_count: number;
             /** Profile Id */
             profile_id: string | null;
+            /** Settings */
+            settings?: {
+                [key: string]: unknown;
+            };
+            /** Effective Chunk Rules */
+            effective_chunk_rules?: {
+                [key: string]: unknown;
+            };
+            /** Effective Retrieval Rules */
+            effective_retrieval_rules?: {
+                [key: string]: unknown;
+            };
             /**
              * Created At
              * Format: date-time
@@ -1291,6 +1303,13 @@ export interface components {
              * @description 改绑行业模板 code
              */
             profile_code?: string | null;
+            /**
+             * Settings
+             * @description KB 覆盖：chunk_rules / retrieval_rules 白名单
+             */
+            settings?: {
+                [key: string]: unknown;
+            } | null;
         };
         /** LoginRequest */
         LoginRequest: {

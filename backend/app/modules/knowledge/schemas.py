@@ -23,6 +23,9 @@ class KnowledgeBaseUpdate(BaseModel):
     profile_code: str | None = Field(
         default=None, min_length=1, max_length=100, description="改绑行业模板 code"
     )
+    settings: dict[str, Any] | None = Field(
+        default=None, description="KB 覆盖：chunk_rules / retrieval_rules 白名单"
+    )
 
 
 class KnowledgeBaseOut(BaseModel):
@@ -37,6 +40,9 @@ class KnowledgeBaseOut(BaseModel):
     doc_count: int
     chunk_count: int
     profile_id: uuid.UUID | None
+    settings: dict[str, Any] = Field(default_factory=dict)
+    effective_chunk_rules: dict[str, Any] = Field(default_factory=dict)
+    effective_retrieval_rules: dict[str, Any] = Field(default_factory=dict)
     created_at: datetime
 
 
