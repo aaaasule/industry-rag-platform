@@ -164,12 +164,13 @@ export function DocumentDetailPage() {
       </header>
 
       <div className="grid min-h-0 flex-1 gap-3 lg:grid-cols-2">
-        <section className="panel min-h-0 overflow-hidden shadow-elevated">
+        <section className="panel flex min-h-0 flex-col overflow-hidden shadow-elevated">
           {doc && !isPdf && (
             <>
               {pagesLoading && <p className="p-6 text-sm text-ink-muted">加载预览…</p>}
               {!pagesLoading && (
                 <TextPreview
+                  className="min-h-0 flex-1"
                   pages={pages}
                   activePage={activeChunk?.page_start ?? page}
                   highlightText={activeChunk?.content ?? null}
@@ -182,6 +183,7 @@ export function DocumentDetailPage() {
           )}
           {isPdf && preview?.url && (
             <PdfHighlightViewer
+              className="min-h-0 flex-1"
               url={preview.url}
               page={page}
               bboxes={bboxes}

@@ -10,9 +10,10 @@ type Props = {
   pages: PreviewPage[];
   activePage?: number | null | undefined;
   highlightText?: string | null | undefined;
+  className?: string;
 };
 
-export function TextPreview({ pages, activePage, highlightText }: Props) {
+export function TextPreview({ pages, activePage, highlightText, className }: Props) {
   useEffect(() => {
     if (activePage == null) return;
     document
@@ -25,7 +26,9 @@ export function TextPreview({ pages, activePage, highlightText }: Props) {
   }
 
   return (
-    <div className="h-full overflow-auto p-4">
+    <div className={['min-h-0 overflow-y-auto overscroll-contain p-4 scroll-smooth', className]
+      .filter(Boolean)
+      .join(' ')}>
       {pages.map((page) => {
         const active = activePage != null && page.page_no === activePage;
         return (
