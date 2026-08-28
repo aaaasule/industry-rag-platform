@@ -1,4 +1,4 @@
-import { FileText } from '@phosphor-icons/react';
+import { FileText } from 'lucide-react';
 import type { ReactNode } from 'react';
 
 type Props = {
@@ -22,18 +22,18 @@ export function EmptyState({ title, description, action, className = '', compact
       <span
         aria-hidden
         className={[
-          'inline-flex items-center justify-center rounded-lg border border-dashed border-line bg-elevated text-ink-faint',
+          'inline-flex items-center justify-center rounded-lg border border-dashed border-slate-200 bg-slate-50 text-slate-400',
           compact ? 'h-8 w-8' : 'h-10 w-10',
         ].join(' ')}
       >
-        <FileText size={compact ? 16 : 20} weight="duotone" />
+        <FileText className={compact ? 'h-4 w-4' : 'h-5 w-5'} strokeWidth={1.5} />
       </span>
       <div className="max-w-xs space-y-1">
-        <p className={compact ? 'text-sm text-ink-muted' : 'text-sm font-medium text-ink'}>
+        <p className={compact ? 'text-sm text-slate-600' : 'text-sm font-medium text-slate-800'}>
           {title}
         </p>
         {description ? (
-          <p className="text-xs leading-relaxed text-ink-faint">{description}</p>
+          <p className="text-xs leading-relaxed text-slate-400">{description}</p>
         ) : null}
       </div>
       {action ? <div className="mt-1">{action}</div> : null}

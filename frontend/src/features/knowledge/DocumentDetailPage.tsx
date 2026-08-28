@@ -1,4 +1,4 @@
-import { ArrowLeft } from '@phosphor-icons/react';
+import { ArrowLeft } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -148,7 +148,7 @@ export function DocumentDetailPage() {
           to={kbId ? `/knowledge/${kbId}` : '/knowledge'}
           className="inline-flex items-center gap-1.5 text-sm text-ink-muted transition-colors hover:text-accent"
         >
-          <ArrowLeft size={16} weight="bold" />
+          <ArrowLeft className="h-4 w-4" strokeWidth={1.5} />
           {kb?.name ?? '知识库'}
         </Link>
         <div className="mt-3 flex flex-wrap items-center gap-2">

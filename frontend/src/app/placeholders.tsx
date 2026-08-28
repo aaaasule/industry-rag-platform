@@ -2,7 +2,14 @@
  * 概览：工作台入口 + 轻量真实摘要。
  */
 
-import { ArrowRight, Books, ChatCircleDots, GearSix, ChartBar } from '@phosphor-icons/react';
+import {
+  ArrowRight,
+  BarChart3,
+  Library,
+  MessageSquare,
+  Settings2,
+  type LucideIcon,
+} from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 import { CardSkeleton } from '@/components/Skeleton';
@@ -17,7 +24,7 @@ type Shortcut = {
   title: string;
   desc: string;
   hint?: string | null;
-  icon: typeof Books;
+  icon: LucideIcon;
   large?: boolean;
   roles?: ReadonlyArray<'owner' | 'admin' | 'member'>;
 };
@@ -117,7 +124,7 @@ export function OverviewPage() {
       title: '知识库',
       desc: '上传手册、跟踪摄取，为检索与问答准备语料',
       hint: !kbQ.isLoading ? `${kbCount} 个库 · ${docCount} 文档` : null,
-      icon: Books,
+      icon: Library,
       large: true,
     },
     {
@@ -125,7 +132,7 @@ export function OverviewPage() {
       title: '问答',
       desc: '选择知识库提问，右侧核对证据与引用',
       hint: !convQ.isLoading ? `${convCount} 个会话` : null,
-      icon: ChatCircleDots,
+      icon: MessageSquare,
       large: true,
     },
   ];
@@ -139,7 +146,7 @@ export function OverviewPage() {
         hint: summaryQ.data
           ? `近 7 日 ${summaryQ.data.call_count.toLocaleString('zh-CN')} 次调用`
           : null,
-        icon: ChartBar,
+        icon: BarChart3,
       },
       {
         to: '/admin',
@@ -149,7 +156,7 @@ export function OverviewPage() {
           !connQ.isLoading && connections.length > 0
             ? `接入点 ${healthyCount}/${connections.length} 正常`
             : null,
-        icon: GearSix,
+        icon: Settings2,
       },
     );
   }
@@ -189,26 +196,26 @@ export function OverviewPage() {
               key={item.to}
               to={item.to}
               className={[
-                'panel group relative flex flex-col overflow-hidden transition-all duration-150 hover:border-accent hover:shadow-elevated',
+                'panel group relative flex flex-col overflow-hidden transition-all duration-200 hover:border-indigo-200 hover:shadow-md',
                 item.large ? 'min-h-[160px] p-6 lg:col-span-1' : 'min-h-[120px] p-5',
               ].join(' ')}
             >
               <div className="flex items-start justify-between gap-4">
-                <span className="inline-flex rounded-lg bg-accent-soft p-2 text-accent">
-                  <Icon size={22} weight="duotone" aria-hidden />
+                <span className="inline-flex rounded-lg bg-indigo-50 p-2 text-indigo-600">
+                  <Icon className="h-5 w-5" strokeWidth={1.5} aria-hidden />
                 </span>
                 <ArrowRight
-                  size={18}
-                  className="shrink-0 text-ink-faint transition-transform duration-150 group-hover:translate-x-0.5 group-hover:text-accent"
+                  className="h-4 w-4 shrink-0 text-slate-300 transition-transform duration-200 group-hover:translate-x-0.5 group-hover:text-indigo-500"
+                  strokeWidth={1.5}
                   aria-hidden
                 />
               </div>
-              <h2 className="mt-4 text-base font-semibold text-ink group-hover:text-accent">
+              <h2 className="mt-4 text-base font-semibold text-slate-800 group-hover:text-indigo-600">
                 {item.title}
               </h2>
-              <p className="mt-1.5 text-sm leading-relaxed text-ink-muted">{item.desc}</p>
+              <p className="mt-1.5 text-sm leading-relaxed text-slate-500">{item.desc}</p>
               {item.hint ? (
-                <p className="mt-auto pt-3 text-xs tabular-nums text-ink-faint">{item.hint}</p>
+                <p className="mt-auto pt-3 text-xs tabular-nums text-slate-400">{item.hint}</p>
               ) : null}
             </Link>
           );
@@ -216,11 +223,11 @@ export function OverviewPage() {
       </section>
 
       <section className="panel p-5">
-        <h2 className="text-sm font-semibold text-ink">平台能力</h2>
+        <h2 className="text-sm font-semibold text-slate-800">平台能力</h2>
         <ul className="mt-3 space-y-2">
           {CAPABILITIES.map((text) => (
-            <li key={text} className="flex gap-2 text-sm text-ink-muted">
-              <span className="mt-2 h-1 w-1 shrink-0 rounded-full bg-accent" aria-hidden />
+            <li key={text} className="flex gap-2 text-sm text-slate-500">
+              <span className="mt-2 h-1 w-1 shrink-0 rounded-full bg-indigo-500" aria-hidden />
               {text}
             </li>
           ))}
