@@ -541,11 +541,26 @@ class KnowledgeService:
             payload={"kb_id": str(kb_id), "title": title},
         )
 
-    async def reingest(self, claims: TokenClaims, doc_id: uuid.UUID) -> DocumentCreated:
+    async def reingest(
+        self,
+        claims: TokenClaims,
+        doc_id: uuid.UUID,
+        *,
+        record_audit: bool = True,
+    ) -> DocumentCreated:
         doc = await self._require_doc(claims, doc_id, PERM_WRITE)
         from app.modules.ingestion.service import enqueue_ingest
 
         job_id = await enqueue_ingest(doc.id, claims.tenant_id, self._repo._session, force=True)
+        if record_audit:
+            await AuditService(self._repo._session).record(
+                tenant_id=claims.tenant_id,
+                actor_id=claims.user_id,
+                action="document.reingest",
+                target_type="document",
+                target_id=doc.id,
+                payload={"kb_id": str(doc.kb_id), "title": doc.title},
+            )
         return DocumentCreated(document_id=doc.id, status=doc.status, job_id=job_id)
 
     async def batch_documents(
@@ -567,7 +582,7 @@ class KnowledgeService:
                 job_ids[str(doc.id)] = None
         else:
             for doc in docs:
-                created = await self.reingest(claims, doc.id)
+                created = await self.reingest(claims, doc.id, record_audit=False)
                 job_ids[str(doc.id)] = created.job_id
             await AuditService(self._repo._session).record(
                 tenant_id=claims.tenant_id,

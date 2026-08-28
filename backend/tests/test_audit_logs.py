@@ -252,6 +252,63 @@ async def test_document_upload_and_delete_audit(
     ), deletes.text
 
 
+async def test_document_reingest_writes_audit(
+    client: AsyncClient, auth_headers: dict[str, str], fixture_data: Fixture
+) -> None:
+    kb = await client.post(
+        "/api/v1/knowledge-bases",
+        headers=auth_headers,
+        json={"name": "重解析审计库"},
+    )
+    assert kb.status_code == 201, kb.text
+    kb_id = kb.json()["id"]
+
+    from app.platform.ids import uuid7
+
+    document_id = uuid7()
+    reg = await client.post(
+        f"/api/v1/knowledge-bases/{kb_id}/documents",
+        headers=auth_headers,
+        json={
+            "document_id": str(document_id),
+            "storage_key": (
+                f"tenants/{fixture_data.primary_tenant_id}/documents/{document_id}/re.pdf"
+            ),
+            "title": "重解析样例",
+            "checksum": "sha256:" + "d" * 64,
+            "file_size": 1024,
+            "mime_type": "application/pdf",
+            "metadata": {},
+        },
+    )
+    assert reg.status_code == 202, reg.text
+
+    re = await client.post(
+        f"/api/v1/documents/{document_id}/reingest",
+        headers=auth_headers,
+    )
+    assert re.status_code == 202, re.text
+
+    logs = await client.get(
+        "/api/v1/admin/audit-logs",
+        headers=auth_headers,
+        params={"action": "document.reingest", "limit": 50},
+    )
+    assert logs.status_code == 200, logs.text
+    assert any(
+        i["action"] == "document.reingest"
+        and i["target_type"] == "document"
+        and i["target_id"] == str(document_id)
+        and i["payload"].get("kb_id") == kb_id
+        and i["payload"].get("title") == "重解析样例"
+        for i in logs.json()["items"]
+    ), logs.text
+
+    # 软删文档，降低 teardown 与 ingest worker 争锁概率
+    deleted = await client.delete(f"/api/v1/documents/{document_id}", headers=auth_headers)
+    assert deleted.status_code == 204, deleted.text
+
+
 async def test_ingest_fail_audit_can_be_recorded(
     client: AsyncClient, auth_headers: dict[str, str], fixture_data: Fixture
 ) -> None:

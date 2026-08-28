@@ -8,6 +8,7 @@ import { Skeleton } from '@/components/Skeleton';
 import { DocumentStatusBadge } from '@/components/StatusBadge';
 import { Button } from '@/components/ui/Button';
 import { useToast } from '@/components/toast/useToast';
+import { useSession } from '@/features/auth/hooks';
 import { BATCH_DOCUMENTS_MAX, IN_PROGRESS, type DocumentItem } from '../api';
 import {
   useBatchDocuments,
@@ -30,6 +31,9 @@ function formatBytes(n: number): string {
 export function KbFilesPanel() {
   const { kbId = '' } = useParams();
   const toast = useToast();
+  const { session } = useSession();
+  const role = session?.current_tenant.role;
+  const canWrite = role === 'owner' || role === 'admin';
   const { data: kb } = useKnowledgeBase(kbId);
   const { data: profiles = [] } = useProfiles();
   const { data: docs = [], isLoading } = useDocuments(kbId);
@@ -230,7 +234,7 @@ export function KbFilesPanel() {
           />
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          {selectedCount > 0 ? (
+          {canWrite && selectedCount > 0 ? (
             <>
               <span className="text-xs text-slate-500">已选 {selectedCount}</span>
               <Button
@@ -251,7 +255,10 @@ export function KbFilesPanel() {
               </Button>
             </>
           ) : null}
-          <Button onClick={() => inputRef.current?.click()} disabled={upload.isPending}>
+          <Button
+            onClick={() => inputRef.current?.click()}
+            disabled={!canWrite || upload.isPending}
+          >
             <Plus className="h-4 w-4" strokeWidth={1.5} />
             新增文件
           </Button>
@@ -260,11 +267,13 @@ export function KbFilesPanel() {
 
       <div
         role="button"
-        tabIndex={0}
+        tabIndex={canWrite ? 0 : -1}
         onKeyDown={(e) => {
+          if (!canWrite) return;
           if (e.key === 'Enter' || e.key === ' ') inputRef.current?.click();
         }}
         onDragOver={(e) => {
+          if (!canWrite) return;
           e.preventDefault();
           setDragOver(true);
         }}
@@ -272,14 +281,20 @@ export function KbFilesPanel() {
         onDrop={(e) => {
           e.preventDefault();
           setDragOver(false);
+          if (!canWrite) return;
           if (e.dataTransfer.files.length) void onFiles(e.dataTransfer.files);
         }}
-        onClick={() => inputRef.current?.click()}
+        onClick={() => {
+          if (canWrite) inputRef.current?.click();
+        }}
         className={[
-          'panel cursor-pointer border-2 border-dashed p-8 text-center transition-all duration-150',
+          'panel border-2 border-dashed p-8 text-center transition-all duration-150',
+          canWrite ? 'cursor-pointer' : 'cursor-not-allowed opacity-50',
           dragOver
             ? 'border-indigo-400 bg-indigo-50'
-            : 'border-slate-200 hover:border-indigo-300 hover:bg-indigo-50/40',
+            : canWrite
+              ? 'border-slate-200 hover:border-indigo-300 hover:bg-indigo-50/40'
+              : 'border-slate-200',
           upload.isPending ? 'pointer-events-none opacity-70' : '',
         ].join(' ')}
       >
@@ -287,7 +302,11 @@ export function KbFilesPanel() {
           <CloudUpload className="h-6 w-6" strokeWidth={1.5} />
         </span>
         <p className="mt-3 text-sm font-medium text-slate-800">
-          {upload.isPending ? '上传中…' : '拖拽文件到此处，或点击选择（支持多选）'}
+          {!canWrite
+            ? '仅管理员可上传文件'
+            : upload.isPending
+              ? '上传中…'
+              : '拖拽文件到此处，或点击选择（支持多选）'}
         </p>
         <p className="mt-1 text-xs text-slate-400">
           PDF / Word / Excel / PPT / Markdown / TXT，单文件 ≤ 32MB
@@ -424,17 +443,25 @@ export function KbFilesPanel() {
                   <td className="px-4 py-3">
                     <label
                       className={[
-                        'relative inline-flex h-5 w-9 cursor-pointer items-center',
-                        switchBusy ? 'pointer-events-none opacity-60' : '',
+                        'relative inline-flex h-5 w-9 items-center',
+                        !canWrite || switchBusy
+                          ? 'cursor-not-allowed opacity-40'
+                          : 'cursor-pointer',
                       ].join(' ')}
-                      title={enabled ? '禁用后不参与检索' : '启用以参与检索'}
+                      title={
+                        !canWrite
+                          ? '仅管理员可修改启用状态'
+                          : enabled
+                            ? '禁用后不参与检索'
+                            : '启用以参与检索'
+                      }
                     >
                       <input
                         type="checkbox"
                         role="switch"
                         aria-label={enabled ? `禁用 ${doc.title}` : `启用 ${doc.title}`}
                         checked={enabled}
-                        disabled={switchBusy || patchDoc.isPending}
+                        disabled={!canWrite || switchBusy}
                         onChange={(e) => {
                           void onToggleEnabled(doc.id, e.target.checked, doc.title);
                         }}
@@ -443,7 +470,11 @@ export function KbFilesPanel() {
                       <span
                         className={[
                           'absolute inset-0 rounded-full transition-colors',
-                          enabled ? 'bg-indigo-500' : 'bg-slate-300',
+                          !canWrite
+                            ? 'bg-slate-200'
+                            : enabled
+                              ? 'bg-indigo-500'
+                              : 'bg-slate-300',
                         ].join(' ')}
                       />
                       <span
@@ -456,7 +487,7 @@ export function KbFilesPanel() {
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex flex-wrap items-center gap-2">
-                      {hasMetaSchema ? (
+                      {canWrite && hasMetaSchema ? (
                         <button
                           type="button"
                           className="text-xs text-indigo-600 hover:underline"
