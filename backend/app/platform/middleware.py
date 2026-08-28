@@ -55,10 +55,13 @@ class RequestContextMiddleware:
                 await send(message)
                 return
 
-            if message["type"] == "http.response.body" and not message.get("more_body", False):
-                if not logged:
-                    _log(method, path, status_code, started)
-                    logged = True
+            if (
+                message["type"] == "http.response.body"
+                and not message.get("more_body", False)
+                and not logged
+            ):
+                _log(method, path, status_code, started)
+                logged = True
 
             await send(message)
 

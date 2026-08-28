@@ -204,7 +204,7 @@ class TestProfile:
     async def test_change_password_and_login(
         self, client: AsyncClient, fixture_data: Fixture, auth_headers: dict[str, str]
     ) -> None:
-        new_password = "New-Passw0rd!2026"
+        new_password = f"{fixture_data.password}X"
         bad = await client.post(
             "/api/v1/auth/change-password",
             headers=auth_headers,

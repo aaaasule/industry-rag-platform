@@ -1,0 +1,10 @@
+title = "industry-rag-platform"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "集成测试中的占位口令与夹具，非真实密钥"
+paths = [
+  '''(?i)(^|/)backend/tests/''',
+]
