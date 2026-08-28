@@ -190,6 +190,23 @@ class KnowledgeRepository:
         )
         return list((await self._session.execute(stmt)).scalars().all())
 
+    async def chunk_counts_for_documents(
+        self, tenant_id: uuid.UUID, document_ids: list[uuid.UUID]
+    ) -> dict[uuid.UUID, int]:
+        """未软删文档的非删除 chunk 数量（chunks 表无 soft-delete，计全部行）。"""
+        if not document_ids:
+            return {}
+        stmt = (
+            select(Chunk.document_id, func.count(Chunk.id))
+            .where(
+                Chunk.tenant_id == tenant_id,
+                Chunk.document_id.in_(document_ids),
+            )
+            .group_by(Chunk.document_id)
+        )
+        rows = (await self._session.execute(stmt)).all()
+        return {doc_id: int(cnt) for doc_id, cnt in rows}
+
     async def get_document(self, tenant_id: uuid.UUID, doc_id: uuid.UUID) -> Document | None:
         stmt = select(Document).where(
             Document.id == doc_id,

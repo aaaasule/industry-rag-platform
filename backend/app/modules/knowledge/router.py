@@ -17,6 +17,7 @@ from app.modules.knowledge.schemas import (
     DocumentOut,
     DocumentPageOut,
     DocumentRegisterRequest,
+    DocumentUpdate,
     GrantOut,
     GrantUpsert,
     IndustryProfileCreate,
@@ -235,6 +236,16 @@ async def get_document(
     doc_id: uuid.UUID, claims: ClaimsDep, service: KnowledgeService = ServiceDep
 ) -> DocumentOut:
     return await service.get_document(claims, doc_id)
+
+
+@router.patch("/documents/{doc_id}", response_model=DocumentOut)
+async def update_document(
+    doc_id: uuid.UUID,
+    payload: DocumentUpdate,
+    claims: ClaimsDep,
+    service: KnowledgeService = ServiceDep,
+) -> DocumentOut:
+    return await service.update_document(claims, doc_id, payload)
 
 
 @router.delete("/documents/{doc_id}", status_code=204)

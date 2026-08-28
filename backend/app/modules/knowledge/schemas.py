@@ -63,6 +63,11 @@ class DocumentRegisterRequest(BaseModel):
     metadata: dict[str, Any] = Field(default_factory=dict)
 
 
+class DocumentUpdate(BaseModel):
+    enabled: bool | None = None
+    metadata: dict[str, Any] | None = None
+
+
 class DocumentOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -77,6 +82,8 @@ class DocumentOut(BaseModel):
     error_code: str | None
     error_detail: str | None
     enabled: bool = True
+    chunk_count: int = 0
+    metadata: dict[str, Any] = Field(default_factory=dict)
     created_at: datetime
     updated_at: datetime
 

@@ -375,7 +375,8 @@ export interface paths {
         delete: operations["delete_document_api_v1_documents__doc_id__delete"];
         options?: never;
         head?: never;
-        patch?: never;
+        /** Update Document */
+        patch: operations["update_document_api_v1_documents__doc_id__patch"];
         trace?: never;
     };
     "/api/v1/documents/{doc_id}/reingest": {
@@ -961,6 +962,20 @@ export interface components {
             /** Error Detail */
             error_detail: string | null;
             /**
+             * Enabled
+             * @default true
+             */
+            enabled: boolean;
+            /**
+             * Chunk Count
+             * @default 0
+             */
+            chunk_count: number;
+            /** Metadata */
+            metadata?: {
+                [key: string]: unknown;
+            };
+            /**
              * Created At
              * Format: date-time
              */
@@ -1001,6 +1016,15 @@ export interface components {
             metadata?: {
                 [key: string]: unknown;
             };
+        };
+        /** DocumentUpdate */
+        DocumentUpdate: {
+            /** Enabled */
+            enabled?: boolean | null;
+            /** Metadata */
+            metadata?: {
+                [key: string]: unknown;
+            } | null;
         };
         /** FeedbackCreate */
         FeedbackCreate: {
@@ -2712,6 +2736,41 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_document_api_v1_documents__doc_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                doc_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DocumentUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DocumentOut"];
+                };
             };
             /** @description Validation Error */
             422: {

@@ -26,6 +26,7 @@ from app.modules.knowledge.schemas import (
     DocumentOut,
     DocumentPageOut,
     DocumentRegisterRequest,
+    DocumentUpdate,
     GrantOut,
     GrantUpsert,
     IndustryProfileCreate,
@@ -418,6 +419,19 @@ class KnowledgeService:
         await self._repo.add_document(doc)
         kb.doc_count += 1
 
+        await AuditService(self._repo._session).record(
+            tenant_id=claims.tenant_id,
+            actor_id=claims.user_id,
+            action="document.upload",
+            target_type="document",
+            target_id=doc.id,
+            payload={
+                "kb_id": str(kb.id),
+                "title": doc.title,
+                "mime_type": doc.mime_type,
+            },
+        )
+
         from app.modules.ingestion.service import enqueue_ingest
 
         job_id = await enqueue_ingest(doc.id, claims.tenant_id, self._repo._session)
@@ -464,17 +478,50 @@ class KnowledgeService:
     async def list_documents(self, claims: TokenClaims, kb_id: uuid.UUID) -> list[DocumentOut]:
         await self._require_kb(claims, kb_id, PERM_READ)
         rows = await self._repo.list_documents(claims.tenant_id, kb_id)
-        return [DocumentOut.model_validate(r) for r in rows]
+        counts = await self._repo.chunk_counts_for_documents(
+            claims.tenant_id, [r.id for r in rows]
+        )
+        return [self._document_out(r, chunk_count=counts.get(r.id, 0)) for r in rows]
 
     async def get_document(self, claims: TokenClaims, doc_id: uuid.UUID) -> DocumentOut:
         doc = await self._require_doc(claims, doc_id, PERM_READ)
-        return DocumentOut.model_validate(doc)
+        counts = await self._repo.chunk_counts_for_documents(claims.tenant_id, [doc.id])
+        return self._document_out(doc, chunk_count=counts.get(doc.id, 0))
+
+    async def update_document(
+        self, claims: TokenClaims, doc_id: uuid.UUID, payload: DocumentUpdate
+    ) -> DocumentOut:
+        doc = await self._require_doc(claims, doc_id, PERM_WRITE)
+        data = payload.model_dump(exclude_unset=True)
+        if "enabled" in data and data["enabled"] is not None:
+            doc.enabled = bool(data["enabled"])
+        if "metadata" in data and data["metadata"] is not None:
+            from app.modules.knowledge.metadata_validate import validate_document_metadata
+            from app.modules.profile.service import resolve_effective_profile
+
+            effective = await resolve_effective_profile(self._repo._session, doc.kb_id)
+            validate_document_metadata(data["metadata"], effective.metadata_schema)
+            doc.meta = data["metadata"]
+        await self._repo._session.flush()
+        await self._repo._session.refresh(doc)
+        counts = await self._repo.chunk_counts_for_documents(claims.tenant_id, [doc.id])
+        return self._document_out(doc, chunk_count=counts.get(doc.id, 0))
 
     async def delete_document(self, claims: TokenClaims, doc_id: uuid.UUID) -> None:
         doc = await self._require_doc(claims, doc_id, PERM_WRITE)
+        title = doc.title
+        kb_id = doc.kb_id
         doc.deleted_at = datetime.now(UTC)
-        kb = await self._require_kb(claims, doc.kb_id, PERM_WRITE)
+        kb = await self._require_kb(claims, kb_id, PERM_WRITE)
         kb.doc_count = max(0, kb.doc_count - 1)
+        await AuditService(self._repo._session).record(
+            tenant_id=claims.tenant_id,
+            actor_id=claims.user_id,
+            action="document.delete",
+            target_type="document",
+            target_id=doc_id,
+            payload={"kb_id": str(kb_id), "title": title},
+        )
 
     async def reingest(self, claims: TokenClaims, doc_id: uuid.UUID) -> DocumentCreated:
         doc = await self._require_doc(claims, doc_id, PERM_WRITE)
@@ -543,3 +590,24 @@ class KnowledgeService:
             raise NotFound("文档不存在")
         await self._require_kb(claims, doc.kb_id, permission)
         return doc
+
+    @staticmethod
+    def _document_out(doc: Document, *, chunk_count: int = 0) -> DocumentOut:
+        """在 service 组装 DocumentOut，避免 ORM `metadata` 保留字坑。"""
+        return DocumentOut(
+            id=doc.id,
+            kb_id=doc.kb_id,
+            title=doc.title,
+            mime_type=doc.mime_type,
+            file_size=doc.file_size,
+            checksum=doc.checksum,
+            page_count=doc.page_count,
+            status=doc.status,
+            error_code=doc.error_code,
+            error_detail=doc.error_detail,
+            enabled=doc.enabled,
+            chunk_count=chunk_count,
+            metadata=dict(doc.meta or {}),
+            created_at=doc.created_at,
+            updated_at=doc.updated_at,
+        )
