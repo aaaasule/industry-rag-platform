@@ -7,7 +7,7 @@ import { Select } from '@/components/ui/Select';
 import { useToast } from '@/components/toast/useToast';
 import { ApiError } from '@/lib/http';
 import { KbGrantsPanel } from '../KbGrantsPanel';
-import type { KbChunkRules, KbRetrievalRules, KnowledgeBase } from '../api';
+import type { KbChunkRules, KbRetrievalRules, KnowledgeBase, KbSettings } from '../api';
 import {
   useKnowledgeBase,
   useProfiles,
@@ -77,22 +77,37 @@ function boolOr(v: unknown, fallback: boolean): boolean {
   return typeof v === 'boolean' ? v : fallback;
 }
 
+/** 相对表单基线只提交脏键；两域皆空则返回 null。 */
 function buildSettingsPayload(
   chunk: ChunkForm,
   retrieval: RetrievalForm,
-): { chunk_rules: KbChunkRules; retrieval_rules: KbRetrievalRules } {
-  const retrieval_rules: KbRetrievalRules = {
-    top_k: retrieval.top_k,
-    query_expand: retrieval.query_expand,
-  };
-  if (retrieval.rerank === 'on') retrieval_rules.rerank_enabled = true;
-  else if (retrieval.rerank === 'off') retrieval_rules.rerank_enabled = false;
-  // default：不写入 rerank_enabled，跟随环境
+  baseline: { chunk: ChunkForm; retrieval: RetrievalForm },
+): KbSettings | null {
+  const chunk_rules: KbChunkRules = {};
+  (Object.keys(chunk) as (keyof ChunkForm)[]).forEach((key) => {
+    if (chunk[key] !== baseline.chunk[key]) {
+      (chunk_rules as Record<string, unknown>)[key] = chunk[key];
+    }
+  });
 
-  return {
-    chunk_rules: { ...chunk },
-    retrieval_rules,
-  };
+  const retrieval_rules: KbRetrievalRules = {};
+  if (retrieval.top_k !== baseline.retrieval.top_k) {
+    retrieval_rules.top_k = retrieval.top_k;
+  }
+  if (retrieval.query_expand !== baseline.retrieval.query_expand) {
+    retrieval_rules.query_expand = retrieval.query_expand;
+  }
+  if (retrieval.rerank !== baseline.retrieval.rerank) {
+    if (retrieval.rerank === 'on') retrieval_rules.rerank_enabled = true;
+    else if (retrieval.rerank === 'off') retrieval_rules.rerank_enabled = false;
+    // default：本轮不删除已有 rerank_enabled 键
+  }
+
+  const settings: KbSettings = {};
+  if (Object.keys(chunk_rules).length > 0) settings.chunk_rules = chunk_rules;
+  if (Object.keys(retrieval_rules).length > 0) settings.retrieval_rules = retrieval_rules;
+  if (!settings.chunk_rules && !settings.retrieval_rules) return null;
+  return settings;
 }
 
 export function KbSettingsPanel() {
@@ -101,6 +116,7 @@ export function KbSettingsPanel() {
   const { data: kb } = useKnowledgeBase(kbId);
   const { data: profiles = [] } = useProfiles();
   const updateKb = useUpdateKnowledgeBase(kbId);
+  const canWrite = kb?.my_permission === 'write' || kb?.my_permission === 'manage';
 
   const [kbName, setKbName] = useState('');
   const [kbDescription, setKbDescription] = useState('');
@@ -149,7 +165,7 @@ export function KbSettingsPanel() {
   })();
 
   function saveBasic() {
-    if (!kb) return;
+    if (!kb || !canWrite) return;
     const name = kbName.trim();
     if (!name) {
       toast.error('名称不能为空');
@@ -170,7 +186,7 @@ export function KbSettingsPanel() {
   }
 
   function saveProfile() {
-    if (!profileCode) return;
+    if (!profileCode || !canWrite) return;
     void updateKb
       .mutateAsync({ profile_code: profileCode })
       .then(() => toast.success(`已绑定模板：${profileCode}`))
@@ -180,7 +196,7 @@ export function KbSettingsPanel() {
   }
 
   function saveRules() {
-    if (!kb) return;
+    if (!kb || !canWrite) return;
     if (retrieval.top_k < 1 || retrieval.top_k > 50) {
       toast.error('召回 Top-K 须在 1–50');
       return;
@@ -189,7 +205,11 @@ export function KbSettingsPanel() {
       toast.error('切块参数无效');
       return;
     }
-    const settings = buildSettingsPayload(chunk, retrieval);
+    const settings = buildSettingsPayload(chunk, retrieval, rulesFromKb(kb));
+    if (!settings) {
+      toast.info('无变更');
+      return;
+    }
     void updateKb
       .mutateAsync({ settings })
       .then(() => {
@@ -208,6 +228,7 @@ export function KbSettingsPanel() {
         <p className="mt-1 text-sm text-slate-500">
           管理知识库基本信息、行业模板，以及本库对切块/召回的覆盖参数。改绑模板时会保留本库
           settings。
+          {!canWrite ? ' 当前为只读权限。' : null}
         </p>
       </header>
 
@@ -218,6 +239,7 @@ export function KbSettingsPanel() {
             label="名称"
             value={kbName}
             maxLength={200}
+            disabled={!canWrite}
             onChange={(e) => setKbName(e.target.value)}
             placeholder="知识库名称"
           />
@@ -231,6 +253,7 @@ export function KbSettingsPanel() {
               className="field-input resize-y"
               value={kbDescription}
               maxLength={2000}
+              disabled={!canWrite}
               placeholder="可选，简要说明该库用途"
               onChange={(e) => setKbDescription(e.target.value)}
             />
@@ -246,7 +269,7 @@ export function KbSettingsPanel() {
         <div className="flex justify-end gap-2 border-t border-slate-100 pt-4">
           <Button
             variant="secondary"
-            disabled={!basicDirty || !kbName.trim() || updateKb.isPending}
+            disabled={!canWrite || !basicDirty || !kbName.trim() || updateKb.isPending}
             onClick={saveBasic}
           >
             {updateKb.isPending ? '保存中…' : '保存'}
@@ -260,6 +283,7 @@ export function KbSettingsPanel() {
           <Select
             label="模板"
             value={profileCode}
+            disabled={!canWrite}
             onChange={(e) => setProfileCode(e.target.value)}
             className="min-w-[240px] flex-1"
           >
@@ -272,7 +296,7 @@ export function KbSettingsPanel() {
           </Select>
           <Button
             variant="secondary"
-            disabled={!profileCode || !profileDirty || updateKb.isPending}
+            disabled={!canWrite || !profileCode || !profileDirty || updateKb.isPending}
             onClick={saveProfile}
           >
             保存模板
@@ -289,7 +313,7 @@ export function KbSettingsPanel() {
           初始值来自当前生效规则（KB settings &gt; 模板 &gt; 默认）。保存后写入本库 settings，不自动重新解析。
         </p>
 
-        <fieldset className="space-y-3">
+        <fieldset className="space-y-3" disabled={!canWrite}>
           <legend className="text-xs font-medium uppercase tracking-wider text-slate-400">
             切块 chunk_rules
           </legend>
@@ -335,7 +359,7 @@ export function KbSettingsPanel() {
           </label>
         </fieldset>
 
-        <fieldset className="space-y-3">
+        <fieldset className="space-y-3" disabled={!canWrite}>
           <legend className="text-xs font-medium uppercase tracking-wider text-slate-400">
             召回 retrieval_rules
           </legend>
@@ -384,7 +408,7 @@ export function KbSettingsPanel() {
           </p>
           <Button
             variant="secondary"
-            disabled={!rulesDirty || updateKb.isPending}
+            disabled={!canWrite || !rulesDirty || updateKb.isPending}
             onClick={saveRules}
           >
             {updateKb.isPending ? '保存中…' : '保存切块与召回'}

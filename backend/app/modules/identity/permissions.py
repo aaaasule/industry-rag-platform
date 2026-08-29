@@ -20,6 +20,41 @@ def permission_covers(have: str, need: str) -> bool:
     return PERM_RANK.get(have, 0) >= PERM_RANK.get(need, 99)
 
 
+async def resolve_kb_permission(
+    session: AsyncSession,
+    *,
+    tenant_id: uuid.UUID,
+    user_id: uuid.UUID,
+    role: str,
+    kb: KnowledgeBase,
+    grant_map: dict[uuid.UUID, str] | None = None,
+) -> str | None:
+    """当前用户对单个 KB 的有效权限；与 visible_kb_ids 规则同源。"""
+    if kb.tenant_id != tenant_id or kb.deleted_at is not None:
+        return None
+    if role in (ROLE_OWNER, ROLE_ADMIN):
+        return PERM_MANAGE
+    if kb.created_by == user_id:
+        return PERM_MANAGE
+    if grant_map is not None:
+        granted = grant_map.get(kb.id)
+    else:
+        granted = (
+            await session.execute(
+                select(KbGrant.permission).where(
+                    KbGrant.tenant_id == tenant_id,
+                    KbGrant.user_id == user_id,
+                    KbGrant.kb_id == kb.id,
+                )
+            )
+        ).scalar_one_or_none()
+    if granted:
+        return granted
+    if kb.visibility == "tenant":
+        return PERM_READ
+    return None
+
+
 async def visible_kb_ids(
     session: AsyncSession,
     *,
@@ -66,16 +101,15 @@ async def visible_kb_ids(
 
     out: list[uuid.UUID] = []
     for kb in kbs:
-        if kb.created_by == user_id:
-            # 创建者隐式 manage
-            if permission_covers(PERM_MANAGE, permission):
-                out.append(kb.id)
-            continue
-        granted = grant_map.get(kb.id)
-        if granted and permission_covers(granted, permission):
-            out.append(kb.id)
-            continue
-        if kb.visibility == "tenant" and permission == PERM_READ:
+        have = await resolve_kb_permission(
+            session,
+            tenant_id=tenant_id,
+            user_id=user_id,
+            role=role,
+            kb=kb,
+            grant_map=grant_map,
+        )
+        if have and permission_covers(have, permission):
             out.append(kb.id)
     return out
 

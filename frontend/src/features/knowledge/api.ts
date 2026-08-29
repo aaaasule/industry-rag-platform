@@ -45,6 +45,7 @@ export interface KnowledgeBase {
   settings?: KbSettings;
   effective_chunk_rules?: KbChunkRules;
   effective_retrieval_rules?: KbRetrievalRules;
+  my_permission?: 'read' | 'write' | 'manage' | null;
   created_at: string;
 }
 

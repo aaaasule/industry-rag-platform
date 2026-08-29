@@ -5,7 +5,10 @@ from __future__ import annotations
 import pytest
 from httpx import AsyncClient
 
-from app.modules.knowledge.settings_validate import validate_kb_settings
+from app.modules.knowledge.settings_validate import (
+    shallow_merge_settings,
+    validate_kb_settings,
+)
 from app.modules.profile.schemas import DEFAULT_RETRIEVAL_RULES
 from app.modules.profile.service import merge_retrieval_rules
 from app.platform.errors import UnprocessableState
@@ -45,6 +48,17 @@ def test_validate_kb_settings_allows_whitelist() -> None:
     )
     assert out["chunk_rules"]["max_tokens"] == 256
     assert out["retrieval_rules"]["query_expand"] is True
+
+
+def test_shallow_merge_settings_preserves_other_domain() -> None:
+    existing = {
+        "chunk_rules": {"max_tokens": 256},
+        "retrieval_rules": {"top_k": 12, "query_expand": True},
+    }
+    incoming = validate_kb_settings({"chunk_rules": {"min_tokens": 40}})
+    merged = shallow_merge_settings(existing, incoming)
+    assert merged["chunk_rules"] == {"max_tokens": 256, "min_tokens": 40}
+    assert merged["retrieval_rules"] == {"top_k": 12, "query_expand": True}
 
 
 def test_query_expand_defaults_false() -> None:
@@ -139,3 +153,39 @@ async def test_patch_kb_settings_invalid_value_422_preserves_prior(
     assert got.status_code == 200, got.text
     assert got.json()["settings"]["chunk_rules"]["max_tokens"] == 256
     assert got.json()["effective_chunk_rules"]["max_tokens"] == 256
+
+
+async def test_patch_kb_settings_shallow_merge_preserves_retrieval(
+    client: AsyncClient, auth_headers: dict[str, str], fixture_data: Fixture
+) -> None:
+    create = await client.post(
+        "/api/v1/knowledge-bases",
+        headers=auth_headers,
+        json={"name": "浅合并库"},
+    )
+    assert create.status_code == 201, create.text
+    kb_id = create.json()["id"]
+
+    first = await client.patch(
+        f"/api/v1/knowledge-bases/{kb_id}",
+        headers=auth_headers,
+        json={
+            "settings": {
+                "chunk_rules": {"max_tokens": 256},
+                "retrieval_rules": {"top_k": 12, "query_expand": True},
+            }
+        },
+    )
+    assert first.status_code == 200, first.text
+
+    second = await client.patch(
+        f"/api/v1/knowledge-bases/{kb_id}",
+        headers=auth_headers,
+        json={"settings": {"chunk_rules": {"min_tokens": 40}}},
+    )
+    assert second.status_code == 200, second.text
+    settings = second.json()["settings"]
+    assert settings["chunk_rules"]["max_tokens"] == 256
+    assert settings["chunk_rules"]["min_tokens"] == 40
+    assert settings["retrieval_rules"]["top_k"] == 12
+    assert settings["retrieval_rules"]["query_expand"] is True

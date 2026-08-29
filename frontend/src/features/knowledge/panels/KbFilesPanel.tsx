@@ -8,7 +8,6 @@ import { Skeleton } from '@/components/Skeleton';
 import { DocumentStatusBadge } from '@/components/StatusBadge';
 import { Button } from '@/components/ui/Button';
 import { useToast } from '@/components/toast/useToast';
-import { useSession } from '@/features/auth/hooks';
 import { BATCH_DOCUMENTS_MAX, IN_PROGRESS, type DocumentItem } from '../api';
 import {
   useBatchDocuments,
@@ -31,10 +30,8 @@ function formatBytes(n: number): string {
 export function KbFilesPanel() {
   const { kbId = '' } = useParams();
   const toast = useToast();
-  const { session } = useSession();
-  const role = session?.current_tenant.role;
-  const canWrite = role === 'owner' || role === 'admin';
   const { data: kb } = useKnowledgeBase(kbId);
+  const canWrite = kb?.my_permission === 'write' || kb?.my_permission === 'manage';
   const { data: profiles = [] } = useProfiles();
   const { data: docs = [], isLoading } = useDocuments(kbId);
   const upload = useUploadDocument(kbId);
