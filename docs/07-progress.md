@@ -7,10 +7,31 @@
 
 | 项     | 值                                                                                        |
 | ----- | ---------------------------------------------------------------------------------------- |
-| 阶段    | **M0–M5 + P1 完成**；**M6 知识库运营与检索智能化进行中**（W1–W4：enabled/batch/settings/rewrite/expand/meta/seed） |
-| 下一里程碑 | **M6 收口**（行业 golden 换真实 UUID 后本地回归；W4 PR） |
-| 已落地   | 既有 M0–M5/P1/壳层/工作台；M6：文档启用与批量、KB settings、指代改写与查询扩展、元数据抽屉、行业种子与 golden 占位 |
+| 阶段    | **M0–M6 + P1 完成**（M6：知识库运营与检索智能化；验收修复 `my_permission` / settings 浅合并） |
+| 下一里程碑 | **待产品拍板**：行业 golden 换真实 UUID 本地回归；或 Rerank 体验；或部署/SSO 方向 |
+| 已落地   | 既有 M0–M5/P1/壳层/工作台；M6 W1–W4（PR [#35](https://github.com/aaaasule/industry-rag-platform/pull/35)）+ 验收修复（PR [#36](https://github.com/aaaasule/industry-rag-platform/pull/36)） |
 | 阻塞项   | 行业 golden 的 `kb_id` / `expected_document_ids` 仍为 PLACEHOLDER，需本地 seed 真实语料后替换（**不**绑入 CI） |
+
+---
+
+## 2026-08-29（日进度 · M6 合入与验收修复）
+
+### 结论
+
+M6 全量已合入 `main`（PR [#35](https://github.com/aaaasule/industry-rag-platform/pull/35)，`f893b34`）。同日合入验收修复包（PR [#36](https://github.com/aaaasule/industry-rag-platform/pull/36)，`7b90ed8`）：写权限与后端对齐、settings 不再误整包冻结。
+
+### 当日完成
+
+| # | 事项 | 说明 |
+| --- | --- | --- |
+| 1 | M6 W1–W4 | 见下节交付一览；设计书 [`2026-08-28-m6-knowledge-ops-retrieval-design.md`](./superpowers/specs/2026-08-28-m6-knowledge-ops-retrieval-design.md) |
+| 2 | 验收修复 | `KnowledgeBaseOut.my_permission`；前端 `canWrite` 按 `write\|manage`；PATCH settings 域内浅合并 + 脏键提交；设计/计划 [`2026-08-29-m6-permission-settings-fix-design.md`](./superpowers/specs/2026-08-29-m6-permission-settings-fix-design.md) |
+
+### 下一步（待产品拍板）
+
+1. 行业 golden 换真实 UUID 后本地 `evaluate.py`（仍不绑 CI）
+2. Rerank 默认开 / Playground 与对比报告体验
+3. 首发行业与语料、部署形态、是否 SSO
 
 ---
 
@@ -18,7 +39,7 @@
 
 ### 结论
 
-M6（设计书 [`2026-08-28-m6-knowledge-ops-retrieval-design.md`](./superpowers/specs/2026-08-28-m6-knowledge-ops-retrieval-design.md)）四周能力已落到分支 `feat/m6-knowledge-ops`：运营面（enabled/batch/审计）、KB 调参、查询理解、行业种子与评测占位。CI 仍只跑 `golden.ci.jsonl`，阈值不变。
+M6（设计书 [`2026-08-28-m6-knowledge-ops-retrieval-design.md`](./superpowers/specs/2026-08-28-m6-knowledge-ops-retrieval-design.md)）四周能力已合入 `main`（PR [#35](https://github.com/aaaasule/industry-rag-platform/pull/35)）：运营面（enabled/batch/审计）、KB 调参、查询理解、行业种子与评测占位。CI 仍只跑 `golden.ci.jsonl`，阈值不变。
 
 ### W1–W4 交付一览
 
