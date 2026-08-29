@@ -56,6 +56,19 @@ def validate_kb_settings(raw: dict[str, Any]) -> dict[str, Any]:
     return out
 
 
+def shallow_merge_settings(existing: dict[str, Any], incoming: dict[str, Any]) -> dict[str, Any]:
+    """按域浅合并 chunk_rules / retrieval_rules；未出现的域保持原样。"""
+    out = dict(existing)
+    for domain in ("chunk_rules", "retrieval_rules"):
+        if domain not in incoming:
+            continue
+        base = dict(out.get(domain) or {}) if isinstance(out.get(domain), dict) else {}
+        patch = incoming[domain] if isinstance(incoming[domain], dict) else {}
+        base.update(patch)
+        out[domain] = base
+    return out
+
+
 def _validate_chunk_rules(chunk: dict[str, Any]) -> dict[str, Any]:
     try:
         validated = ChunkRulesConfig.model_validate(chunk)

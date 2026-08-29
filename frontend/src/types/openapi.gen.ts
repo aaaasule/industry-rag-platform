@@ -1285,6 +1285,11 @@ export interface components {
                 [key: string]: unknown;
             };
             /**
+             * My Permission
+             * @description 当前用户对本库的有效权限
+             */
+            my_permission?: ("read" | "write" | "manage") | null;
+            /**
              * Created At
              * Format: date-time
              */
@@ -1305,7 +1310,7 @@ export interface components {
             profile_code?: string | null;
             /**
              * Settings
-             * @description KB 覆盖：chunk_rules / retrieval_rules 白名单
+             * @description KB 覆盖：chunk_rules / retrieval_rules 白名单；域内浅合并，未传域保留
              */
             settings?: {
                 [key: string]: unknown;
