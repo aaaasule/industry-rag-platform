@@ -63,9 +63,7 @@ async def test_owner_my_permission_manage(
     assert create.status_code == 201, create.text
     assert create.json()["my_permission"] == "manage"
 
-    got = await client.get(
-        f"/api/v1/knowledge-bases/{create.json()['id']}", headers=auth_headers
-    )
+    got = await client.get(f"/api/v1/knowledge-bases/{create.json()['id']}", headers=auth_headers)
     assert got.status_code == 200
     assert got.json()["my_permission"] == "manage"
 
